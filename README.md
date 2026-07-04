@@ -9,34 +9,43 @@
 npm install
 ```
 
-### 2. API 키 설정 (AI 기능용)
-`.env.example` 를 `.env` 로 복사하고 Anthropic API 키를 넣으세요.
-```bash
-cp .env.example .env
+### 2. 환경변수 설정 (`.env`)
+`.env` 파일에 아래 3개 값을 채웁니다. (`.env.example` 참고)
 ```
+ANTHROPIC_API_KEY=sk-ant-...           # AI 문서 생성
+VITE_SUPABASE_URL=https://moudhssidpgbpeuihzsr.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → API → anon public
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-키 발급: https://console.anthropic.com/settings/keys
+- Anthropic 키: https://console.anthropic.com/settings/keys — Vite 프록시가 서버 쪽에서 붙여 브라우저에 노출되지 않음.
+- Supabase `anon` 키: 프론트엔드 노출 OK(RLS 로 보호). `VITE_` 접두사 필수.
 
-> 키는 Vite 개발 서버(프록시)가 서버 쪽에서 붙이므로 브라우저 번들에 노출되지 않습니다.
-> 키가 없어도 화면/UI는 뜨지만, 놀이안·서류 생성 버튼을 누르면 오류가 납니다.
+### 3. Supabase 준비 (인증 + DB)
+1. **테이블 생성** — 대시보드 → SQL Editor 에서 [`supabase/schema.sql`](supabase/schema.sql) 전체를 실행. (`documents` 테이블 + RLS 정책)
+2. **이메일 로그인** — Authentication → Providers → Email 활성화. (빠른 테스트를 위해 "Confirm email"을 끄면 가입 즉시 로그인됩니다. 켜두면 확인 메일 링크를 눌러야 함)
+3. **소셜 로그인** — Authentication → Providers 에서 **Google**, **Kakao** 활성화 후 각 콘솔의 Client ID/Secret 입력.
+   - 각 공급자 콘솔의 **Redirect URI** 에 `https://moudhssidpgbpeuihzsr.supabase.co/auth/v1/callback` 등록.
+4. **Redirect URL 허용** — Authentication → URL Configuration → Redirect URLs 에 `http://localhost:5173` (배포 시 실제 도메인) 추가.
 
-### 3. 개발 서버 실행
+> 데이터 저장: 로그인한 사용자가 6종 문서(놀이활동·보육일지·관찰일지·알림장·적응일지·상담일지)를 생성하면
+> 자동으로 `documents` 테이블에 저장되고, 다음 로그인 시 다시 불러옵니다. 각자 본인 데이터만 접근 가능(RLS).
+
+### 4. 개발 서버 실행
 ```bash
 npm run dev
 ```
 브라우저에서 http://localhost:5173 자동 오픈.
 
-### 4. 프로덕션 빌드
+### 5. 프로덕션 빌드
 ```bash
 npm run build      # dist/ 생성
 npm run preview    # 빌드 결과 미리보기
 ```
 
 ## 구조
-- `민트쌤.jsx` — 앱 전체 (단일 컴포넌트)
+- `민트쌤.jsx` — 앱 전체 (단일 컴포넌트) · 인증/DB 연동 포함
 - `src/main.jsx` — React 진입점
+- `src/supabaseClient.js` — Supabase 클라이언트 (env 로 URL/키 주입)
+- `supabase/schema.sql` — DB 테이블 + RLS 정책
 - `index.html` — HTML 셸
 - `vite.config.js` — `/api/anthropic` → `api.anthropic.com` 프록시 (API 키 주입)
 

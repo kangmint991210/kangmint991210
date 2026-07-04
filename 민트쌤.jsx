@@ -2,8 +2,18 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Send, Loader2, Target, Package, ListOrdered, ShieldCheck,
   Clock, MapPin, RotateCcw, Copy, Check, CalendarDays, Eye, Heart,
-  ChevronDown,
+  ChevronDown, LogOut,
 } from "lucide-react";
+import { supabase, supabaseReady } from "./src/supabaseClient.js";
+
+const EMPTY_THREADS = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
+const PENDING_PLAN_KEY = "mint_pending_plan";
+// Supabase user → 앱에서 쓰는 형태로 변환
+const mapUser = (u) => ({
+  id: u.id,
+  email: u.email,
+  name: u.user_metadata?.name || u.user_metadata?.full_name || (u.email ? u.email.split("@")[0] : "선생님"),
+});
 
 const DOMAINS = [
   { key: "신체운동·건강", color: "#FF9AA2", emoji: "🤸" },
@@ -224,10 +234,13 @@ const CFG = {
 export default function MintSsaem() {
   const [mode, setMode] = useState("play");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [view, setView] = useState("landing");   // landing | app
+  const [view, setView] = useState("landing");   // landing | auth | app
   const [plan, setPlan] = useState("free");        // free | pro | max
   const [showPricing, setShowPricing] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // login | signup
+  const [pendingPlan, setPendingPlan] = useState("free"); // 로그인 후 적용할 플랜
+  const [user, setUser] = useState(null);            // 로그인한 사용자
   const [form, setForm] = useState({
     age: "만 3세", domains: [], place: "실내", duration: "20분", theme: "", materials: "",
     child: "", klass: "", date: "", setting: "", memo: "",
@@ -255,6 +268,62 @@ export default function MintSsaem() {
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  // 저장된 문서를 DB에서 불러와 메뉴별 대화로 복원
+  async function loadDocs(userId) {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    if (error || !data) return;
+    const next = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
+    for (const d of data) {
+      if (!next[d.kind]) continue;
+      if (d.user_text) next[d.kind].push({ role: "user", text: d.user_text });
+      next[d.kind].push({ role: "bot", kind: d.kind, text: d.payload?.reply || "완성했어요!", payload: d.payload });
+    }
+    setThreads(next);
+  }
+
+  // Supabase 세션 감지 — 로그인/OAuth 복귀 시 앱으로 진입
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(mapUser(session.user));
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") loadDocs(session.user.id);
+        if (event === "SIGNED_IN") {
+          let pend = "free";
+          try { pend = localStorage.getItem(PENDING_PLAN_KEY) || "free"; } catch {}
+          try { localStorage.removeItem(PENDING_PLAN_KEY); } catch {}
+          setPlan(pend);
+          setView("app");
+        }
+      } else {
+        setUser(null);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // 생성된 문서를 DB에 저장
+  async function saveDocument(kind, userText, formSnapshot, payload) {
+    if (!supabase || !user) return;
+    try {
+      await supabase.from("documents").insert({
+        user_id: user.id, kind, user_text: userText, form: formSnapshot, payload,
+      });
+    } catch { /* 저장 실패는 조용히 무시 (화면 흐름 유지) */ }
+  }
+
+  async function logout() {
+    try { await supabase?.auth.signOut(); } catch {}
+    setUser(null);
+    setThreads(EMPTY_THREADS);
+    setView("landing");
+  }
 
   async function send(rawText) {
     if (loading) return;
@@ -291,6 +360,7 @@ export default function MintSsaem() {
         ? { role: "bot", kind: mode, text: p.reply || "완성했어요!", payload: p }
         : { role: "bot", kind: mode, text: clean || "잠시 후 다시 시도해 주세요." };
       setThreads((t) => ({ ...t, [mode]: [...t[mode], bot] }));
+      if (p) saveDocument(mode, display, form, p); // 생성 성공 시 DB 저장
     } catch {
       setThreads((t) => ({ ...t, [mode]: [...t[mode], { role: "bot", kind: mode, text: "연결에 문제가 생겼어요. 잠시 후 다시 보내주세요. 🥲" }] }));
     } finally {
@@ -300,13 +370,31 @@ export default function MintSsaem() {
 
   const reset = () => setThreads((t) => ({ ...t, [mode]: [] }));
   const choosePlan = (key) => { setPlan(key); setShowPricing(false); setShowPaywall(false); setView("app"); };
+  // 랜딩의 시작/요금제 버튼 → 로그인 페이지로. 선택한 플랜은 로그인 후 적용.
+  // 이미 로그인돼 있으면 바로 앱으로.
+  const goAuth = (key = "free", m = "login") => {
+    try { localStorage.setItem(PENDING_PLAN_KEY, key); } catch {}
+    setPendingPlan(key); setShowPricing(false); setShowPaywall(false);
+    if (user) { setPlan(key); setView("app"); return; }
+    setAuthMode(m); setView("auth");
+  };
 
   if (view === "landing") {
     return (
       <>
-        <Landing onStart={() => setView("app")} onOpenPricing={() => setShowPricing(true)} onChoose={choosePlan} />
-        {showPricing && <PricingModal plan={plan} onChoose={choosePlan} onClose={() => setShowPricing(false)} />}
+        <Landing onStart={() => goAuth("free")} onOpenPricing={() => setShowPricing(true)} onChoose={(key) => goAuth(key)} />
+        {showPricing && <PricingModal plan={plan} onChoose={(key) => goAuth(key)} onClose={() => setShowPricing(false)} />}
       </>
+    );
+  }
+
+  if (view === "auth") {
+    return (
+      <AuthPage
+        mode={authMode}
+        setMode={setAuthMode}
+        onHome={() => setView("landing")}
+      />
     );
   }
 
@@ -316,13 +404,13 @@ export default function MintSsaem() {
       <style>{css}</style>
 
       <header style={styles.header}>
-        <div style={styles.brand}>
+        <button style={styles.brandBtn} onClick={() => setView("landing")} title="홈으로 이동">
           <span style={styles.logoMark}><Mascot size={38} /></span>
-          <div>
+          <div style={{ textAlign: "left" }}>
             <div style={styles.title}>민트쌤</div>
             <div style={styles.subtitle}>놀이부터 서류까지, 같이 해요 🌿</div>
           </div>
-        </div>
+        </button>
         <div style={styles.headRight}>
           {plan === "max" ? (
             <span style={styles.planPro}>✨ 맥스</span>
@@ -334,6 +422,11 @@ export default function MintSsaem() {
           {messages.length > 0 && (
             <button style={styles.resetBtn} onClick={reset} title="이 메뉴 새로 시작">
               <RotateCcw size={14} /> 새로
+            </button>
+          )}
+          {user && (
+            <button style={styles.resetBtn} onClick={logout} title="로그아웃">
+              <LogOut size={14} /> 로그아웃
             </button>
           )}
         </div>
@@ -501,6 +594,173 @@ function PlanCards({ plan, onChoose }) {
       })}
     </div>
   );
+}
+
+/* ---------- 로그인 / 회원가입 (Supabase) ---------- */
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+function KakaoIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 256 256" aria-hidden>
+      <path fill="#000000" d="M128 36C70.56 36 24 72.89 24 118.4c0 29.4 19.48 55.2 48.77 69.73-1.61 5.7-10.34 35.7-10.69 38.06 0 0-.21 1.79.95 2.47 1.16.68 2.52.15 2.52.15 3.3-.46 38.25-25.01 44.3-29.28 5.83.82 11.83 1.25 17.85 1.25 57.44 0 104-36.89 104-82.4S185.44 36 128 36z" />
+    </svg>
+  );
+}
+
+function AuthPage({ mode, setMode, onHome }) {
+  const isSignup = mode === "signup";
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const switchMode = (m) => { setErr(""); setInfo(""); setPw(""); setPw2(""); setMode(m); };
+
+  async function submit(e) {
+    e?.preventDefault?.();
+    setErr(""); setInfo("");
+    if (!supabaseReady) { setErr("Supabase 설정이 필요해요. .env 에 URL/anon 키를 넣어주세요."); return; }
+    const mail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { setErr("올바른 이메일을 입력해 주세요."); return; }
+    if (pw.length < 6) { setErr("비밀번호는 6자 이상이어야 해요."); return; }
+
+    setBusy(true);
+    try {
+      if (isSignup) {
+        if (!name.trim()) { setErr("이름(닉네임)을 입력해 주세요."); return; }
+        if (pw !== pw2) { setErr("비밀번호가 서로 달라요."); return; }
+        const { data, error } = await supabase.auth.signUp({
+          email: mail,
+          password: pw,
+          options: { data: { name: name.trim() }, emailRedirectTo: window.location.origin },
+        });
+        if (error) { setErr(translateAuthError(error.message)); return; }
+        // 이메일 확인이 켜져 있으면 세션이 없음 → 안내. 꺼져 있으면 세션 생성 → 리스너가 앱으로 진입.
+        if (!data.session) setInfo("확인 메일을 보냈어요. 메일의 링크를 눌러 가입을 완료해 주세요. 📩");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email: mail, password: pw });
+      if (error) { setErr(translateAuthError(error.message)); return; }
+      // 성공 시 onAuthStateChange(SIGNED_IN) 가 앱 진입 처리
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function social(provider) {
+    setErr(""); setInfo("");
+    if (!supabaseReady) { setErr("Supabase 설정이 필요해요. .env 에 URL/anon 키를 넣어주세요."); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) { setBusy(false); setErr(translateAuthError(error.message)); }
+    // 정상 시 공급자 페이지로 리다이렉트됨
+  }
+
+  return (
+    <div style={styles.landing}>
+      <style>{css}</style>
+      <nav style={styles.landNav}>
+        <button style={styles.brandBtn} onClick={onHome} title="홈으로 이동">
+          <span style={styles.logoMarkSm}><Mascot size={30} /></span>
+          <div style={styles.title}>민트쌤</div>
+        </button>
+      </nav>
+
+      <section style={styles.authWrap}>
+        <div style={styles.authCard}>
+          <div style={styles.modalMascot}><Mascot size={54} /></div>
+          <div style={styles.authTitle}>{isSignup ? "회원가입" : "로그인"}</div>
+          <div style={styles.authSub}>
+            {isSignup ? "간단히 가입하고 민트쌤을 시작해요 🌿" : "다시 오셨네요! 반가워요 🌿"}
+          </div>
+
+          {!supabaseReady && (
+            <div style={styles.authError}>
+              Supabase 설정이 아직 안 됐어요.<br />.env 에 URL과 anon 키를 넣고 다시 실행해 주세요.
+            </div>
+          )}
+
+          <form style={styles.authForm} onSubmit={submit}>
+            {isSignup && (
+              <div style={styles.authField}>
+                <label style={styles.authLabel}>이름 · 닉네임</label>
+                <input style={styles.authInput} value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="민트쌤" autoComplete="name" />
+              </div>
+            )}
+            <div style={styles.authField}>
+              <label style={styles.authLabel}>이메일</label>
+              <input style={styles.authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="teacher@example.com" autoComplete="email" />
+            </div>
+            <div style={styles.authField}>
+              <label style={styles.authLabel}>비밀번호</label>
+              <input style={styles.authInput} type="password" value={pw} onChange={(e) => setPw(e.target.value)}
+                placeholder="6자 이상" autoComplete={isSignup ? "new-password" : "current-password"} />
+            </div>
+            {isSignup && (
+              <div style={styles.authField}>
+                <label style={styles.authLabel}>비밀번호 확인</label>
+                <input style={styles.authInput} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)}
+                  placeholder="한 번 더 입력" autoComplete="new-password" />
+              </div>
+            )}
+
+            {err && <div style={styles.authError}>{err}</div>}
+            {info && <div style={styles.authInfo}>{info}</div>}
+
+            <button type="submit" style={styles.authSubmit} disabled={busy}>
+              {busy ? <Loader2 size={16} className="spin" /> : (isSignup ? "가입하고 시작하기" : "로그인")}
+            </button>
+          </form>
+
+          {/* 소셜 간편 로그인 */}
+          <div style={styles.orRow}>
+            <span style={styles.orLine} /><span style={styles.orText}>또는 간편 로그인</span><span style={styles.orLine} />
+          </div>
+          <button style={styles.kakaoBtn} onClick={() => social("kakao")} disabled={busy}>
+            <KakaoIcon /> 카카오로 시작하기
+          </button>
+          <button style={styles.googleBtn} onClick={() => social("google")} disabled={busy}>
+            <GoogleIcon /> 구글로 시작하기
+          </button>
+
+          <div style={styles.authDivider}>
+            {isSignup ? "이미 계정이 있으신가요?" : "아직 회원이 아니신가요?"}
+          </div>
+          <button style={styles.authToggle}
+            onClick={() => switchMode(isSignup ? "login" : "signup")} disabled={busy}>
+            {isSignup ? "로그인하러 가기" : "회원가입"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Supabase 인증 에러 메시지를 한국어로 순화
+function translateAuthError(msg = "") {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login")) return "이메일 또는 비밀번호가 올바르지 않아요.";
+  if (m.includes("already registered") || m.includes("already exists")) return "이미 가입된 이메일이에요. 로그인해 주세요.";
+  if (m.includes("email not confirmed")) return "이메일 확인이 필요해요. 받은 메일의 링크를 눌러주세요.";
+  if (m.includes("password")) return "비밀번호를 확인해 주세요. (6자 이상)";
+  if (m.includes("provider is not enabled")) return "이 소셜 로그인은 아직 Supabase에서 활성화되지 않았어요.";
+  return msg || "문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
 }
 
 function ModalShell({ children, onClose }) {
@@ -1075,8 +1335,9 @@ const styles = {
     display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto",
     backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px",
   },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px 8px" },
+  header: { position: "relative", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px 8px" },
   brand: { display: "flex", alignItems: "center", gap: 11 },
+  brandBtn: { display: "flex", alignItems: "center", gap: 11, background: "transparent", border: "none", padding: 0, cursor: "pointer" },
   logoMark: { width: 52, height: 52, borderRadius: 18, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 4px 0 #CDEBDF" },
   title: { fontSize: 23, fontFamily: DISPLAY, color: "#2E9E86", lineHeight: 1 },
   subtitle: { fontSize: 12.5, color: "#7A9A90", marginTop: 3 },
@@ -1208,6 +1469,25 @@ const styles = {
   logoMarkSm: { width: 44, height: 44, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 3px 0 #CDEBDF" },
   navGhost: { fontSize: 13, fontWeight: 700, color: "#2E9E86", background: "transparent", border: "none", padding: "9px 12px", borderRadius: 999 },
   navCta: { fontSize: 13, fontWeight: 800, color: "#fff", background: MINT, border: "none", padding: "9px 16px", borderRadius: 999, boxShadow: `0 3px 0 ${MINT_STRONG}` },
+
+  authWrap: { display: "flex", justifyContent: "center", padding: "24px 18px 40px" },
+  authCard: { width: "100%", maxWidth: 420, background: "#fff", borderRadius: 24, padding: "28px 24px 22px", boxShadow: "0 10px 40px rgba(46,74,66,0.12)", textAlign: "center" },
+  authTitle: { fontFamily: DISPLAY, fontSize: 24, color: "#2E4A42", marginTop: 6 },
+  authSub: { fontSize: 13.5, color: "#5E7168", marginTop: 6, marginBottom: 18 },
+  authForm: { display: "flex", flexDirection: "column", gap: 13, textAlign: "left" },
+  authField: { display: "flex", flexDirection: "column", gap: 6 },
+  authLabel: { fontSize: 12.5, fontWeight: 700, color: "#5E7168", paddingLeft: 4 },
+  authInput: { fontSize: 14.5, padding: "13px 15px", borderRadius: 14, border: "1.5px solid #DCEEE7", background: "#F7FCFA", color: INK, outline: "none" },
+  authError: { fontSize: 13, fontWeight: 700, color: "#D9645C", background: "#FCEEED", borderRadius: 12, padding: "10px 12px", textAlign: "center" },
+  authSubmit: { marginTop: 4, fontSize: 15, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "14px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
+  authDivider: { fontSize: 13, color: "#7A9A90", marginTop: 20, marginBottom: 10 },
+  authToggle: { width: "100%", fontSize: 14.5, fontWeight: 800, color: "#1F6B5A", background: "#E5F7F0", border: "none", borderRadius: 14, padding: "13px", boxShadow: "0 3px 0 #CDEEDD" },
+  authInfo: { fontSize: 13, fontWeight: 700, color: "#2E7D6B", background: "#E5F7F0", borderRadius: 12, padding: "10px 12px", textAlign: "center", lineHeight: 1.5 },
+  orRow: { display: "flex", alignItems: "center", gap: 10, margin: "18px 0 12px" },
+  orLine: { flex: 1, height: 1, background: "#DCEEE7" },
+  orText: { fontSize: 12, color: "#8AA79D", fontWeight: 700, whiteSpace: "nowrap" },
+  kakaoBtn: { width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#191600", background: "#FEE500", border: "none", borderRadius: 14, padding: "13px", marginBottom: 10 },
+  googleBtn: { width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#3C4043", background: "#fff", border: "1.5px solid #DADCE0", borderRadius: 14, padding: "13px" },
   hero: { textAlign: "center", padding: "22px 22px 8px" },
   heroMascot: { display: "flex", justifyContent: "center", marginBottom: 6 },
   heroTitle: { fontFamily: DISPLAY, color: "#2E4A42", fontSize: 29, lineHeight: 1.28, margin: "6px 0 0" },
