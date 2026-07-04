@@ -276,10 +276,10 @@ export default function MintSsaem() {
     }
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/anthropic/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: cfg.tokens || 1400, system: cfg.system, messages: history }),
+        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: cfg.tokens || 1400, system: cfg.system, messages: history }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error?.message || "api error");
