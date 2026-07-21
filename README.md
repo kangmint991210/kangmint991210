@@ -50,8 +50,19 @@ npm run preview    # 빌드 결과 미리보기
 - `src/supabaseClient.js` — Supabase 클라이언트 (env 로 URL/키 주입)
 - `supabase/schema.sql` — DB 테이블 + RLS 정책
 - `index.html` — HTML 셸
-- `vite.config.js` — `/api/gemini` → `generativelanguage.googleapis.com` 프록시 (API 키 주입)
+- `vite.config.js` — (개발 전용) `/api/gemini` → `generativelanguage.googleapis.com` 프록시 (API 키 주입)
+- `api/gemini/[...path].js` — (프로덕션) Vercel 서버리스 함수. 배포본에서 `/api/gemini/*` 에 키를 붙여 Gemini 로 전달.
 
 ## 참고
-- API 호출 모델: `gemini-flash-latest` (`민트쌤.jsx` 상단 `GEMINI_MODEL` 에서 `gemini-pro-latest` 등으로 교체 가능)
-- 프로덕션 배포 시에는 `vite preview`가 아니라, 프록시 역할을 하는 서버리스 함수(Vercel/Netlify 등)로 `/api/gemini` 요청에 키를 붙여야 합니다.
+- API 호출 모델: `gemini-3.1-flash-lite` (`민트쌤.jsx` 상단 `GEMINI_MODEL` 에서 교체 가능)
+
+## Vercel 배포
+- **빌드**: 프레임워크 `Vite` 자동 감지 (Build `vite build`, Output `dist`).
+- **환경변수** (Vercel → Settings → Environment Variables):
+  | 이름 | 설명 | 노출 |
+  |---|---|---|
+  | `GEMINI_API_KEY` | Gemini 키. **`VITE_` 접두사 없이** 설정 → 서버리스 함수만 사용(브라우저 비노출) | 서버 전용 |
+  | `VITE_SUPABASE_URL` | Supabase URL (빌드 시 번들에 주입) | 프론트 |
+  | `VITE_SUPABASE_ANON_KEY` | Supabase anon 키 (RLS 로 보호) | 프론트 |
+- ⚠️ `VITE_` 변수는 **빌드 시점**에 번들에 박히므로, 값을 바꾸면 **재배포(Redeploy)** 해야 반영됩니다. `GEMINI_API_KEY` 는 런타임에 읽지만, 추가/변경 후에는 마찬가지로 재배포하세요.
+- 개발 서버의 `vite.config.js` 프록시는 **배포본에 존재하지 않습니다.** 배포본의 `/api/gemini/*` 요청은 위 서버리스 함수가 처리합니다.

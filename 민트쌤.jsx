@@ -9,7 +9,7 @@ import { supabase, supabaseReady } from "./src/supabaseClient.js";
 const EMPTY_THREADS = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
 const PENDING_PLAN_KEY = "mint_pending_plan";
 const PLAN_RANK = { free: 0, pro: 1, max: 2 }; // 요금제 등급(높을수록 상위)
-const GEMINI_MODEL = "gemini-flash-latest"; // 최신 flash 별칭(안정적). 고품질은 "gemini-pro-latest" 로 교체
+const GEMINI_MODEL = "gemini-3.1-flash-lite"; // AI 문서 생성 모델
 // Supabase user → 앱에서 쓰는 형태로 변환
 const mapUser = (u) => ({
   id: u.id,
