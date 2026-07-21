@@ -12,11 +12,11 @@ npm install
 ### 2. 환경변수 설정 (`.env`)
 `.env` 파일에 아래 3개 값을 채웁니다. (`.env.example` 참고)
 ```
-ANTHROPIC_API_KEY=sk-ant-...           # AI 문서 생성
+GEMINI_API_KEY=...                     # AI 문서 생성 (Gemini)
 VITE_SUPABASE_URL=https://moudhssidpgbpeuihzsr.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → API → anon public
 ```
-- Anthropic 키: https://console.anthropic.com/settings/keys — Vite 프록시가 서버 쪽에서 붙여 브라우저에 노출되지 않음.
+- Gemini 키: https://aistudio.google.com/apikey — Vite 프록시가 서버 쪽에서 붙여 브라우저에 노출되지 않음.
 - Supabase `anon` 키: 프론트엔드 노출 OK(RLS 로 보호). `VITE_` 접두사 필수.
 
 ### 3. Supabase 준비 (인증 + DB)
@@ -50,8 +50,8 @@ npm run preview    # 빌드 결과 미리보기
 - `src/supabaseClient.js` — Supabase 클라이언트 (env 로 URL/키 주입)
 - `supabase/schema.sql` — DB 테이블 + RLS 정책
 - `index.html` — HTML 셸
-- `vite.config.js` — `/api/anthropic` → `api.anthropic.com` 프록시 (API 키 주입)
+- `vite.config.js` — `/api/gemini` → `generativelanguage.googleapis.com` 프록시 (API 키 주입)
 
 ## 참고
-- API 호출 모델: `claude-sonnet-5` (기존 `claude-sonnet-4-6` 은 존재하지 않아 수정됨)
-- 프로덕션 배포 시에는 `vite preview`가 아니라, 프록시 역할을 하는 서버리스 함수(Vercel/Netlify 등)로 `/api/anthropic` 요청에 키를 붙여야 합니다.
+- API 호출 모델: `gemini-flash-latest` (`민트쌤.jsx` 상단 `GEMINI_MODEL` 에서 `gemini-pro-latest` 등으로 교체 가능)
+- 프로덕션 배포 시에는 `vite preview`가 아니라, 프록시 역할을 하는 서버리스 함수(Vercel/Netlify 등)로 `/api/gemini` 요청에 키를 붙여야 합니다.

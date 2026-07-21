@@ -9,6 +9,7 @@ import { supabase, supabaseReady } from "./src/supabaseClient.js";
 const EMPTY_THREADS = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
 const PENDING_PLAN_KEY = "mint_pending_plan";
 const PLAN_RANK = { free: 0, pro: 1, max: 2 }; // 요금제 등급(높을수록 상위)
+const GEMINI_MODEL = "gemini-flash-latest"; // 최신 flash 별칭(안정적). 고품질은 "gemini-pro-latest" 로 교체
 // Supabase user → 앱에서 쓰는 형태로 변환
 const mapUser = (u) => ({
   id: u.id,
@@ -372,23 +373,33 @@ export default function MintSsaem() {
     setInput("");
     setLoading(true);
 
+    // Gemini 대화 형식: role 은 "user" / "model", 내용은 parts[].text
     const history = next.map((m) => {
-      if (m.role === "user") return { role: "user", content: m.text };
-      return { role: "assistant", content: JSON.stringify(m.payload || {}).slice(0, 900) };
+      if (m.role === "user") return { role: "user", text: m.text };
+      return { role: "model", text: JSON.stringify(m.payload || {}).slice(0, 900) };
     });
     for (let i = history.length - 1; i >= 0; i--) {
-      if (history[i].role === "user") { history[i] = { role: "user", content: cfg.user(form, free) }; break; }
+      if (history[i].role === "user") { history[i] = { role: "user", text: cfg.user(form, free) }; break; }
     }
+    const contents = history.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
 
     try {
-      const res = await fetch("/api/anthropic/v1/messages", {
+      const res = await fetch(`/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-5", max_tokens: cfg.tokens || 1400, system: cfg.system, messages: history }),
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: cfg.system }] },
+          contents,
+          generationConfig: {
+            maxOutputTokens: cfg.tokens || 1400,
+            responseMimeType: "application/json", // JSON 형식으로 강제 → 파싱 안정화
+            thinkingConfig: { thinkingBudget: 0 }, // 2.5-flash 사고(thinking) 비활성화(속도·토큰 절약)
+          },
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error?.message || "api error");
-      const text = (data.content || []).map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+      const text = (data.candidates?.[0]?.content?.parts || []).map((b) => b.text || "").join("").trim();
       const clean = text.replace(/```json/gi, "").replace(/```/g, "").trim();
       let p = null;
       try { p = JSON.parse(clean); } catch { const mm = clean.match(/\{[\s\S]*\}/); if (mm) p = JSON.parse(mm[0]); }
