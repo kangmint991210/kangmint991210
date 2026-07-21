@@ -268,7 +268,8 @@ export default function MintSsaem() {
   const isLocked = (key) => MODES.findIndex((m) => m.key === key) >= allowedCount;
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+    // 결과 영역이 페이지 흐름으로 늘어나므로, 새 메시지를 페이지 스크롤로 보이게 함
+    scroller.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [messages, loading]);
 
   // 저장된 문서를 DB에서 불러와 메뉴별 대화로 복원
@@ -1381,7 +1382,7 @@ const BODY = `"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",
 
 const styles = {
   wrap: {
-    fontFamily: BODY, color: INK, background: PAPER, height: "100%", minHeight: 560, maxHeight: "100vh",
+    fontFamily: BODY, color: INK, background: PAPER, minHeight: "100vh",
     display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto",
     backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px",
   },
@@ -1427,7 +1428,7 @@ const styles = {
   textarea: { width: "100%", minHeight: 78, fontSize: 13.5, lineHeight: 1.55, padding: "12px 15px", borderRadius: 16, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 2px 0 ${SH}`, marginBottom: 10 },
   genBtn: { width: "100%", marginTop: 4, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "13px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
 
-  thread: { flex: 1, overflowY: "auto", padding: "6px 16px 18px", display: "flex", flexDirection: "column", gap: 14 },
+  thread: { flex: "1 0 auto", overflowY: "visible", padding: "6px 16px 18px", display: "flex", flexDirection: "column", gap: 14 },
   empty: { textAlign: "center", margin: "auto", maxWidth: 430 },
   emptyMascot: { display: "flex", justifyContent: "center", marginBottom: 6 },
   emptyTitle: { fontSize: 20, fontFamily: DISPLAY, color: "#2E9E86" },
