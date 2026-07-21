@@ -384,16 +384,19 @@ export default function MintSsaem() {
     const contents = history.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
 
     try {
-      const res = await fetch(`/api/gemini/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+      // 콜론(:generateContent)이 URL 에 있으면 Vercel 라우팅이 실패하므로,
+      // 경로는 /api/gemini 로 고정하고 모델은 body 로 전달 → 함수가 서버에서 조립
+      const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          model: GEMINI_MODEL,
           systemInstruction: { parts: [{ text: cfg.system }] },
           contents,
           generationConfig: {
             maxOutputTokens: cfg.tokens || 1400,
             responseMimeType: "application/json", // JSON 형식으로 강제 → 파싱 안정화
-            thinkingConfig: { thinkingBudget: 0 }, // 2.5-flash 사고(thinking) 비활성화(속도·토큰 절약)
+            thinkingConfig: { thinkingBudget: 0 }, // 사고(thinking) 비활성화(속도·토큰 절약)
           },
         }),
       });

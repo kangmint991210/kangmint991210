@@ -50,8 +50,9 @@ npm run preview    # 빌드 결과 미리보기
 - `src/supabaseClient.js` — Supabase 클라이언트 (env 로 URL/키 주입)
 - `supabase/schema.sql` — DB 테이블 + RLS 정책
 - `index.html` — HTML 셸
-- `vite.config.js` — (개발 전용) `/api/gemini` → `generativelanguage.googleapis.com` 프록시 (API 키 주입)
-- `api/gemini/[...path].js` — (프로덕션) Vercel 서버리스 함수. 배포본에서 `/api/gemini/*` 에 키를 붙여 Gemini 로 전달.
+- `vite.config.js` — (개발 전용) `/api/gemini` 미들웨어. 요청 body 의 model 로 Gemini 호출 + 키 주입
+- `api/gemini.js` — (프로덕션) Vercel 서버리스 함수. 배포본에서 `/api/gemini` 에 키를 붙여 Gemini 로 전달
+- 프론트는 `POST /api/gemini` 로 `{ model, systemInstruction, contents, generationConfig }` 전송 (URL 에 콜론 없음 → Vercel 라우팅 안정)
 
 ## 참고
 - API 호출 모델: `gemini-3.1-flash-lite` (`민트쌤.jsx` 상단 `GEMINI_MODEL` 에서 교체 가능)
