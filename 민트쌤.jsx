@@ -8,6 +8,7 @@ import { supabase, supabaseReady } from "./src/supabaseClient.js";
 
 const EMPTY_THREADS = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
 const PENDING_PLAN_KEY = "mint_pending_plan";
+const PLAN_RANK = { free: 0, pro: 1, max: 2 }; // 요금제 등급(높을수록 상위)
 // Supabase user → 앱에서 쓰는 형태로 변환
 const mapUser = (u) => ({
   id: u.id,
@@ -293,20 +294,55 @@ export default function MintSsaem() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(mapUser(session.user));
-        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") loadDocs(session.user.id);
-        if (event === "SIGNED_IN") {
-          let pend = "free";
-          try { pend = localStorage.getItem(PENDING_PLAN_KEY) || "free"; } catch {}
-          try { localStorage.removeItem(PENDING_PLAN_KEY); } catch {}
-          setPlan(pend);
-          setView("app");
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+          loadDocs(session.user.id);
+          loadProfile(session.user);   // 요금제/마지막 접속 동기화 + 추적
         }
+        if (event === "SIGNED_IN") setView("app");
       } else {
         setUser(null);
       }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // 회원 프로필(요금제)을 서버에서 읽고, 마지막 접속 시각을 기록해 추적
+  async function loadProfile(sessionUser) {
+    if (!supabase || !sessionUser) return;
+    // 랜딩에서 고른 대기 플랜(가입 직후 적용용)
+    let pend = "free";
+    try { pend = localStorage.getItem(PENDING_PLAN_KEY) || "free"; } catch {}
+    try { localStorage.removeItem(PENDING_PLAN_KEY); } catch {}
+
+    const { data } = await supabase
+      .from("profiles").select("plan, name").eq("id", sessionUser.id).maybeSingle();
+    const serverPlan = data?.plan || "free";
+    // 서버 플랜과 대기 플랜 중 상위 등급을 적용
+    const effective = (PLAN_RANK[pend] || 0) > (PLAN_RANK[serverPlan] || 0) ? pend : serverPlan;
+    setPlan(effective);
+
+    // 프로필 갱신(마지막 접속 + 확정 플랜). 트리거가 못 만든 경우도 upsert 로 보강.
+    try {
+      await supabase.from("profiles").upsert({
+        id: sessionUser.id,
+        email: sessionUser.email,
+        name: mapUser(sessionUser).name,
+        plan: effective,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+    } catch { /* 프로필 동기화 실패는 조용히 무시 */ }
+  }
+
+  // 요금제 변경을 서버 프로필에 저장(추적)
+  async function savePlan(nextPlan) {
+    setPlan(nextPlan);
+    if (!supabase || !user) return;
+    try {
+      await supabase.from("profiles").upsert({
+        id: user.id, plan: nextPlan, last_seen_at: new Date().toISOString(),
+      }, { onConflict: "id" });
+    } catch { /* 무시 */ }
+  }
 
   // 생성된 문서를 DB에 저장
   async function saveDocument(kind, userText, formSnapshot, payload) {
@@ -369,13 +405,13 @@ export default function MintSsaem() {
   }
 
   const reset = () => setThreads((t) => ({ ...t, [mode]: [] }));
-  const choosePlan = (key) => { setPlan(key); setShowPricing(false); setShowPaywall(false); setView("app"); };
+  const choosePlan = (key) => { savePlan(key); setShowPricing(false); setShowPaywall(false); setView("app"); };
   // 랜딩의 시작/요금제 버튼 → 로그인 페이지로. 선택한 플랜은 로그인 후 적용.
   // 이미 로그인돼 있으면 바로 앱으로.
   const goAuth = (key = "free", m = "login") => {
     try { localStorage.setItem(PENDING_PLAN_KEY, key); } catch {}
     setPendingPlan(key); setShowPricing(false); setShowPaywall(false);
-    if (user) { setPlan(key); setView("app"); return; }
+    if (user) { savePlan(key); setView("app"); return; }
     setAuthMode(m); setView("auth");
   };
 
