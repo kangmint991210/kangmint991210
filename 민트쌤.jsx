@@ -157,24 +157,34 @@ const CFG = {
   daily: {
     btn: "주간 보육일지 만들기",
     free: '"요일별 평가 자세히", "일과 내용 보강"처럼 다듬어요',
-    // 요일별 3항목(300자+200자+불릿2) × 6일 + 주간평가 600자 → 기존 3200 으로는 잘려서 상향
-    tokens: 8000,
+    // 요일별 3항목(300자+200자+불릿2 이상) × 6일 + 주간평가 600자 이상.
+    // 최소 분량 규정이라 출력이 길어지므로 넉넉하게 — 모자라면 JSON 이 잘려 파싱에 실패함
+    tokens: 16000,
     system: `당신은 한국 어린이집 보육 전문가입니다. 교사의 주간 메모를 바탕으로, 실제 어린이집 양식에 맞는 '주간 보육일지'를 작성합니다.
 - 대상 연령(영아/유아) 발달과 놀이중심·아이 주도 관점.
-- schedule·areas·outdoor 는 정중한 존댓말로 간결하게(대부분 1문장). days·weekEval 은 아래 별도 규칙을 우선 적용.
-- schedule(하루 일과)에는 아래 시간대 행을 순서대로 모두 포함하고, 각 content는 해당 연령 발달에 맞는 1문장으로 작성:
+★ 문체(가장 중요, 예외 없음): 보육일지 본문의 "모든" 텍스트를 개조식으로 작성합니다.
+  적용 대상 — schedule[].content, areas[].content, outdoor, days 의 playEval·supportPlan·reading, weekEval, safety, special 전부.
+  개조식 = 명사형으로 끝내거나 '~함 / ~임 / ~하도록 지원함 / ~필요함' 처럼 끊어 쓰는 방식.
+  '~습니다 / ~했어요 / ~입니다 / ~해요' 같은 완결 서술형 종결어미는 절대 사용 금지.
+  예) (X) 블록을 높이 쌓으며 즐거워했습니다.  (O) 블록을 높이 쌓으며 즐거워함.
+  예) (X) 다양한 재료를 준비해 주려고 합니다.  (O) 다양한 재료 준비 및 제공 예정.
+  단, JSON 의 reply 필드만은 교사에게 건네는 안내말이므로 예외로 다정한 존댓말 1문장.
+- schedule(하루 일과)에는 아래 시간대 행을 순서대로 모두 포함하고, 각 content는 해당 연령 발달에 맞게 한 줄로 작성:
   등원 및 통합보육(07:30~09:00), 오전간식 및 배변활동(09:00~09:40), 기본생활습관(""), 정리정돈 및 배변활동(10:40~10:50), 배변활동 및 손 씻기(11:30~11:40), 점심식사·이 닦기(11:40~12:30), 낮잠준비 및 낮잠(12:30~14:30), 오후간식 및 배변활동(14:30~15:00), 오후 실내놀이 및 하원(15:00~16:00), 연장반 보육 및 귀가(16:00~19:30).
 - areas(오전 실내놀이 09:40~10:40)는 영역별(신체 / 언어 / 감각·탐색 / 안전) 놀이. outdoor는 실외놀이(10:50~11:30).
 - days(실행 놀이 평가 및 지원계획)는 메모에 있는 요일만 작성하되, 각 요일마다 아래 3개 항목을 모두 채웁니다.
-  세 항목 모두 반드시 "개조식"으로 작성합니다. 개조식 = 각 줄을 명사형이나 '~함/~임/~하도록 지원함' 처럼 끊어 쓰고,
-  '~습니다/~했어요' 같은 완결 서술형 종결어미는 쓰지 않습니다.
-  · playEval — 놀이평가(배움읽기): 그날 관찰된 놀이 장면과 아이의 반응·배움. 한글 기준 300자 이내(공백 포함, 초과 금지).
-  · supportPlan — 놀이와 배움지원계획: 이어질 놀이를 위한 교사의 환경 구성·상호작용 지원 계획. 한글 기준 200자 이내(공백 포함, 초과 금지).
-  · reading — 배움읽기: 놀이에서 읽어낸 배움을 누리과정·표준보육과정 관점으로 정리한 문자열 배열. "정확히 2개"만 넣고, 각 항목은 40자 이내 한 줄.
+  · playEval — 놀이평가(배움읽기): 그날 관찰된 놀이 장면과 아이의 반응·배움.
+    한글 기준 "최소 300자 이상"(공백 포함). 짧게 끝내지 말고, 놀이 장면·또래 상호작용·아이의 말과 행동·읽어낸 배움을
+    구체적으로 덧붙여 300자를 반드시 넘길 것.
+  · supportPlan — 놀이와 배움지원계획: 이어질 놀이를 위한 교사의 환경 구성·상호작용 지원 계획.
+    한글 기준 "최소 200자 이상"(공백 포함). 자료·공간·교사 개입·확장 방향을 나누어 적어 200자를 반드시 넘길 것.
+  · reading — 배움읽기: 놀이에서 읽어낸 배움을 누리과정·표준보육과정 관점으로 정리한 문자열 배열.
+    "정확히 2개"만 넣고, 각 항목은 한 줄로 최소 30자 이상.
 - week은 설정 [주간]의 라벨을 그대로 사용하고, days의 날짜·요일도 설정 [주간]에 제시된 날짜만 사용합니다(임의로 계산하지 않음).
-- weekEval(주간 보육 평가)은 한글 기준 600자 내외(550~650자)로 충분히 길게 작성합니다.
+- weekEval(주간 보육 평가)은 한글 기준 "최소 600자 이상"(공백 포함)으로 충분히 길게 작성합니다.
   3~4개 문단으로 나누고, 문단과 문단 사이는 반드시 빈 줄 하나(\\n\\n)로 띄웁니다.
-  이 항목은 개조식이 아니라 정중한 존댓말 서술형으로 작성합니다.
+  분량이 길어도 위 ★ 문체 규칙을 그대로 지켜 끝까지 개조식으로 작성합니다.
+- 글자 수 규정이 있는 항목은 규정을 채우는 것이 최우선입니다. 분량이 모자라면 내용을 더 구체적으로 풀어 반드시 채웁니다.
 반드시 아래 JSON "하나만" 출력(설명·마크다운·코드펜스 금지):
 {"reply":"1문장 안내","daily":{"week":"","klass":"","age":"","theme":"","nextTheme":"","schedule":[{"time":"07:30~09:00","name":"등원 및 통합보육","content":""}],"areas":[{"area":"신체","content":""},{"area":"언어","content":""},{"area":"감각·탐색","content":""},{"area":"안전","content":""}],"outdoor":"","days":[{"day":"7/8(월)","playEval":"","supportPlan":"","reading":["",""]}],"weekEval":"주간 보육 평가","safety":"안전교육(감염병예방·비상대응훈련)","special":"반 운영 특이사항"}}`,
     user: (f, free) => {
@@ -279,10 +289,17 @@ export default function MintSsaem() {
     setForm((f) => ({ ...f, domains: f.domains.includes(k) ? f.domains.filter((x) => x !== k) : [...f.domains, k] }));
 
   const [threads, setThreads] = useState({ play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] });
+  const [openDoc, setOpenDoc] = useState({});        // 메뉴별로 펼쳐둔 문서 인덱스
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scroller = useRef(null);
   const messages = threads[mode];
+  // 생성 결과를 (요청 → 결과) 묶음 목록으로 만들어 접었다 펼침.
+  // openDoc[mode] 가 undefined 면 "가장 최근 문서를 펼친다"는 뜻이고,
+  // 사용자가 헤더를 누르면 그 선택(다른 인덱스 또는 null=전부 접기)을 유지.
+  const turns = toTurns(messages);
+  const lastDocIdx = turns.reduce((acc, t, i) => (t.bot ? i : acc), -1);
+  const openIdx = openDoc[mode] === undefined ? lastDocIdx : openDoc[mode];
   const cur = MODES.find((m) => m.key === mode);
   const allowedCount = isAdmin ? MODES.length : (PLAN_DOCS[plan] || 1);
   const isLocked = (key) => MODES.findIndex((m) => m.key === key) >= allowedCount;
@@ -308,6 +325,7 @@ export default function MintSsaem() {
       next[d.kind].push({ role: "bot", kind: d.kind, text: d.payload?.reply || "완성했어요!", payload: d.payload });
     }
     setThreads(next);
+    setOpenDoc({});   // 불러온 문서는 각 메뉴의 최신 것만 펼친 상태로
   }
 
   // Supabase 세션 감지 — 로그인/OAuth 복귀 시 앱으로 진입
@@ -451,10 +469,15 @@ export default function MintSsaem() {
       setThreads((t) => ({ ...t, [mode]: [...t[mode], { role: "bot", kind: mode, text: "연결에 문제가 생겼어요. 잠시 후 다시 보내주세요. 🥲" }] }));
     } finally {
       setLoading(false);
+      // 새로 만든 문서가 펼쳐진 상태로 보이도록 이 메뉴의 선택을 초기화
+      setOpenDoc((o) => { const n = { ...o }; delete n[mode]; return n; });
     }
   }
 
-  const reset = () => setThreads((t) => ({ ...t, [mode]: [] }));
+  const reset = () => {
+    setThreads((t) => ({ ...t, [mode]: [] }));
+    setOpenDoc((o) => { const n = { ...o }; delete n[mode]; return n; });
+  };
   const choosePlan = (key) => { savePlan(key); setShowPricing(false); setShowPaywall(false); setView("app"); };
   // 랜딩의 시작/요금제 버튼 → 로그인 페이지로. 선택한 플랜은 로그인 후 적용.
   // 이미 로그인돼 있으면 바로 앱으로.
@@ -573,17 +596,13 @@ export default function MintSsaem() {
 
       <main ref={scroller} style={styles.thread}>
         {messages.length === 0 && <EmptyState mode={mode} onPick={send} />}
-        {messages.map((m, i) =>
-          m.role === "user" ? (
-            <div key={i} style={styles.userBubble}>{m.text}</div>
+        {turns.map((t, i) =>
+          // 아직 결과가 안 온 요청(생성 중)은 접지 않고 그대로 노출
+          !t.bot ? (
+            <div key={i} style={styles.userBubble}>{t.user.text}</div>
           ) : (
-            <div key={i} style={styles.botBlock}>
-              <div style={styles.botRow}>
-                <span style={styles.botFace}><Mascot size={30} /></span>
-                <div style={styles.botText}>{m.text}</div>
-              </div>
-              {m.payload && <Card kind={m.kind} p={m.payload} />}
-            </div>
+            <DocTurn key={i} turn={t} no={i + 1} open={openIdx === i}
+              onToggle={() => setOpenDoc((o) => ({ ...o, [mode]: openIdx === i ? null : i }))} />
           )
         )}
         {loading && (
@@ -608,6 +627,64 @@ export default function MintSsaem() {
     {showPricing && <PricingModal plan={plan} onChoose={choosePlan} onClose={() => setShowPricing(false)} />}
     {showPaywall && <PaywallModal onOpenPricing={() => { setShowPaywall(false); setShowPricing(true); }} onClose={() => setShowPaywall(false)} />}
     </>
+  );
+}
+
+/* ---------- 생성 결과 목록 (접기/펼치기) ---------- */
+// 대화 메시지를 (요청, 결과) 한 묶음씩으로 그룹핑.
+// send() 가 항상 user → bot 순으로 쌓으므로 짝이 맞고,
+// 생성 중이거나 불러온 문서에 요청문이 없는 경우도 각각 처리됨.
+function toTurns(messages) {
+  const turns = [];
+  for (const m of messages) {
+    const last = turns[turns.length - 1];
+    if (m.role === "user") turns.push({ user: m, bot: null });
+    else if (last && !last.bot) last.bot = m;
+    else turns.push({ user: null, bot: m });
+  }
+  return turns;
+}
+
+// 접힌 상태에서 무슨 문서인지 알아볼 수 있게 한 줄 요약
+function docTitle(bot) {
+  const label = MODES.find((m) => m.key === bot.kind)?.label || "문서";
+  const p = bot.payload;
+  if (!p) return label;
+  let detail = "";
+  if (p.daily) detail = p.daily.week || "";
+  else if (p.observation) detail = [p.observation.child, p.observation.period].filter(Boolean).join(" · ");
+  else if (p.adapt) detail = [p.adapt.child, p.adapt.period].filter(Boolean).join(" · ");
+  else if (p.counsel) detail = [p.counsel.child, p.counsel.date].filter(Boolean).join(" · ");
+  else if (p.activities) detail = arr(p.activities)[0]?.title || "";
+  return detail ? `${label} · ${detail}` : label;
+}
+
+function DocTurn({ turn, no, open, onToggle }) {
+  const { user, bot } = turn;
+  return (
+    <div style={styles.turnItem}>
+      <button style={{ ...styles.turnHead, ...(open ? styles.turnHeadOpen : {}) }}
+        onClick={onToggle} aria-expanded={open}>
+        <span style={styles.turnNo}>{no}</span>
+        <span style={styles.turnTitle}>{docTitle(bot)}</span>
+        <ChevronDown size={17} style={{
+          marginLeft: "auto", flexShrink: 0, color: "#7A9A90",
+          transition: "transform .15s", transform: open ? "rotate(180deg)" : "none",
+        }} />
+      </button>
+      {open && (
+        <div style={styles.turnBody}>
+          {user && <div style={styles.userBubble}>{user.text}</div>}
+          <div style={styles.botBlock}>
+            <div style={styles.botRow}>
+              <span style={styles.botFace}><Mascot size={30} /></span>
+              <div style={styles.botText}>{bot.text}</div>
+            </div>
+            {bot.payload && <Card kind={bot.kind} p={bot.payload} />}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1522,6 +1599,14 @@ const styles = {
 
   userBubble: { alignSelf: "flex-end", maxWidth: "82%", background: "#8FDCC9", color: "#1B5346", padding: "11px 15px", borderRadius: "20px 20px 6px 20px", fontSize: 14, lineHeight: 1.5, fontWeight: 500, boxShadow: "0 3px 0 #63C9AF" },
   botBlock: { alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 10 },
+  // 생성 결과 목록 — 접힌 상태에서는 헤더 한 줄만 보임
+  // 아래 docHead 와 이름이 겹치지 않도록 turn* 접두사 사용(겹치면 뒤에 정의된 쪽이 이김)
+  turnItem: { alignSelf: "stretch", background: "#fff", borderRadius: 16, boxShadow: `0 3px 0 ${SH}`, overflow: "hidden" },
+  turnHead: { width: "100%", display: "flex", alignItems: "center", gap: 9, background: "transparent", border: "none", padding: "13px 14px", textAlign: "left" },
+  turnHeadOpen: { borderBottom: "1px solid #E8F4EE" },
+  turnNo: { flexShrink: 0, minWidth: 21, height: 21, display: "grid", placeItems: "center", fontSize: 11.5, fontWeight: 800, color: "#1F6B5A", background: "#CDEEDD", borderRadius: 999 },
+  turnTitle: { fontSize: 13.5, fontWeight: 700, color: "#2E4A42", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  turnBody: { display: "flex", flexDirection: "column", gap: 12, padding: "12px 12px 14px" },
   botRow: { display: "flex", gap: 8, alignItems: "flex-start" },
   botFace: { flexShrink: 0, width: 38, height: 38, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: `0 2px 0 ${SH}` },
   botText: { fontSize: 14, color: "#4A5B54", lineHeight: 1.55, background: "#fff", padding: "10px 14px", borderRadius: "6px 18px 18px 18px", boxShadow: `0 2px 0 ${SH}`, maxWidth: "84%" },
