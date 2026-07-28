@@ -157,16 +157,26 @@ const CFG = {
   daily: {
     btn: "주간 보육일지 만들기",
     free: '"요일별 평가 자세히", "일과 내용 보강"처럼 다듬어요',
-    tokens: 3200,
+    // 요일별 3항목(300자+200자+불릿2) × 6일 + 주간평가 600자 → 기존 3200 으로는 잘려서 상향
+    tokens: 8000,
     system: `당신은 한국 어린이집 보육 전문가입니다. 교사의 주간 메모를 바탕으로, 실제 어린이집 양식에 맞는 '주간 보육일지'를 작성합니다.
-- 대상 연령(영아/유아) 발달과 놀이중심·아이 주도 관점. 정중한 존댓말. 각 항목은 간결하게(대부분 1문장).
+- 대상 연령(영아/유아) 발달과 놀이중심·아이 주도 관점.
+- schedule·areas·outdoor 는 정중한 존댓말로 간결하게(대부분 1문장). days·weekEval 은 아래 별도 규칙을 우선 적용.
 - schedule(하루 일과)에는 아래 시간대 행을 순서대로 모두 포함하고, 각 content는 해당 연령 발달에 맞는 1문장으로 작성:
   등원 및 통합보육(07:30~09:00), 오전간식 및 배변활동(09:00~09:40), 기본생활습관(""), 정리정돈 및 배변활동(10:40~10:50), 배변활동 및 손 씻기(11:30~11:40), 점심식사·이 닦기(11:40~12:30), 낮잠준비 및 낮잠(12:30~14:30), 오후간식 및 배변활동(14:30~15:00), 오후 실내놀이 및 하원(15:00~16:00), 연장반 보육 및 귀가(16:00~19:30).
 - areas(오전 실내놀이 09:40~10:40)는 영역별(신체 / 언어 / 감각·탐색 / 안전) 놀이. outdoor는 실외놀이(10:50~11:30).
-- days(실행 놀이 평가 및 지원계획)는 메모에 있는 요일만, 관찰 장면 + 교사 지원을 2~3문장으로.
+- days(실행 놀이 평가 및 지원계획)는 메모에 있는 요일만 작성하되, 각 요일마다 아래 3개 항목을 모두 채웁니다.
+  세 항목 모두 반드시 "개조식"으로 작성합니다. 개조식 = 각 줄을 명사형이나 '~함/~임/~하도록 지원함' 처럼 끊어 쓰고,
+  '~습니다/~했어요' 같은 완결 서술형 종결어미는 쓰지 않습니다.
+  · playEval — 놀이평가(배움읽기): 그날 관찰된 놀이 장면과 아이의 반응·배움. 한글 기준 300자 이내(공백 포함, 초과 금지).
+  · supportPlan — 놀이와 배움지원계획: 이어질 놀이를 위한 교사의 환경 구성·상호작용 지원 계획. 한글 기준 200자 이내(공백 포함, 초과 금지).
+  · reading — 배움읽기: 놀이에서 읽어낸 배움을 누리과정·표준보육과정 관점으로 정리한 문자열 배열. "정확히 2개"만 넣고, 각 항목은 40자 이내 한 줄.
 - week은 설정 [주간]의 라벨을 그대로 사용하고, days의 날짜·요일도 설정 [주간]에 제시된 날짜만 사용합니다(임의로 계산하지 않음).
+- weekEval(주간 보육 평가)은 한글 기준 600자 내외(550~650자)로 충분히 길게 작성합니다.
+  3~4개 문단으로 나누고, 문단과 문단 사이는 반드시 빈 줄 하나(\\n\\n)로 띄웁니다.
+  이 항목은 개조식이 아니라 정중한 존댓말 서술형으로 작성합니다.
 반드시 아래 JSON "하나만" 출력(설명·마크다운·코드펜스 금지):
-{"reply":"1문장 안내","daily":{"week":"","klass":"","age":"","theme":"","nextTheme":"","schedule":[{"time":"07:30~09:00","name":"등원 및 통합보육","content":""}],"areas":[{"area":"신체","content":""},{"area":"언어","content":""},{"area":"감각·탐색","content":""},{"area":"안전","content":""}],"outdoor":"","days":[{"day":"7/8(월)","record":""}],"weekEval":"주간 보육 평가","safety":"안전교육(감염병예방·비상대응훈련)","special":"반 운영 특이사항"}}`,
+{"reply":"1문장 안내","daily":{"week":"","klass":"","age":"","theme":"","nextTheme":"","schedule":[{"time":"07:30~09:00","name":"등원 및 통합보육","content":""}],"areas":[{"area":"신체","content":""},{"area":"언어","content":""},{"area":"감각·탐색","content":""},{"area":"안전","content":""}],"outdoor":"","days":[{"day":"7/8(월)","playEval":"","supportPlan":"","reading":["",""]}],"weekEval":"주간 보육 평가","safety":"안전교육(감염병예방·비상대응훈련)","special":"반 운영 특이사항"}}`,
     user: (f, free) => {
       const wi = weekInfo(f.dailyWeek);
       const weekLine = wi ? `주간:${wi.label} (${wi.days.join(", ")})` : "주간:미기재";
@@ -1272,7 +1282,18 @@ function DailyCard({ d }) {
     sched.map((s) => `· ${s.name}${s.time ? " (" + s.time + ")" : ""}: ${s.content || ""}`).join("\n") +
     `\n· 오전 실내놀이 (09:40~10:40)\n` + areas.map((a) => `  - ${a.area}: ${a.content}`).join("\n") +
     `\n· 실외놀이 (10:50~11:30): ${d.outdoor || ""}\n\n■ 실행 놀이 평가 및 지원계획\n` +
-    days.map((x) => `· ${x.day}\n  ${x.record}`).join("\n") +
+    days.map((x) => {
+      const read = arr(x.reading).filter(Boolean);
+      // 이전 버전으로 저장된 문서는 record 한 덩어리만 있음
+      const parts = (x.playEval || x.supportPlan || read.length)
+        ? [
+            x.playEval && `  [놀이평가(배움읽기)]\n  ${x.playEval}`,
+            x.supportPlan && `  [놀이와 배움지원계획]\n  ${x.supportPlan}`,
+            read.length > 0 && `  [배움읽기]\n${read.map((r) => `  • ${r}`).join("\n")}`,
+          ].filter(Boolean)
+        : [`  ${x.record || ""}`];
+      return `· ${x.day}\n${parts.join("\n")}`;
+    }).join("\n\n") +
     `\n\n■ 주간 보육 평가\n${d.weekEval || ""}\n\n■ 안전교육\n${d.safety || ""}${d.special ? "\n\n■ 반 운영 특이사항\n" + d.special : ""}`;
   return (
     <CardShell stripe="#59C7B0" title={`${d.week || ""} 보육일지`} badge="주간 보육일지" copy={copy}
@@ -1309,16 +1330,41 @@ function DailyCard({ d }) {
       {days.length > 0 && (
         <Sec icon={<span style={{ fontSize: 14 }}>📝</span>} label="실행 놀이 평가 및 지원계획" tint="#FDEBF1">
           <div style={styles.weeks}>
-            {days.map((x, i) => (
-              <div key={i} style={styles.week}>
-                <div style={styles.weekHead}><span style={styles.weekTag}>{x.day}</span></div>
-                <p style={styles.body}>{x.record}</p>
-              </div>
-            ))}
+            {days.map((x, i) => {
+              const read = arr(x.reading).filter(Boolean);
+              const hasNew = x.playEval || x.supportPlan || read.length > 0;
+              return (
+                <div key={i} style={styles.week}>
+                  <div style={styles.weekHead}><span style={styles.weekTag}>{x.day}</span></div>
+                  {x.playEval && (
+                    <div style={styles.dayField}>
+                      <span style={styles.dayFieldLabel}>놀이평가(배움읽기)</span>
+                      <p style={styles.body}>{x.playEval}</p>
+                    </div>
+                  )}
+                  {x.supportPlan && (
+                    <div style={styles.dayField}>
+                      <span style={styles.dayFieldLabel}>놀이와 배움지원계획</span>
+                      <p style={styles.body}>{x.supportPlan}</p>
+                    </div>
+                  )}
+                  {read.length > 0 && (
+                    <div style={styles.dayField}>
+                      <span style={styles.dayFieldLabel}>배움읽기</span>
+                      <ul style={styles.readList}>
+                        {read.map((r, j) => <li key={j} style={styles.readItem}>{r}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {/* 이전 버전으로 저장된 문서(record 한 덩어리) 호환 */}
+                  {!hasNew && x.record && <p style={styles.body}>{x.record}</p>}
+                </div>
+              );
+            })}
           </div>
         </Sec>
       )}
-      {d.weekEval && <Sec icon={<span style={{ fontSize: 14 }}>📊</span>} label="주간 보육 평가" tint="#EDE8FA"><p style={styles.body}>{d.weekEval}</p></Sec>}
+      {d.weekEval && <Sec icon={<span style={{ fontSize: 14 }}>📊</span>} label="주간 보육 평가" tint="#EDE8FA"><p style={styles.bodyPara}>{d.weekEval}</p></Sec>}
       {d.special && <Sec icon={<span style={{ fontSize: 14 }}>📌</span>} label="반 운영 특이사항" tint="#F1F9F5"><p style={styles.body}>{d.special}</p></Sec>}
       {d.safety && <div style={styles.safety}><ShieldCheck size={14} /> <span>{d.safety}</span></div>}
     </CardShell>
@@ -1495,6 +1541,13 @@ const styles = {
   section: { marginTop: 13 },
   sectionHead: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 800, color: "#5E7168", marginBottom: 8, padding: "4px 11px", borderRadius: 999 },
   body: { margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "#48564F" },
+  // 모델이 문단을 빈 줄(\n\n)로 구분해 주므로 줄바꿈을 그대로 살림
+  bodyPara: { margin: 0, fontSize: 13.5, lineHeight: 1.7, color: "#48564F", whiteSpace: "pre-wrap" },
+  // 요일별 3항목(놀이평가 / 지원계획 / 배움읽기)
+  dayField: { marginTop: 8 },
+  dayFieldLabel: { display: "block", fontSize: 11, fontWeight: 800, color: "#1F6B5A", marginBottom: 4 },
+  readList: { margin: 0, paddingLeft: 17, display: "flex", flexDirection: "column", gap: 3 },
+  readItem: { fontSize: 13.5, lineHeight: 1.6, color: "#48564F" },
   matWrap: { display: "flex", flexWrap: "wrap", gap: 6 },
   matChip: { fontSize: 12.5, padding: "5px 11px", borderRadius: 999, background: "#EEF7F3", color: "#4A5B54" },
   steps: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 },
