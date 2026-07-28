@@ -2,7 +2,9 @@
 -- Supabase 대시보드 → SQL Editor 에 붙여넣고 실행하세요.
 -- 6종 문서(놀이활동/보육일지/관찰일지/알림장/적응일지/상담일지)를 한 테이블에 저장하고,
 -- kind 컬럼으로 종류를 구분합니다. RLS 로 "본인 데이터만" 접근하도록 보호합니다.
--- profiles 테이블로 "회원 자체"(이름/이메일/요금제/가입일/마지막 접속)를 추적합니다.
+-- profiles 테이블로 "회원 자체"(이름/이메일/가입경로/요금제/가입일/마지막 접속)를 추적합니다.
+-- 이메일 가입과 SNS 간편로그인(구글·카카오) 모두 같은 트리거로 기록됩니다.
+-- admins 테이블에 등록된 회원은 요금제와 무관하게 문서 6종 전체를 이용합니다.
 
 -- ══════════════════════════════════════════════════════════════════
 -- 1) profiles — 회원 등록/추적 테이블
@@ -13,10 +15,16 @@ create table if not exists public.profiles (
   id            uuid primary key references auth.users (id) on delete cascade,
   email         text,
   name          text,
+  provider      text,                                 -- 가입 경로: email / google / kakao
+  avatar_url    text,                                 -- SNS 프로필 사진
   plan          text not null default 'free' check (plan in ('free','pro','max')),
   created_at    timestamptz not null default now(),   -- 가입 시각
   last_seen_at  timestamptz not null default now()    -- 마지막 접속 시각
 );
+
+-- 이전 버전으로 이미 만들어 둔 경우를 위한 컬럼 보강 (신규 설치에는 영향 없음)
+alter table public.profiles add column if not exists provider   text;
+alter table public.profiles add column if not exists avatar_url text;
 
 alter table public.profiles enable row level security;
 
@@ -41,13 +49,30 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, name)
+  insert into public.profiles (id, email, name, provider, avatar_url)
   values (
     new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
+    -- 카카오는 이메일 제공에 동의하지 않으면 email 이 비어 옵니다.
+    coalesce(nullif(new.email, ''), new.raw_user_meta_data->>'email'),
+    coalesce(
+      nullif(new.raw_user_meta_data->>'name', ''),
+      nullif(new.raw_user_meta_data->>'full_name', ''),
+      nullif(new.raw_user_meta_data->>'user_name', ''),
+      nullif(new.raw_user_meta_data->>'preferred_username', ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      '선생님'
+    ),
+    coalesce(new.raw_app_meta_data->>'provider', 'email'),
+    coalesce(
+      nullif(new.raw_user_meta_data->>'avatar_url', ''),
+      nullif(new.raw_user_meta_data->>'picture', '')
+    )
   )
   on conflict (id) do nothing;
+  return new;
+exception when others then
+  -- 프로필 기록 실패가 회원가입 자체를 막지 않도록 함
+  -- (트리거에서 예외가 나면 auth.users insert 가 통째로 롤백되어 가입이 실패합니다)
   return new;
 end;
 $$;
@@ -57,8 +82,52 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- 트리거가 없던 시절에 가입한 회원(이메일·구글·카카오 모두) 소급 등록.
+-- on conflict do nothing 이라 몇 번 실행해도 안전하고, 기존 행은 건드리지 않습니다.
+insert into public.profiles (id, email, name, provider, avatar_url, created_at)
+select
+  u.id,
+  coalesce(nullif(u.email, ''), u.raw_user_meta_data->>'email'),
+  coalesce(
+    nullif(u.raw_user_meta_data->>'name', ''),
+    nullif(u.raw_user_meta_data->>'full_name', ''),
+    nullif(u.raw_user_meta_data->>'user_name', ''),
+    nullif(u.raw_user_meta_data->>'preferred_username', ''),
+    nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+    '선생님'
+  ),
+  coalesce(u.raw_app_meta_data->>'provider', 'email'),
+  coalesce(
+    nullif(u.raw_user_meta_data->>'avatar_url', ''),
+    nullif(u.raw_user_meta_data->>'picture', '')
+  ),
+  u.created_at
+from auth.users u
+on conflict (id) do nothing;
+
 -- ══════════════════════════════════════════════════════════════════
--- 2) documents — 회원이 생성한 6종 문서(결과물) 저장
+-- 2) admins — 관리자 명단 (요금제와 무관하게 문서 6종 전체 개방)
+--    ⚠ 일부러 profiles 의 컬럼이 아니라 별도 테이블로 둡니다.
+--       profiles 는 "본인 행 수정 허용" 정책이라, 관리자 표시를 거기 두면
+--       회원이 브라우저에서 스스로를 관리자로 바꿀 수 있기 때문입니다.
+--    이 테이블에는 select 정책만 만들고 insert/update/delete 정책은 두지 않습니다.
+--    → 클라이언트(anon 키)로는 절대 쓸 수 없고, 대시보드 SQL Editor 에서만 부여됩니다.
+-- ══════════════════════════════════════════════════════════════════
+create table if not exists public.admins (
+  id         uuid primary key references auth.users (id) on delete cascade,
+  granted_at timestamptz not null default now(),
+  note       text
+);
+
+alter table public.admins enable row level security;
+
+-- 본인이 관리자인지'만' 확인 가능. 쓰기 정책은 의도적으로 없음.
+drop policy if exists "admins_select_own" on public.admins;
+create policy "admins_select_own" on public.admins
+  for select using (auth.uid() = id);
+
+-- ══════════════════════════════════════════════════════════════════
+-- 3) documents — 회원이 생성한 6종 문서(결과물) 저장
 -- ══════════════════════════════════════════════════════════════════
 create table if not exists public.documents (
   id          uuid primary key default gen_random_uuid(),

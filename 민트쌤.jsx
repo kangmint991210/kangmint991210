@@ -11,10 +11,19 @@ const PENDING_PLAN_KEY = "mint_pending_plan";
 const PLAN_RANK = { free: 0, pro: 1, max: 2 }; // 요금제 등급(높을수록 상위)
 const GEMINI_MODEL = "gemini-3.1-flash-lite"; // AI 문서 생성 모델
 // Supabase user → 앱에서 쓰는 형태로 변환
+// 구글/카카오는 이름·사진을 user_metadata 에, 가입 경로를 app_metadata.provider 에 담아 줍니다.
+// 카카오는 이메일 제공 동의를 안 하면 email 이 비어 올 수 있어 모두 널 안전하게 처리.
 const mapUser = (u) => ({
   id: u.id,
-  email: u.email,
-  name: u.user_metadata?.name || u.user_metadata?.full_name || (u.email ? u.email.split("@")[0] : "선생님"),
+  email: u.email || u.user_metadata?.email || null,
+  name:
+    u.user_metadata?.name ||
+    u.user_metadata?.full_name ||
+    u.user_metadata?.user_name ||
+    u.user_metadata?.preferred_username ||
+    (u.email ? u.email.split("@")[0] : "선생님"),
+  provider: u.app_metadata?.provider || "email",
+  avatar: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
 });
 
 const DOMAINS = [
@@ -243,6 +252,7 @@ export default function MintSsaem() {
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [pendingPlan, setPendingPlan] = useState("free"); // 로그인 후 적용할 플랜
   const [user, setUser] = useState(null);            // 로그인한 사용자
+  const [isAdmin, setIsAdmin] = useState(false);     // 관리자 — 요금제와 무관하게 6종 전체 개방
   const [form, setForm] = useState({
     age: "만 3세", domains: [], place: "실내", duration: "20분", theme: "", materials: "",
     child: "", klass: "", date: "", setting: "", memo: "",
@@ -264,7 +274,7 @@ export default function MintSsaem() {
   const scroller = useRef(null);
   const messages = threads[mode];
   const cur = MODES.find((m) => m.key === mode);
-  const allowedCount = PLAN_DOCS[plan] || 1;
+  const allowedCount = isAdmin ? MODES.length : (PLAN_DOCS[plan] || 1);
   const isLocked = (key) => MODES.findIndex((m) => m.key === key) >= allowedCount;
 
   useEffect(() => {
@@ -299,16 +309,26 @@ export default function MintSsaem() {
         if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
           loadDocs(session.user.id);
           loadProfile(session.user);   // 요금제/마지막 접속 동기화 + 추적
+          loadAdmin(session.user.id);  // 관리자 여부 확인
         }
         if (event === "SIGNED_IN") setView("app");
       } else {
         setUser(null);
+        setIsAdmin(false);
       }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // 회원 프로필(요금제)을 서버에서 읽고, 마지막 접속 시각을 기록해 추적
+  // 관리자 명단(admins)에 있으면 요금제와 상관없이 문서 6종 전부 개방.
+  // 테이블이 아직 없거나 조회에 실패하면 조용히 일반 회원으로 취급.
+  async function loadAdmin(userId) {
+    if (!supabase) return;
+    const { data } = await supabase.from("admins").select("id").eq("id", userId).maybeSingle();
+    setIsAdmin(!!data);
+  }
+
+  // 회원 프로필(요금제·SNS 정보)을 서버와 동기화하고, 마지막 접속 시각을 기록해 추적
   async function loadProfile(sessionUser) {
     if (!supabase || !sessionUser) return;
     // 랜딩에서 고른 대기 플랜(가입 직후 적용용)
@@ -323,16 +343,20 @@ export default function MintSsaem() {
     const effective = (PLAN_RANK[pend] || 0) > (PLAN_RANK[serverPlan] || 0) ? pend : serverPlan;
     setPlan(effective);
 
-    // 프로필 갱신(마지막 접속 + 확정 플랜). 트리거가 못 만든 경우도 upsert 로 보강.
-    try {
-      await supabase.from("profiles").upsert({
-        id: sessionUser.id,
-        email: sessionUser.email,
-        name: mapUser(sessionUser).name,
-        plan: effective,
-        last_seen_at: new Date().toISOString(),
-      }, { onConflict: "id" });
-    } catch { /* 프로필 동기화 실패는 조용히 무시 */ }
+    // 프로필 갱신(마지막 접속 + 확정 플랜 + SNS 정보).
+    // DB 트리거가 행을 못 만든 경우(예: 트리거 생성 전에 가입한 회원)도 여기서 보강됩니다.
+    const me = mapUser(sessionUser);
+    const { error: upErr } = await supabase.from("profiles").upsert({
+      id: me.id,
+      email: me.email,
+      name: me.name,
+      provider: me.provider,
+      avatar_url: me.avatar,
+      plan: effective,
+      last_seen_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+    // 화면 흐름은 막지 않되, 원인을 찾을 수 있게 콘솔에는 남깁니다.
+    if (upErr) console.warn("[민트쌤] profiles 저장 실패 — schema.sql 을 실행했는지 확인하세요.", upErr.message);
   }
 
   // 요금제 변경을 서버 프로필에 저장(추적)
@@ -359,6 +383,7 @@ export default function MintSsaem() {
   async function logout() {
     try { await supabase?.auth.signOut(); } catch {}
     setUser(null);
+    setIsAdmin(false);
     setThreads(EMPTY_THREADS);
     setView("landing");
   }
@@ -429,11 +454,18 @@ export default function MintSsaem() {
     if (user) { savePlan(key); setView("app"); return; }
     setAuthMode(m); setView("auth");
   };
+  // 랜딩의 문서 카드 → 그 메뉴를 선택한 채로 로그인/앱으로 이동.
+  // 이미 로그인돼 있으면 쓰던 요금제를 그대로 두고 앱으로만 진입.
+  const goDoc = (key) => {
+    setMode(key);
+    if (user) { setShowPricing(false); setView("app"); return; }
+    goAuth("free");
+  };
 
   if (view === "landing") {
     return (
       <>
-        <Landing onStart={() => goAuth("free")} onOpenPricing={() => setShowPricing(true)} onChoose={(key) => goAuth(key)} />
+        <Landing onStart={() => goAuth("free")} onOpenPricing={() => setShowPricing(true)} onChoose={(key) => goAuth(key)} onPickDoc={goDoc} />
         {showPricing && <PricingModal plan={plan} onChoose={(key) => goAuth(key)} onClose={() => setShowPricing(false)} />}
       </>
     );
@@ -463,7 +495,9 @@ export default function MintSsaem() {
           </div>
         </button>
         <div style={styles.headRight}>
-          {plan === "max" ? (
+          {isAdmin ? (
+            <span style={styles.planPro} title="관리자 — 문서 6종 전체 이용">👑 관리자</span>
+          ) : plan === "max" ? (
             <span style={styles.planPro}>✨ 맥스</span>
           ) : (
             <button style={styles.planFree} onClick={() => setShowPricing(true)}>
@@ -568,7 +602,7 @@ export default function MintSsaem() {
 }
 
 /* ---------- 랜딩 / 구독 ---------- */
-function Landing({ onStart, onOpenPricing, onChoose }) {
+function Landing({ onStart, onOpenPricing, onChoose, onPickDoc }) {
   return (
     <div style={styles.landing}>
       <style>{css}</style>
@@ -598,10 +632,11 @@ function Landing({ onStart, onOpenPricing, onChoose }) {
         <div style={styles.sectionTitle}>이런 걸 만들어 드려요</div>
         <div style={styles.featGrid}>
           {MODES.map((m) => (
-            <div key={m.key} style={styles.featCard}>
+            <button key={m.key} className="feat-card" style={styles.featCard}
+              onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
               <span style={{ fontSize: 24 }}>{m.emoji}</span>
               <span style={styles.featLabel}>{m.label}</span>
-            </div>
+            </button>
           ))}
         </div>
       </section>
@@ -1372,6 +1407,9 @@ const css = `
   input[type="week"]::-webkit-datetime-edit,
   input[type="time"]::-webkit-datetime-edit,
   input[type="month"]::-webkit-datetime-edit { color: #2E4A42; }
+  .feat-card { transition: transform .12s ease, box-shadow .12s ease; }
+  .feat-card:hover { transform: translateY(-2px); box-shadow: 0 5px 0 ${MINT}; }
+  .feat-card:active { transform: scale(0.96); }
   .dot { animation: blink 1.2s infinite; } .d2 { animation-delay: .2s; } .d3 { animation-delay: .4s; }
   @keyframes blink { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .spin,.dot { animation: none; } button { transition: none; } }
@@ -1513,7 +1551,8 @@ const styles = {
 
   headRight: { display: "flex", alignItems: "center", gap: 8 },
   planPro: { fontSize: 12.5, fontWeight: 800, color: "#7A5A00", background: "#FFE9A8", padding: "7px 12px", borderRadius: 999, boxShadow: "0 2px 0 #F0D480" },
-  planFree: { fontSize: 12, fontWeight: 700, color: "#1F6B5A", background: "#E5F7F0", border: "none", padding: "8px 12px", borderRadius: 999, boxShadow: "0 2px 0 #CDEEDD" },
+  // 업그레이드 유도 버튼 — 민트색 배경에 묻히지 않도록 산뜻한 연노랑으로 대비를 줌
+  planFree: { fontSize: 12, fontWeight: 800, color: "#7A5A00", background: "#FFF3B0", border: "none", padding: "8px 12px", borderRadius: 999, boxShadow: "0 2px 0 #EFD26A" },
 
   landing: { fontFamily: BODY, color: INK, background: PAPER, minHeight: 560, height: "100%", maxHeight: "100vh", overflowY: "auto", maxWidth: 760, margin: "0 auto", backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px" },
   landNav: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", position: "sticky", top: 0, background: "rgba(234,247,241,0.92)", backdropFilter: "blur(6px)", zIndex: 5 },
@@ -1550,7 +1589,7 @@ const styles = {
   featWrap: { padding: "24px 20px 6px" },
   sectionTitle: { fontFamily: DISPLAY, color: "#2E9E86", fontSize: 19, textAlign: "center", marginBottom: 16 },
   featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 },
-  featCard: { background: "#fff", borderRadius: 16, padding: "16px 12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: `0 3px 0 ${SH}` },
+  featCard: { background: "#fff", border: "none", borderRadius: 16, padding: "16px 12px", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: `0 3px 0 ${SH}` },
   featLabel: { fontSize: 13, fontWeight: 700, color: "#4A5B54", textAlign: "center" },
   priceWrap: { padding: "26px 20px 10px" },
   demoNote: { fontSize: 11.5, color: "#8AA79D", textAlign: "center", marginTop: 14, lineHeight: 1.5 },

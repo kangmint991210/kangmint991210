@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 *.log
+
+# Excel 임시 잠금 파일
+~$*
