@@ -1355,7 +1355,7 @@ function PlanCards({ plan, onChoose }) {
             <div style={styles.planTagline}>{pl.tagline}</div>
             <div style={styles.planFeats}>
               {pl.features.map((f, i) => (
-                <div key={i} style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> {f}</div>
+                <div key={i} style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> <span>{f}</span></div>
               ))}
             </div>
             <button
@@ -1706,18 +1706,18 @@ function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
       <div style={styles.paywallFeats}>
         {!quotaOver && !exportWall && opened.map((label) => (
           <div key={label} style={styles.planFeat}>
-            <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> {label}
+            <Check size={14} style={styles.planFeatIcon} /> {label}
           </div>
         ))}
         <div style={styles.planFeat}>
-          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} />
+          <Check size={14} style={styles.planFeatIcon} />
           월 {PLAN_QUOTA[need].toLocaleString()}회 생성
         </div>
         <div style={styles.planFeat}>
-          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 워드·한글 파일 내려받기
+          <Check size={14} style={styles.planFeatIcon} /> 워드·한글 파일 내려받기
         </div>
         <div style={styles.planFeat}>
-          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 문서 보관함 · 결과 직접 수정
+          <Check size={14} style={styles.planFeatIcon} /> 문서 보관함 · 결과 직접 수정
         </div>
       </div>
       <button style={styles.ctaPrimary} onClick={onOpenPricing}>요금제 보기</button>
@@ -1759,9 +1759,9 @@ function SignupWallModal({ info, onSignup, onLogin, onClose, onFallback }) {
       <div style={styles.modalTitle}>{copy.t}</div>
       <div style={styles.modalSub}>{copy.d}</div>
       <div style={styles.paywallFeats}>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 만든 문서 자동 저장 · 다시 불러오기</div>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 결과를 직접 고쳐서 보관</div>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 무료로 월 3회 생성</div>
+        <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 만든 문서 자동 저장 · 다시 불러오기</div>
+        <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 결과를 직접 고쳐서 보관</div>
+        <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 무료로 월 3회 생성</div>
       </div>
       <button style={styles.ctaPrimary} onClick={onSignup}>30초 만에 가입하기</button>
       <button style={styles.textBtn} onClick={onLogin}>이미 계정이 있어요</button>
@@ -2641,16 +2641,17 @@ const styles = {
   landFoot: { textAlign: "center", fontSize: 12, color: "#8AA79D", padding: "22px 20px 30px" },
 
   planGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(168px, 1fr))", gap: 12 },
-  planCard: { position: "relative", background: "#fff", borderRadius: 20, padding: "20px 18px", boxShadow: `0 4px 0 ${SH}`, display: "flex", flexDirection: "column" },
+  planCard: { position: "relative", background: "#fff", borderRadius: 20, padding: "20px 18px", boxShadow: `0 4px 0 ${SH}`, display: "flex", flexDirection: "column", textAlign: "center" },
   planCardHi: { boxShadow: `0 0 0 2px ${MINT}, 0 6px 0 ${MINT_STRONG}` },
   planTag: { position: "absolute", top: -10, right: 16, fontSize: 11, fontWeight: 800, color: "#fff", background: MINT, padding: "4px 11px", borderRadius: 999, boxShadow: `0 2px 0 ${MINT_STRONG}` },
   planName: { fontSize: 15, fontWeight: 800, color: "#2E4A42" },
-  planPrice: { display: "flex", alignItems: "baseline", gap: 3, marginTop: 8 },
+  planPrice: { display: "flex", alignItems: "baseline", justifyContent: "center", gap: 3, marginTop: 8 },
   planPriceNum: { fontFamily: DISPLAY, fontSize: 26, color: "#2E9E86" },
   planPricePer: { fontSize: 13, color: "#8AA79D", fontWeight: 700 },
   planTagline: { fontSize: 12.5, color: "#7A9A90", marginTop: 6, marginBottom: 14 },
-  planFeats: { display: "flex", flexDirection: "column", gap: 9, flex: 1 },
-  planFeat: { display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "#48564F", lineHeight: 1.4 },
+  planFeatIcon: { color: "#2E9E86", flexShrink: 0, marginTop: 3 },
+  planFeats: { display: "flex", flexDirection: "column", gap: 9, flex: 1, textAlign: "left" },
+  planFeat: { display: "flex", alignItems: "flex-start", gap: 7, fontSize: 13, color: "#48564F", lineHeight: 1.45, textAlign: "left" },
   planCtaFree: { marginTop: 16, fontSize: 14, fontWeight: 800, color: "#1F6B5A", background: "#E5F7F0", border: "none", borderRadius: 14, padding: "12px", boxShadow: "0 3px 0 #CDEEDD" },
   planCtaPro: { marginTop: 16, fontSize: 14, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 14, padding: "12px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
 
