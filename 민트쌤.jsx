@@ -187,6 +187,23 @@ const REQUIRED = {
 const missingFields = (mode, form) =>
   (REQUIRED[mode] || []).filter(([k]) => !String(form[k] || "").trim()).map(([, label]) => label);
 
+// 브랜드 (로고 + 이름 + 한 줄 소개)
+// 화면마다 다르게 보이면 같은 서비스인지 헷갈리므로 한 곳에서만 정의해 재사용합니다.
+function Brand({ onClick, title }) {
+  const inner = (
+    <>
+      <span style={styles.logoMark}><Mascot size={38} /></span>
+      <div style={{ textAlign: "left" }}>
+        <div style={styles.title}>민트쌤</div>
+        <div style={styles.subtitle}>놀이부터 서류까지, 같이 해요 🌿</div>
+      </div>
+    </>
+  );
+  return onClick
+    ? <button style={styles.brandBtn} onClick={onClick} title={title}>{inner}</button>
+    : <div style={styles.brandBtn}>{inner}</div>;
+}
+
 // 마스코트 (민트 별)
 function Mascot({ size = 44 }) {
   return (
@@ -284,13 +301,37 @@ const CFG = {
   },
   note: {
     btn: "알림장 만들기",
-    eta: 8,
+    eta: 22,
     free: '"더 짧게", "더 따뜻하게"처럼 다듬어요',
-    system: `당신은 다정한 보육교사입니다. 학부모에게 보낼 알림장(가정통신)을 작성합니다.
-- 따뜻하고 친근하되 정중한 존댓말. 아이를 애정 있게, 오늘 일을 구체적·긍정적으로(4~7문장).
-- 필요 시 가정 연계 당부를 부드럽게.
+    // 실제 현장에서 쓰는 알림장 형식(인사 → 놀이 → 기본생활·또래 → 마무리+가정연계)을 따르고,
+    // 분량은 기준 예시(공백 포함 530자)의 1.5배인 800자를 최소선으로 둡니다.
+    // 규정 분량이 길어 JSON 이 잘리지 않도록 토큰을 넉넉히 잡습니다.
+    tokens: 4000,
+    system: `당신은 다정한 보육교사입니다. 학부모에게 그대로 보낼 알림장(가정통신)을 작성합니다.
+
+★ 형식 (반드시 이 구조로)
+1) 첫 줄 — "안녕하세요~ ○○ 부모님! 😊" 처럼 아이 이름을 넣은 인사 한 줄. (○○ 자리에 실제 아이 이름)
+2) 인사 뒤에는 빈 줄 하나(\\n\\n)를 두고, 본문을 "정확히 3문단"으로 씁니다. 문단 사이도 빈 줄 하나(\\n\\n).
+   · 1문단 — 오늘의 놀이·활동 장면. 아이가 무엇을 어떻게 했는지 순서대로 그려 주고,
+     아이가 한 말과 교사가 건넨 말을 큰따옴표로 인용해 장면이 눈에 보이게 씁니다.
+   · 2문단 — 기본생활(식사·수면·배변)이나 또래·교사 관계에서 보인 모습.
+     역시 구체적인 행동과 대화를 인용하고, 아이의 노력과 성장을 다정하게 짚어 줍니다.
+   · 3문단 — 오늘 경험이 아이에게 어떤 의미인지 한두 문장으로 정리하고,
+     가정에서 함께 해보면 좋을 일을 부드럽게 제안한 뒤, 저녁 인사로 마무리합니다.
+
+★ 분량 (가장 중요, 예외 없음)
+   message 는 인사말을 포함해 한글 기준 "최소 800자 이상"(공백 포함)이어야 합니다.
+   짧게 끝내지 말고 놀이 장면·아이의 말과 표정·교사의 상호작용·아이의 반응을 구체적으로 덧붙여
+   반드시 800자를 넘기세요. 분량이 모자라면 장면을 더 자세히 풀어 채웁니다.
+
+★ 문체
+   따뜻하고 친근하되 정중한 존댓말("~했답니다", "~보여주었습니다", "~볼 수 있었어요", "~좋을 것 같아요").
+   아이를 애정 있게, 메모에 있는 사실에 근거해 긍정적으로 묘사합니다. 없는 일을 지어내지 않습니다.
+   부정적인 표현 대신 "노력하는 모습", "시도해 보는 모습"처럼 성장의 언어로 바꿔 씁니다.
+
+- homeTip 은 빈 문자열("")로 둡니다. 가정 연계 당부는 위 3문단 안에 자연스럽게 녹여 씁니다.
 반드시 아래 JSON "하나만" 출력(설명·마크다운·코드펜스 금지):
-{"reply":"1문장 안내","note":{"message":"학부모에게 그대로 보낼 알림장 본문","homeTip":"가정 연계 한 줄(없으면 빈 문자열)"}}`,
+{"reply":"1문장 안내","note":{"message":"인사 + 3문단 본문 (문단 사이는 \\n\\n, 최소 800자)","homeTip":""}}`,
     user: (f, free) =>
       `[설정] 아동:${f.child || "○○"} · 연령:${f.age}\n[오늘 활동/하이라이트] ${f.todayHi || "오늘 하루 일과"}${f.mood ? "\n[아이 모습/기분] " + f.mood : ""}${f.homeNote ? "\n[가정 당부] " + f.homeNote : ""}\n[요청] ${free || "위 내용으로 알림장을 작성해줘"}`,
     label: () => "알림장 작성",
@@ -821,13 +862,7 @@ export default function MintSsaem() {
       <style>{css}</style>
 
       <header style={styles.header}>
-        <button style={styles.brandBtn} onClick={() => setView("landing")} title="홈으로 이동">
-          <span style={styles.logoMark}><Mascot size={38} /></span>
-          <div style={{ textAlign: "left" }}>
-            <div style={styles.title}>민트쌤</div>
-            <div style={styles.subtitle}>놀이부터 서류까지, 같이 해요 🌿</div>
-          </div>
-        </button>
+        <Brand onClick={() => setView("landing")} title="홈으로 이동" />
         <div style={styles.headRight}>
           {isGuest ? (
             <button style={styles.planFree} onClick={() => { setAuthMode("signup"); setView("auth"); }}>
@@ -1261,10 +1296,7 @@ function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDoc, onLo
     <div style={styles.landing}>
       <style>{css}</style>
       <nav style={styles.landNav}>
-        <div style={styles.brand}>
-          <span style={styles.logoMarkSm}><Mascot size={30} /></span>
-          <div style={styles.title}>민트쌤</div>
-        </div>
+        <Brand />
         <div style={{ display: "flex", gap: 8 }}>
           <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>
           {!user && <button style={styles.navGhost} onClick={onLogin}>로그인</button>}
@@ -1449,10 +1481,7 @@ function AuthPage({ mode, setMode, onHome, onLegal }) {
     <div style={styles.landing}>
       <style>{css}</style>
       <nav style={styles.landNav}>
-        <button style={styles.brandBtn} onClick={onHome} title="홈으로 이동">
-          <span style={styles.logoMarkSm}><Mascot size={30} /></span>
-          <div style={styles.title}>민트쌤</div>
-        </button>
+        <Brand onClick={onHome} title="홈으로 이동" />
       </nav>
 
       <section style={styles.authWrap}>
@@ -1543,10 +1572,7 @@ function LegalPage({ tab, setTab, onHome }) {
     <div style={styles.landing}>
       <style>{css}</style>
       <nav style={styles.landNav}>
-        <button style={styles.brandBtn} onClick={onHome} title="돌아가기">
-          <span style={styles.logoMarkSm}><Mascot size={30} /></span>
-          <div style={styles.title}>민트쌤</div>
-        </button>
+        <Brand onClick={onHome} title="돌아가기" />
         <button style={styles.navGhost} onClick={onHome}>돌아가기</button>
       </nav>
 
@@ -2370,12 +2396,12 @@ const styles = {
     display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto",
     backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px",
   },
-  header: { position: "relative", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px 8px" },
+  header: { position: "relative", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, rowGap: 10, flexWrap: "wrap", padding: "14px 18px 8px" },
   brand: { display: "flex", alignItems: "center", gap: 11 },
   brandBtn: { display: "flex", alignItems: "center", gap: 11, background: "transparent", border: "none", padding: 0, cursor: "pointer" },
   logoMark: { width: 52, height: 52, borderRadius: 18, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 4px 0 #CDEBDF" },
   title: { fontSize: 23, fontFamily: DISPLAY, color: "#2E9E86", lineHeight: 1 },
-  subtitle: { fontSize: 12.5, color: "#7A9A90", marginTop: 3 },
+  subtitle: { fontSize: 12.5, color: "#7A9A90", marginTop: 3, whiteSpace: "nowrap" },
   resetBtn: { display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "#7A9A90", background: "#fff", border: "none", borderRadius: 999, padding: "8px 13px", boxShadow: `0 3px 0 ${SH}` },
 
   modeBar: { position: "relative", padding: "4px 16px 10px" },
@@ -2604,7 +2630,7 @@ const styles = {
   // 내부 스크롤 컨테이너로 두면 모바일 주소창이 접힐 때 100vh 가 흔들려 스크롤이 어색해집니다.
   // 페이지(body) 스크롤에 맡기고 높이는 dvh 로 잡습니다.
   landing: { fontFamily: BODY, color: INK, background: PAPER, minHeight: "100dvh", maxWidth: 760, margin: "0 auto", backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px" },
-  landNav: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", position: "sticky", top: 0, background: "rgba(234,247,241,0.92)", backdropFilter: "blur(6px)", zIndex: 5 },
+  landNav: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, rowGap: 10, flexWrap: "wrap", padding: "13px 18px", position: "sticky", top: 0, background: "rgba(234,247,241,0.92)", backdropFilter: "blur(6px)", zIndex: 5 },
   logoMarkSm: { width: 44, height: 44, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 3px 0 #CDEBDF" },
   navGhost: { fontSize: 13, fontWeight: 700, color: "#2E9E86", background: "transparent", border: "none", padding: "9px 12px", borderRadius: 999 },
   navCta: { fontSize: 13, fontWeight: 800, color: "#fff", background: MINT, border: "none", padding: "9px 16px", borderRadius: 999, boxShadow: `0 3px 0 ${MINT_STRONG}` },
