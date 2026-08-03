@@ -8,6 +8,8 @@
 //
 // Vercel 대시보드 → Settings → Environment Variables 에 GEMINI_API_KEY 설정 필요.
 
+import { guardRequest, clientIp } from "./_guard.js";
+
 const UPSTREAM = "https://generativelanguage.googleapis.com";
 
 export default async function handler(req, res) {
@@ -26,9 +28,17 @@ export default async function handler(req, res) {
 
   try {
     const payload = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-    const { model, ...rest } = payload;
+    const { model, kind, ...rest } = payload;
     if (!model) {
       res.status(400).json({ error: { message: "요청 본문에 model 필드가 필요합니다." } });
+      return;
+    }
+
+    // 남용 방어 + 요금제 월 한도 검증 (게스트는 IP 레이트리밋)
+    const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+    const gate = await guardRequest({ token, ip: clientIp(req), kind });
+    if (!gate.ok) {
+      res.status(gate.status).json({ error: { message: gate.message, code: "quota" } });
       return;
     }
 
@@ -40,6 +50,8 @@ export default async function handler(req, res) {
     const text = await upstream.text();
     res.status(upstream.status);
     res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json");
+    // 서버가 사용량을 기록했으면 클라이언트는 중복 기록하지 않습니다.
+    res.setHeader("X-Usage-Counted", gate.counted ? "1" : "0");
     res.send(text);
   } catch (e) {
     res.status(502).json({ error: { message: "Gemini 프록시 요청 실패: " + (e?.message || String(e)) } });

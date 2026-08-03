@@ -17,7 +17,7 @@ create table if not exists public.profiles (
   name          text,
   provider      text,                                 -- 가입 경로: email / google / kakao
   avatar_url    text,                                 -- SNS 프로필 사진
-  plan          text not null default 'free' check (plan in ('free','pro','max')),
+  plan          text not null default 'free',         -- free / basic / pro (아래 제약조건 참고)
   created_at    timestamptz not null default now(),   -- 가입 시각
   last_seen_at  timestamptz not null default now()    -- 마지막 접속 시각
 );
@@ -25,6 +25,16 @@ create table if not exists public.profiles (
 -- 이전 버전으로 이미 만들어 둔 경우를 위한 컬럼 보강 (신규 설치에는 영향 없음)
 alter table public.profiles add column if not exists provider   text;
 alter table public.profiles add column if not exists avatar_url text;
+
+-- ── 요금제 개편 마이그레이션 (free/pro/max → free/basic/pro) ──────────
+-- 문서 종류 수를 기준으로 대응시킵니다: 구 pro(3종)→basic, 구 max(6종)→pro.
+-- 'pro' 라는 이름이 양쪽에 있으므로 반드시 이 순서로 실행해야 섞이지 않습니다.
+alter table public.profiles drop constraint if exists profiles_plan_check;
+update public.profiles set plan = 'basic' where plan = 'pro';
+update public.profiles set plan = 'pro'   where plan = 'max';
+update public.profiles set plan = 'free'  where plan not in ('free','basic','pro');
+alter table public.profiles
+  add constraint profiles_plan_check check (plan in ('free','basic','pro'));
 
 alter table public.profiles enable row level security;
 
@@ -162,3 +172,31 @@ create policy "documents_update_own" on public.documents
 drop policy if exists "documents_delete_own" on public.documents;
 create policy "documents_delete_own" on public.documents
   for delete using (auth.uid() = user_id);
+
+-- ══════════════════════════════════════════════════════════════════
+-- 4) usage_events — 월 생성 횟수 과금 원장 (append-only)
+--    ⚠ documents 를 세지 않고 별도 테이블을 두는 이유:
+--       사용자가 문서를 삭제하면 사용량이 같이 줄어 한도를 무한 우회할 수 있습니다.
+--       이 테이블에는 update/delete 정책을 두지 않아 한 번 기록되면 지울 수 없습니다.
+-- ══════════════════════════════════════════════════════════════════
+create table if not exists public.usage_events (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  kind       text not null,                          -- 문서 종류 (play/daily/...)
+  created_at timestamptz not null default now()
+);
+
+-- 이번 달 사용량 집계용 인덱스
+create index if not exists usage_events_user_created_idx
+  on public.usage_events (user_id, created_at);
+
+alter table public.usage_events enable row level security;
+
+-- 본인 사용량만 조회/기록 가능. 수정·삭제 정책은 의도적으로 두지 않습니다.
+drop policy if exists "usage_select_own" on public.usage_events;
+create policy "usage_select_own" on public.usage_events
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "usage_insert_own" on public.usage_events;
+create policy "usage_insert_own" on public.usage_events
+  for insert with check (auth.uid() = user_id);

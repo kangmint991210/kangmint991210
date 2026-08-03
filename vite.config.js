@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { guardRequest, clientIp } from "./api/_guard.js";
 
 // 개발 서버에서 POST /api/gemini 를 처리하는 미들웨어.
 // 프로덕션의 api/gemini.js(Vercel 서버리스 함수)와 동일하게 동작합니다.
@@ -25,8 +26,16 @@ export default defineConfig(({ mode }) => {
         req.on("data", (c) => (raw += c));
         req.on("end", async () => {
           try {
-            const { model, ...rest } = JSON.parse(raw || "{}");
+            const { model, kind, ...rest } = JSON.parse(raw || "{}");
             if (!model) return done(400, '{"error":{"message":"요청 본문에 model 필드가 필요합니다."}}');
+
+            // 프로덕션(api/gemini.js)과 동일한 가드 — 게스트 레이트리밋 + 요금제 월 한도
+            const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
+            const gate = await guardRequest({ token, ip: clientIp(req), kind });
+            if (!gate.ok) {
+              return done(gate.status, JSON.stringify({ error: { message: gate.message, code: "quota" } }));
+            }
+
             const upstream = await fetch(`${UPSTREAM}/v1beta/models/${model}:generateContent`, {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-goog-api-key": key },
@@ -35,6 +44,7 @@ export default defineConfig(({ mode }) => {
             const text = await upstream.text();
             res.statusCode = upstream.status;
             res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json");
+            res.setHeader("X-Usage-Counted", gate.counted ? "1" : "0");
             res.end(text);
           } catch (e) {
             done(502, JSON.stringify({ error: { message: "Gemini 프록시 요청 실패: " + (e?.message || String(e)) } }));

@@ -2,14 +2,48 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   Send, Loader2, Target, Package, ListOrdered, ShieldCheck,
   Clock, MapPin, RotateCcw, Copy, Check, CalendarDays, Eye, Heart,
-  ChevronDown, LogOut,
+  ChevronDown, LogOut, Download, Trash2, Search, Pencil, RefreshCw, Lock,
 } from "lucide-react";
 import { supabase, supabaseReady } from "./src/supabaseClient.js";
+import { copyDoc, downloadDoc, stripNum } from "./src/export.js";
 
 const EMPTY_THREADS = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
 const PENDING_PLAN_KEY = "mint_pending_plan";
-const PLAN_RANK = { free: 0, pro: 1, max: 2 }; // 요금제 등급(높을수록 상위)
+const PENDING_MODE_KEY = "mint_pending_mode";  // OAuth 리다이렉트로 state 가 날아가도 고른 문서를 유지
+const GUEST_USED_KEY = "mint_guest_used";      // 비로그인 체험 사용 횟수
+const GUEST_DOC_KEY = "mint_guest_doc";        // 체험으로 만든 결과 (로그인하면 계정으로 옮겨줌)
+const GUEST_LIMIT = 1;                         // 가입 없이 만들어 볼 수 있는 문서 수
+const PLAN_RANK = { free: 0, basic: 1, pro: 2 }; // 요금제 등급(높을수록 상위)
+// 구 요금제명 호환. 구 max(6종)는 신 Pro 에 해당합니다.
+// 구 pro 와 신 pro 는 이름이 같아 클라이언트에서 구분할 수 없으므로,
+// schema.sql 마이그레이션을 돌린 뒤 상태(= 신 Pro)를 기준으로 봅니다.
+// 마이그레이션 전이라면 구 pro 회원에게 잠깐 6종이 열리는데, 덜 주는 쪽보다 낫습니다.
+const normPlan = (p) => {
+  const v = p || "free";
+  if (v === "max") return "pro";
+  return PLAN_DOCS[v] ? v : "free";
+};
 const GEMINI_MODEL = "gemini-3.1-flash-lite"; // AI 문서 생성 모델
+
+const ls = {
+  get: (k, d = null) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch {} },
+};
+
+// 메시지 식별자 — 결과를 직접 고칠 때 "어느 문서인지" 찾는 열쇠
+let uidSeq = 0;
+const uid = () => `m${++uidSeq}_${Math.random().toString(36).slice(2, 8)}`;
+
+// payload 안의 깊은 값을 불변으로 교체 (인라인 편집용)
+// path 예: ["daily","days",0,"playEval"]
+function setPath(obj, path, value) {
+  if (!path.length) return value;
+  const [head, ...rest] = path;
+  const copy = Array.isArray(obj) ? [...obj] : { ...(obj || {}) };
+  copy[head] = setPath(copy[head], rest, value);
+  return copy;
+}
 // Supabase user → 앱에서 쓰는 형태로 변환
 // 구글/카카오는 이름·사진을 user_metadata 에, 가입 경로를 app_metadata.provider 에 담아 줍니다.
 // 카카오는 이메일 제공 동의를 안 하면 email 이 비어 올 수 있어 모두 널 안전하게 처리.
@@ -100,27 +134,58 @@ const STARTERS = {
 };
 
 // 플랜별로 열리는 문서 종류 수 (MODES 앞에서부터)
-const PLAN_DOCS = { free: 1, pro: 3, max: 6 };
+const PLAN_DOCS = { free: 1, basic: 3, pro: 6 };
+// 플랜별 월 생성 횟수 (서버 api/_guard.js 의 PLAN_QUOTA 와 반드시 같은 값이어야 합니다)
+const PLAN_QUOTA = { free: 3, basic: 500, pro: 2000 };
+const PLAN_NAME = { free: "무료", basic: "Basic", pro: "Pro" };
+
+// 이 문서를 쓰려면 최소 어떤 플랜이 필요한지 (MODES 순서 기준)
+const planForMode = (key) => {
+  const i = MODES.findIndex((m) => m.key === key);
+  if (i < PLAN_DOCS.free) return "free";
+  if (i < PLAN_DOCS.basic) return "basic";
+  return "pro";
+};
+// 그 플랜에서 새로 열리는 문서 이름들 — 페이월에서 "무엇을 얻는지" 구체적으로 보여주기 위함
+const docsOfPlan = (planKey) => {
+  const from = planKey === "basic" ? PLAN_DOCS.free : PLAN_DOCS.basic;
+  const to = PLAN_DOCS[planKey] ?? 0;
+  return MODES.slice(from, to).map((m) => m.label);
+};
+
 const PLANS = [
   {
     key: "free", name: "무료", price: "₩0", period: "",
-    tagline: "가볍게 시작해요",
-    features: ["문서 1종 이용 (놀이 활동)", "생성 무제한", "복사해서 바로 사용"],
+    tagline: "먼저 가볍게 써보세요",
+    features: ["놀이 활동 1종", "월 3회 생성", "표 서식 그대로 복사"],
     cta: "무료로 시작",
   },
   {
-    key: "pro", name: "프로", price: "₩49,900", period: "/년", highlight: true,
-    tagline: "자주 쓰는 선생님께",
-    features: ["문서 3종 이용", "생성 무제한", "우선 처리 · 새 기능 우선 제공"],
-    cta: "프로 구독하기",
+    key: "basic", name: "Basic", price: "₩9,900", period: "/월", highlight: true,
+    tagline: "매주 서류를 쓰는 선생님께",
+    features: ["문서 3종 (놀이활동 · 보육일지 · 관찰일지)", "월 500회 생성", "워드·한글 파일 내려받기", "문서 보관함 · 결과 직접 수정"],
+    cta: "Basic 시작하기",
   },
   {
-    key: "max", name: "맥스", price: "₩79,900", period: "/년",
+    key: "pro", name: "Pro", price: "₩19,900", period: "/월",
     tagline: "모든 서류를 한 번에",
-    features: ["문서 6종 전체 이용", "생성 무제한", "우선 처리 · 새 기능 우선 제공", "문서 보관함 (예정)"],
-    cta: "맥스 구독하기",
+    features: ["문서 6종 전체 (알림장 · 적응일지 · 상담일지 포함)", "월 2,000회 생성", "워드·한글 파일 내려받기", "문서 보관함 · 우선 처리"],
+    cta: "Pro 시작하기",
   },
 ];
+
+// 생성 버튼을 누르기 전에 반드시 채워야 하는 값.
+// 비어 있으면 AI 가 날짜·아동 정보를 임의로 지어내므로 미리 막습니다.
+const REQUIRED = {
+  play: [],
+  daily: [["dailyWeek", "주차"], ["dailyMemo", "이번 주 놀이·활동 메모"]],
+  obs: [["child", "아동(이니셜)"], ["obsPeriod", "관찰 월"], ["memo", "관찰 메모"]],
+  note: [["child", "아동(이니셜)"], ["todayHi", "오늘 활동·하이라이트"]],
+  adapt: [["child", "아동(이니셜)"], ["adaptStart", "적응 시작일"], ["adaptMemo", "적응 모습 메모"]],
+  counsel: [["child", "원아명"], ["counselMemo", "상담 메모"]],
+};
+const missingFields = (mode, form) =>
+  (REQUIRED[mode] || []).filter(([k]) => !String(form[k] || "").trim()).map(([, label]) => label);
 
 // 마스코트 (민트 별)
 function Mascot({ size = 44 }) {
@@ -144,6 +209,7 @@ function Mascot({ size = 44 }) {
 const CFG = {
   play: {
     btn: "놀이 추천받기",
+    eta: 10,
     free: '"더 쉽게", "조용한 버전으로"처럼 이어 말해요',
     system: `당신은 한국 어린이집·유치원의 보육 전문가입니다. 현직 보육교사가 현장에서 바로 쓸 놀이·활동 아이디어를 제안합니다.
 - 표준보육과정(영아)·2019 개정 누리과정(유아) 기반, 아이 주도·놀이 중심. 연령 발달과 안전 최우선.
@@ -156,6 +222,7 @@ const CFG = {
   },
   daily: {
     btn: "주간 보육일지 만들기",
+    eta: 45,
     free: '"요일별 평가 자세히", "일과 내용 보강"처럼 다듬어요',
     // 요일별 3항목(300자+200자+불릿2 이상) × 6일 + 주간평가 600자 이상.
     // 최소 분량 규정이라 출력이 길어지므로 넉넉하게 — 모자라면 JSON 이 잘려 파싱에 실패함
@@ -196,6 +263,7 @@ const CFG = {
   },
   obs: {
     btn: "관찰일지 만들기",
+    eta: 20,
     free: '"자연탐구 영역 추가", "해석 보강"처럼 다듬어요',
     tokens: 2200,
     system: `당신은 한국 영유아 보육 전문가입니다. 교사의 관찰 메모를 바탕으로, 실제 어린이집 양식의 '영유아 관찰기록(관찰일지)'을 작성합니다.
@@ -216,6 +284,7 @@ const CFG = {
   },
   note: {
     btn: "알림장 만들기",
+    eta: 8,
     free: '"더 짧게", "더 따뜻하게"처럼 다듬어요',
     system: `당신은 다정한 보육교사입니다. 학부모에게 보낼 알림장(가정통신)을 작성합니다.
 - 따뜻하고 친근하되 정중한 존댓말. 아이를 애정 있게, 오늘 일을 구체적·긍정적으로(4~7문장).
@@ -228,6 +297,7 @@ const CFG = {
   },
   adapt: {
     btn: "적응일지 만들기",
+    eta: 20,
     free: '"2일차 자세히", "종합 의견 보강"처럼 다듬어요',
     tokens: 2200,
     system: `당신은 한국 영유아 보육 전문가입니다. 교사의 메모를 바탕으로 실제 어린이집 양식의 '신입원아 적응일지'를 작성합니다.
@@ -247,6 +317,7 @@ const CFG = {
   },
   counsel: {
     btn: "상담일지 만들기",
+    eta: 22,
     free: '"자연탐구 영역 추가", "종합의견 보강"처럼 다듬어요',
     tokens: 2400,
     system: `당신은 다정하고 전문적인 보육교사입니다. 학기 학부모 상담을 위해 아동의 현행수준을 발달 영역별로 정리한 '학부모 상담일지'를 작성합니다.
@@ -265,14 +336,19 @@ const CFG = {
 export default function MintSsaem() {
   const [mode, setMode] = useState("play");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [view, setView] = useState("landing");   // landing | auth | app
-  const [plan, setPlan] = useState("free");        // free | pro | max
+  const [view, setView] = useState("landing");   // landing | auth | app | legal
+  const [legalTab, setLegalTab] = useState("terms"); // terms | privacy
+  const [legalFrom, setLegalFrom] = useState("landing"); // 약관을 열기 직전 화면 (돌아갈 곳)
+  const [plan, setPlan] = useState("free");        // free | basic | pro
   const [showPricing, setShowPricing] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywall, setPaywall] = useState(null);    // { need:"basic"|"pro", reason:"lock"|"quota", msg }
+  const [signupWall, setSignupWall] = useState(null); // 게스트에게 로그인을 청하는 지점 (문구가 상황마다 다름)
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [pendingPlan, setPendingPlan] = useState("free"); // 로그인 후 적용할 플랜
   const [user, setUser] = useState(null);            // 로그인한 사용자
   const [isAdmin, setIsAdmin] = useState(false);     // 관리자 — 요금제와 무관하게 6종 전체 개방
+  const [usage, setUsage] = useState(0);             // 이번 달 생성 횟수
+  const [guestUsed, setGuestUsed] = useState(() => Number(ls.get(GUEST_USED_KEY, "0")) || 0);
   const [form, setForm] = useState({
     age: "만 3세", domains: [], place: "실내", duration: "20분", theme: "", materials: "",
     child: "", klass: "", date: "", setting: "", memo: "",
@@ -290,24 +366,43 @@ export default function MintSsaem() {
 
   const [threads, setThreads] = useState({ play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] });
   const [openDoc, setOpenDoc] = useState({});        // 메뉴별로 펼쳐둔 문서 인덱스
+  const [query, setQuery] = useState("");            // 보관함 검색어
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);         // 생성 경과 초 (대기 기대치 관리)
   const scroller = useRef(null);
   const messages = threads[mode];
+  const isGuest = !user;
   // 생성 결과를 (요청 → 결과) 묶음 목록으로 만들어 접었다 펼침.
   // openDoc[mode] 가 undefined 면 "가장 최근 문서를 펼친다"는 뜻이고,
   // 사용자가 헤더를 누르면 그 선택(다른 인덱스 또는 null=전부 접기)을 유지.
-  const turns = toTurns(messages);
-  const lastDocIdx = turns.reduce((acc, t, i) => (t.bot ? i : acc), -1);
+  const allTurns = toTurns(messages);
+  const turns = filterTurns(allTurns, query);
+  const docCount = allTurns.filter((t) => t.bot && !t.bot.error).length;
+  const lastDocIdx = allTurns.reduce((acc, t, i) => (t.bot ? i : acc), -1);
   const openIdx = openDoc[mode] === undefined ? lastDocIdx : openDoc[mode];
   const cur = MODES.find((m) => m.key === mode);
   const allowedCount = isAdmin ? MODES.length : (PLAN_DOCS[plan] || 1);
-  const isLocked = (key) => MODES.findIndex((m) => m.key === key) >= allowedCount;
+  // 게스트 체험은 첫 문서(놀이 활동)만 열어 둡니다.
+  const isLocked = (key) =>
+    isGuest ? key !== MODES[0].key : MODES.findIndex((m) => m.key === key) >= allowedCount;
+  const quota = PLAN_QUOTA[plan] ?? PLAN_QUOTA.free;
+  const quotaLeft = isAdmin ? Infinity : Math.max(0, quota - usage);
+  const guestLeft = Math.max(0, GUEST_LIMIT - guestUsed);
+  const missing = missingFields(mode, form);
+  const canGenerate = !loading && missing.length === 0;
 
   useEffect(() => {
     // 결과 영역이 페이지 흐름으로 늘어나므로, 새 메시지를 페이지 스크롤로 보이게 함
     scroller.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [messages, loading]);
+
+  // 생성 중 경과 시간 — "얼마나 더 기다려야 하는지" 보여주면 이탈이 크게 줄어듭니다
+  useEffect(() => {
+    if (!loading) { setElapsed(0); return; }
+    const t = setInterval(() => setElapsed((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [loading]);
 
   // 저장된 문서를 DB에서 불러와 메뉴별 대화로 복원
   async function loadDocs(userId) {
@@ -321,11 +416,38 @@ export default function MintSsaem() {
     const next = { play: [], daily: [], obs: [], note: [], adapt: [], counsel: [] };
     for (const d of data) {
       if (!next[d.kind]) continue;
-      if (d.user_text) next[d.kind].push({ role: "user", text: d.user_text });
-      next[d.kind].push({ role: "bot", kind: d.kind, text: d.payload?.reply || "완성했어요!", payload: d.payload });
+      if (d.user_text) next[d.kind].push({ role: "user", uid: uid(), text: d.user_text });
+      // docId 를 들고 있어야 결과를 고쳤을 때 그 행을 업데이트/삭제할 수 있습니다
+      next[d.kind].push({ role: "bot", uid: uid(), docId: d.id, kind: d.kind, text: d.payload?.reply || "완성했어요!", payload: d.payload });
     }
     setThreads(next);
     setOpenDoc({});   // 불러온 문서는 각 메뉴의 최신 것만 펼친 상태로
+  }
+
+  // 이번 달 생성 횟수 조회 (usage_events 는 삭제 정책이 없는 append-only 원장)
+  async function loadUsage(userId) {
+    if (!supabase) return;
+    const d = new Date();
+    const from = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
+    const { count } = await supabase
+      .from("usage_events")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", from);
+    setUsage(count || 0);
+  }
+
+  // 체험으로 만든 문서를 계정으로 옮겨 담기 — 로그인했다고 결과가 사라지면 안 되니까
+  async function claimGuestDoc(userId) {
+    const raw = ls.get(GUEST_DOC_KEY);
+    if (!raw) return;
+    ls.del(GUEST_DOC_KEY);
+    try {
+      const g = JSON.parse(raw);
+      await supabase.from("documents").insert({
+        user_id: userId, kind: g.kind, user_text: g.userText, form: g.form, payload: g.payload,
+      });
+    } catch { /* 옮기기 실패해도 로그인 흐름은 막지 않음 */ }
   }
 
   // Supabase 세션 감지 — 로그인/OAuth 복귀 시 앱으로 진입
@@ -335,18 +457,57 @@ export default function MintSsaem() {
       if (session?.user) {
         setUser(mapUser(session.user));
         if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-          loadDocs(session.user.id);
+          // 체험 결과를 먼저 계정으로 옮긴 뒤 목록을 불러와야 방금 만든 문서가 보입니다
+          claimGuestDoc(session.user.id).finally(() => loadDocs(session.user.id));
           loadProfile(session.user);   // 요금제/마지막 접속 동기화 + 추적
           loadAdmin(session.user.id);  // 관리자 여부 확인
+          loadUsage(session.user.id);  // 이번 달 사용량
+          // OAuth 는 페이지를 떠났다 돌아오므로 state 가 초기화됩니다.
+          // 로그인 전에 고른 문서를 여기서 되살려, 엉뚱한 화면으로 떨어지지 않게 합니다.
+          const want = ls.get(PENDING_MODE_KEY);
+          ls.del(PENDING_MODE_KEY);
+          if (want && MODES.some((m) => m.key === want)) setMode(want);
         }
         if (event === "SIGNED_IN") setView("app");
       } else {
         setUser(null);
         setIsAdmin(false);
+        setUsage(0);
       }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // 체험으로 만든 결과는 새로고침해도 남아 있어야 합니다.
+  // (로그인 전에는 DB 에 못 넣으므로 브라우저에 보관해 두었다가 여기서 되살립니다)
+  useEffect(() => {
+    if (user) return;
+    const raw = ls.get(GUEST_DOC_KEY);
+    if (!raw) return;
+    try {
+      const g = JSON.parse(raw);
+      if (!EMPTY_THREADS[g.kind]) return;
+      setThreads((t) => (t[g.kind].length ? t : {
+        ...t,
+        [g.kind]: [
+          { role: "user", uid: uid(), text: g.userText },
+          { role: "bot", uid: uid(), kind: g.kind, text: g.payload?.reply || "완성했어요!", payload: g.payload },
+        ],
+      }));
+    } catch {}
+  }, [user]);
+
+  // 로그인 후 첫 진입에서 잠긴 문서를 고른 상태라면, 입력하기 "전에" 알려줍니다.
+  // (예전에는 폼을 다 채우고 생성 버튼을 눌러야 페이월이 떠서 노동이 통째로 버려졌습니다)
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (view !== "app" || !user || greeted.current) return;
+    greeted.current = true;
+    if (isLocked(mode)) {
+      const need = planForMode(mode);
+      setPaywall({ need, reason: "lock", modeLabel: MODES.find((m) => m.key === mode)?.label });
+    }
+  }, [view, user, mode]);
 
   // 관리자 명단(admins)에 있으면 요금제와 상관없이 문서 6종 전부 개방.
   // 테이블이 아직 없거나 조회에 실패하면 조용히 일반 회원으로 취급.
@@ -360,13 +521,12 @@ export default function MintSsaem() {
   async function loadProfile(sessionUser) {
     if (!supabase || !sessionUser) return;
     // 랜딩에서 고른 대기 플랜(가입 직후 적용용)
-    let pend = "free";
-    try { pend = localStorage.getItem(PENDING_PLAN_KEY) || "free"; } catch {}
-    try { localStorage.removeItem(PENDING_PLAN_KEY); } catch {}
+    const pend = normPlan(ls.get(PENDING_PLAN_KEY, "free"));
+    ls.del(PENDING_PLAN_KEY);
 
     const { data } = await supabase
       .from("profiles").select("plan, name").eq("id", sessionUser.id).maybeSingle();
-    const serverPlan = data?.plan || "free";
+    const serverPlan = normPlan(data?.plan);
     // 서버 플랜과 대기 플랜 중 상위 등급을 적용
     const effective = (PLAN_RANK[pend] || 0) > (PLAN_RANK[serverPlan] || 0) ? pend : serverPlan;
     setPlan(effective);
@@ -398,14 +558,42 @@ export default function MintSsaem() {
     } catch { /* 무시 */ }
   }
 
-  // 생성된 문서를 DB에 저장
+  // 생성된 문서를 DB에 저장하고, 만들어진 행의 id 를 돌려줍니다(이후 수정/삭제에 필요).
   async function saveDocument(kind, userText, formSnapshot, payload) {
-    if (!supabase || !user) return;
+    if (!supabase || !user) return null;
     try {
-      await supabase.from("documents").insert({
+      const { data } = await supabase.from("documents").insert({
         user_id: user.id, kind, user_text: userText, form: formSnapshot, payload,
-      });
-    } catch { /* 저장 실패는 조용히 무시 (화면 흐름 유지) */ }
+      }).select("id").single();
+      return data?.id || null;
+    } catch { return null; } // 저장 실패는 조용히 무시 (화면 흐름 유지)
+  }
+
+  // 결과를 앱 안에서 직접 고친 내용을 반영 (화면 + DB)
+  async function editField(msgUid, docId, path, value) {
+    let updated = null;
+    setThreads((t) => ({
+      ...t,
+      [mode]: t[mode].map((m) => {
+        if (m.uid !== msgUid) return m;
+        updated = setPath(m.payload, path, value);
+        return { ...m, payload: updated };
+      }),
+    }));
+    if (supabase && user && docId && updated) {
+      try { await supabase.from("documents").update({ payload: updated }).eq("id", docId); } catch {}
+    }
+  }
+
+  // 문서 한 건 삭제 (보관함)
+  async function deleteDoc(turn) {
+    const docId = turn.bot?.docId;
+    const uids = [turn.user?.uid, turn.bot?.uid].filter(Boolean);
+    setThreads((t) => ({ ...t, [mode]: t[mode].filter((m) => !uids.includes(m.uid)) }));
+    setOpenDoc((o) => { const n = { ...o }; delete n[mode]; return n; });
+    if (supabase && user && docId) {
+      try { await supabase.from("documents").delete().eq("id", docId); } catch {}
+    }
   }
 
   async function logout() {
@@ -413,16 +601,34 @@ export default function MintSsaem() {
     setUser(null);
     setIsAdmin(false);
     setThreads(EMPTY_THREADS);
+    setUsage(0);
     setView("landing");
   }
 
-  async function send(rawText) {
+  async function send(rawText, retryOf) {
     if (loading) return;
-    if (isLocked(mode)) { setShowPaywall(true); return; }
+    if (isLocked(mode)) {
+      // 게스트에게는 "가입하면 열려요", 회원에게는 "이 플랜부터 열려요"
+      if (isGuest) setSignupWall({ kind: "lockedDoc", modeLabel: cur.label });
+      else setPaywall({ need: planForMode(mode), reason: "lock", modeLabel: cur.label });
+      return;
+    }
+    if (isGuest && guestLeft <= 0) { setSignupWall({ kind: "guestOver" }); return; }
+    if (!isGuest && quotaLeft <= 0) {
+      setPaywall({ need: plan === "free" ? "basic" : "pro", reason: "quota" });
+      return;
+    }
+    const miss = missingFields(mode, form);
+    if (miss.length) return; // 버튼이 이미 비활성 — 방어용
+
     const cfg = CFG[mode];
     const free = (rawText ?? input).trim();
     const display = free || cfg.label();
-    const next = [...threads[mode], { role: "user", text: display }];
+    // 재시도는 실패한 말풍선만 걷어내고 같은 요청을 다시 보냅니다(입력은 그대로 유지)
+    const base = retryOf
+      ? threads[mode].filter((m) => m.uid !== retryOf)
+      : threads[mode];
+    const next = [...base, { role: "user", uid: uid(), text: display }];
     setThreads((t) => ({ ...t, [mode]: next }));
     setInput("");
     setLoading(true);
@@ -438,13 +644,19 @@ export default function MintSsaem() {
     const contents = history.map((m) => ({ role: m.role, parts: [{ text: m.text }] }));
 
     try {
+      // 로그인 상태면 액세스 토큰을 함께 보내 서버가 요금제 한도를 검증하게 합니다.
+      const token = (await supabase?.auth.getSession())?.data?.session?.access_token;
       // 콜론(:generateContent)이 URL 에 있으면 Vercel 라우팅이 실패하므로,
       // 경로는 /api/gemini 로 고정하고 모델은 body 로 전달 → 함수가 서버에서 조립
       const res = await fetch("/api/gemini", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           model: GEMINI_MODEL,
+          kind: mode,
           systemInstruction: { parts: [{ text: cfg.system }] },
           contents,
           generationConfig: {
@@ -455,18 +667,49 @@ export default function MintSsaem() {
         }),
       });
       const data = await res.json();
+      // 한도 초과는 "실패"가 아니라 안내 — 말풍선 대신 요금제 화면으로 보냅니다
+      if (res.status === 429) {
+        setThreads((t) => ({ ...t, [mode]: base }));
+        if (isGuest) setSignupWall({ kind: "guestOver" });
+        else setPaywall({ need: plan === "free" ? "basic" : "pro", reason: "quota", msg: data.error?.message });
+        return;
+      }
       if (!res.ok || data.error) throw new Error(data.error?.message || "api error");
       const text = (data.candidates?.[0]?.content?.parts || []).map((b) => b.text || "").join("").trim();
       const clean = text.replace(/```json/gi, "").replace(/```/g, "").trim();
       let p = null;
       try { p = JSON.parse(clean); } catch { const mm = clean.match(/\{[\s\S]*\}/); if (mm) p = JSON.parse(mm[0]); }
-      const bot = p
-        ? { role: "bot", kind: mode, text: p.reply || "완성했어요!", payload: p }
-        : { role: "bot", kind: mode, text: clean || "잠시 후 다시 시도해 주세요." };
-      setThreads((t) => ({ ...t, [mode]: [...t[mode], bot] }));
-      if (p) saveDocument(mode, display, form, p); // 생성 성공 시 DB 저장
+      if (!p) throw new Error("parse");   // 깨진 결과를 그대로 보여주지 않고 재시도 경로로 보냄
+
+      const botUid = uid();
+      setThreads((t) => ({
+        ...t,
+        [mode]: [...t[mode], { role: "bot", uid: botUid, kind: mode, text: p.reply || "완성했어요!", payload: p }],
+      }));
+
+      if (user) {
+        const docId = await saveDocument(mode, display, form, p);
+        if (docId) setThreads((t) => ({ ...t, [mode]: t[mode].map((m) => (m.uid === botUid ? { ...m, docId } : m)) }));
+        // 서버가 사용량을 못 적은 경우(SERVICE_ROLE 키 미설정)에만 클라이언트가 대신 기록
+        if (res.headers.get("X-Usage-Counted") !== "1") {
+          try { await supabase.from("usage_events").insert({ user_id: user.id, kind: mode }); } catch {}
+        }
+        setUsage((n) => n + 1);
+      } else {
+        // 체험 결과는 브라우저에 임시 보관 → 로그인하면 계정으로 옮겨 담습니다
+        const n = guestUsed + 1;
+        setGuestUsed(n);
+        ls.set(GUEST_USED_KEY, String(n));
+        ls.set(GUEST_DOC_KEY, JSON.stringify({ kind: mode, userText: display, form, payload: p }));
+      }
     } catch {
-      setThreads((t) => ({ ...t, [mode]: [...t[mode], { role: "bot", kind: mode, text: "연결에 문제가 생겼어요. 잠시 후 다시 보내주세요. 🥲" }] }));
+      setThreads((t) => ({
+        ...t,
+        [mode]: [...t[mode], {
+          role: "bot", uid: uid(), kind: mode, error: true,
+          text: "결과를 받아오지 못했어요. 입력하신 내용은 그대로 있으니 다시 시도해 주세요. 🥲",
+        }],
+      }));
     } finally {
       setLoading(false);
       // 새로 만든 문서가 펼쳐진 상태로 보이도록 이 메뉴의 선택을 초기화
@@ -474,32 +717,85 @@ export default function MintSsaem() {
     }
   }
 
-  const reset = () => {
+  // 이 메뉴의 문서를 전부 비웁니다. 예전에는 화면만 지우고 DB 는 남아
+  // 다음 로그인 때 되살아났기 때문에, 저장본까지 함께 지우고 먼저 확인을 받습니다.
+  const reset = async () => {
+    const has = messages.length > 0;
+    if (!has) return;
+    const saved = messages.filter((m) => m.docId).length;
+    const ok = window.confirm(
+      saved > 0
+        ? `이 메뉴에 저장된 문서 ${saved}건이 영구 삭제됩니다. 계속할까요?`
+        : "이 메뉴의 결과를 모두 지울까요?"
+    );
+    if (!ok) return;
+    const ids = messages.map((m) => m.docId).filter(Boolean);
     setThreads((t) => ({ ...t, [mode]: [] }));
     setOpenDoc((o) => { const n = { ...o }; delete n[mode]; return n; });
+    setQuery("");
+    if (supabase && user && ids.length) {
+      try { await supabase.from("documents").delete().in("id", ids); } catch {}
+    }
   };
-  const choosePlan = (key) => { savePlan(key); setShowPricing(false); setShowPaywall(false); setView("app"); };
-  // 랜딩의 시작/요금제 버튼 → 로그인 페이지로. 선택한 플랜은 로그인 후 적용.
+  const choosePlan = (key) => { savePlan(key); setShowPricing(false); setPaywall(null); setView("app"); };
+  // 약관/방침은 어디서 열었든 원래 있던 화면으로 정확히 돌아가야 흐름이 끊기지 않습니다
+  const openLegal = (tab) => { setLegalTab(tab); setLegalFrom(view); setView("legal"); };
+  // 요금제 버튼 → 로그인 페이지로. 선택한 플랜은 로그인 후 적용.
   // 이미 로그인돼 있으면 바로 앱으로.
   const goAuth = (key = "free", m = "login") => {
-    try { localStorage.setItem(PENDING_PLAN_KEY, key); } catch {}
-    setPendingPlan(key); setShowPricing(false); setShowPaywall(false);
+    ls.set(PENDING_PLAN_KEY, key);
+    ls.set(PENDING_MODE_KEY, mode);   // OAuth 로 페이지를 떠나도 고른 문서를 잃지 않게
+    setPendingPlan(key); setShowPricing(false); setPaywall(null); setSignupWall(null);
     if (user) { savePlan(key); setView("app"); return; }
     setAuthMode(m); setView("auth");
   };
-  // 랜딩의 문서 카드 → 그 메뉴를 선택한 채로 로그인/앱으로 이동.
-  // 이미 로그인돼 있으면 쓰던 요금제를 그대로 두고 앱으로만 진입.
+
+  // 랜딩의 "무료로 시작하기" — 가입 없이 바로 만들어 볼 수 있어야 랜딩의 약속과 맞습니다.
+  // 이미 체험을 다 쓴 사람은 그때 가입을 청합니다.
+  const startTrial = () => {
+    setShowPricing(false);
+    if (user) { setView("app"); return; }
+    setMode(MODES[0].key);
+    // 체험을 이미 다 썼더라도 여기서 가입을 청하지 않습니다.
+    // 먼저 만들어 둔 결과를 보게 두고, "한 번 더 만들려 할 때" 청해야 가입 이유가 생깁니다.
+    setView("app");
+  };
+
+  // 랜딩의 문서 카드 → 그 메뉴를 선택한 채로 앱으로.
+  // 잠긴 문서는 "가입/업그레이드가 필요하다"고 여기서 먼저 알려, 입력 노동을 버리지 않게 합니다.
   const goDoc = (key) => {
     setMode(key);
-    if (user) { setShowPricing(false); setView("app"); return; }
-    goAuth("free");
+    ls.set(PENDING_MODE_KEY, key);
+    setShowPricing(false);
+    const locked = user
+      ? MODES.findIndex((m) => m.key === key) >= (isAdmin ? MODES.length : PLAN_DOCS[plan] || 1)
+      : key !== MODES[0].key;
+    setView("app");
+    if (!locked) return;
+    const label = MODES.find((m) => m.key === key)?.label;
+    if (user) setPaywall({ need: planForMode(key), reason: "lock", modeLabel: label });
+    else setSignupWall({ kind: "lockedDoc", modeLabel: label });
   };
 
   if (view === "landing") {
     return (
       <>
-        <Landing onStart={() => goAuth("free")} onOpenPricing={() => setShowPricing(true)} onChoose={(key) => goAuth(key)} onPickDoc={goDoc} />
-        {showPricing && <PricingModal plan={plan} onChoose={(key) => goAuth(key)} onClose={() => setShowPricing(false)} />}
+        <Landing
+          user={user}
+          plan={plan}
+          onStart={startTrial}
+          onOpenPricing={() => setShowPricing(true)}
+          onChoose={(key) => (key === "free" && !user ? startTrial() : goAuth(key))}
+          onPickDoc={goDoc}
+          onLogin={() => { setAuthMode("login"); setView("auth"); }}
+          onLegal={openLegal}
+          lockOf={(key) => (key === MODES[0].key ? null : planForMode(key))}
+        />
+        {showPricing && (
+          <PricingModal plan={user ? plan : undefined}
+            onChoose={(key) => (key === "free" && !user ? startTrial() : goAuth(key))}
+            onClose={() => setShowPricing(false)} />
+        )}
       </>
     );
   }
@@ -510,8 +806,13 @@ export default function MintSsaem() {
         mode={authMode}
         setMode={setAuthMode}
         onHome={() => setView("landing")}
+        onLegal={openLegal}
       />
     );
+  }
+
+  if (view === "legal") {
+    return <LegalPage tab={legalTab} setTab={setLegalTab} onHome={() => setView(legalFrom === "legal" ? "landing" : legalFrom)} />;
   }
 
   return (
@@ -528,27 +829,49 @@ export default function MintSsaem() {
           </div>
         </button>
         <div style={styles.headRight}>
-          {isAdmin ? (
+          {isGuest ? (
+            <button style={styles.planFree} onClick={() => { setAuthMode("signup"); setView("auth"); }}>
+              체험 중 · 가입하기
+            </button>
+          ) : isAdmin ? (
             <span style={styles.planPro} title="관리자 — 문서 6종 전체 이용">👑 관리자</span>
-          ) : plan === "max" ? (
-            <span style={styles.planPro}>✨ 맥스</span>
+          ) : plan === "pro" ? (
+            <span style={styles.planPro} title={`이번 달 ${usage}/${quota}회 사용`}>✨ Pro</span>
           ) : (
             <button style={styles.planFree} onClick={() => setShowPricing(true)}>
-              {plan === "pro" ? "프로" : "무료"} · 업그레이드
-            </button>
-          )}
-          {messages.length > 0 && (
-            <button style={styles.resetBtn} onClick={reset} title="이 메뉴 새로 시작">
-              <RotateCcw size={14} /> 새로
+              {PLAN_NAME[plan]} · 업그레이드
             </button>
           )}
           {user && (
-            <button style={styles.resetBtn} onClick={logout} title="로그아웃">
-              <LogOut size={14} /> 로그아웃
+            <button style={styles.userChip} onClick={logout} title={`${user.email || user.name} · 눌러서 로그아웃`}>
+              {user.avatar
+                ? <img src={user.avatar} alt="" style={styles.avatar} referrerPolicy="no-referrer" />
+                : <span style={styles.avatarFallback}>{(user.name || "쌤").slice(0, 1)}</span>}
+              <span style={styles.userName}>{user.name}</span>
+              <LogOut size={13} style={{ color: "#A9C3B9", flexShrink: 0 }} />
             </button>
           )}
         </div>
       </header>
+
+      {/* 남은 횟수 — 한도가 있다는 사실을 소진 직전이 아니라 미리 알려줍니다 */}
+      <div style={styles.quotaBar}>
+        {isGuest ? (
+          <span>
+            🌿 가입 없이 <b>{guestLeft}회</b> 더 만들어 볼 수 있어요.
+            <button style={styles.linkBtn} onClick={() => { setAuthMode("signup"); setView("auth"); }}>가입하고 저장하기</button>
+          </span>
+        ) : isAdmin ? (
+          <span>👑 관리자 — 문서 6종 · 생성 무제한</span>
+        ) : (
+          <span>
+            이번 달 <b>{usage}</b> / {quota.toLocaleString()}회 사용
+            {quotaLeft <= Math.max(1, Math.floor(quota * 0.1)) && (
+              <button style={styles.linkBtn} onClick={() => setShowPricing(true)}>요금제 올리기</button>
+            )}
+          </span>
+        )}
+      </div>
 
       {/* 모드 드롭다운 */}
       <div style={styles.modeBar}>
@@ -563,15 +886,21 @@ export default function MintSsaem() {
               {MODES.map((m) => {
                 const on = mode === m.key;
                 const locked = isLocked(m.key);
-                const needPlan = MODES.findIndex((x) => x.key === m.key) < 3 ? "프로" : "맥스";
+                const needPlan = PLAN_NAME[planForMode(m.key)];
                 return (
                   <button key={m.key}
-                    onClick={() => { setMenuOpen(false); if (locked) setShowPaywall(true); else setMode(m.key); }}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      // 잠긴 문서는 폼을 채우기 "전에" 알려 노동이 버려지지 않게 합니다
+                      if (!locked) { setMode(m.key); setQuery(""); return; }
+                      if (isGuest) setSignupWall({ kind: "lockedDoc", modeLabel: m.label });
+                      else setPaywall({ need: planForMode(m.key), reason: "lock", modeLabel: m.label });
+                    }}
                     style={{ ...styles.menuItem, ...(on ? styles.menuItemOn : {}), ...(locked ? { color: "#A9C3B9" } : {}) }}>
                     <span style={{ fontSize: 15, opacity: locked ? 0.5 : 1 }}>{m.emoji}</span>
                     <span>{m.label}</span>
                     {locked
-                      ? <span style={styles.lockTag}>🔒 {needPlan}</span>
+                      ? <span style={styles.lockTag}>🔒 {isGuest ? "가입" : needPlan}</span>
                       : on ? <Check size={15} style={{ marginLeft: "auto", color: "#2E9E86" }} /> : null}
                   </button>
                 );
@@ -581,52 +910,180 @@ export default function MintSsaem() {
         </div>
       </div>
 
-      {/* 모드별 입력 패널 */}
+      {/* 모드별 입력 패널 — 잠긴 문서는 폼 자체를 열지 않습니다.
+          채울 수 있게 두면 다 적고 나서 막히는(= 노동이 통째로 버려지는) 흐름이 되풀이됩니다. */}
       <section style={styles.panel}>
-        {mode === "play" && <PlayPanel form={form} setF={setF} toggleDomain={toggleDomain} />}
-        {mode === "daily" && <DailyPanel form={form} setF={setF} />}
-        {mode === "obs" && <ObsPanel form={form} setF={setF} />}
-        {mode === "note" && <NotePanel form={form} setF={setF} />}
-        {mode === "adapt" && <AdaptPanel form={form} setF={setF} />}
-        {mode === "counsel" && <CounselPanel form={form} setF={setF} />}
-        <button style={styles.genBtn} onClick={() => send("")} disabled={loading}>
-          {loading ? <Loader2 size={16} className="spin" /> : <span>✏️</span>} {CFG[mode].btn}
-        </button>
+        {isLocked(mode) ? (
+          <LockedPanel
+            label={cur.label}
+            guest={isGuest}
+            need={planForMode(mode)}
+            onOpen={() => (isGuest
+              ? setSignupWall({ kind: "lockedDoc", modeLabel: cur.label })
+              : setPaywall({ need: planForMode(mode), reason: "lock", modeLabel: cur.label }))}
+            onFallback={() => setMode(MODES[0].key)}
+          />
+        ) : (
+          <>
+            <div style={styles.privacyNote}>
+              🔒 아이 <b>실명 대신 이니셜·별명</b>을 권해요. 입력하신 내용은 문서를 만드는 데에만 쓰이고, 본인만 볼 수 있어요.
+            </div>
+            {mode === "play" && <PlayPanel form={form} setF={setF} toggleDomain={toggleDomain} />}
+            {mode === "daily" && <DailyPanel form={form} setF={setF} />}
+            {mode === "obs" && <ObsPanel form={form} setF={setF} />}
+            {mode === "note" && <NotePanel form={form} setF={setF} />}
+            {mode === "adapt" && <AdaptPanel form={form} setF={setF} />}
+            {mode === "counsel" && <CounselPanel form={form} setF={setF} />}
+            <button
+              style={{ ...styles.genBtn, ...(canGenerate ? {} : styles.genBtnOff) }}
+              onClick={() => send("")}
+              disabled={!canGenerate}
+              title={missing.length ? `${missing.join(", ")}을(를) 먼저 채워주세요` : CFG[mode].btn}>
+              {loading ? <Loader2 size={16} className="spin" /> : <span>✏️</span>} {CFG[mode].btn}
+            </button>
+            {missing.length > 0 && (
+              <div style={styles.needHint}>
+                ✏️ <b>{missing.join(" · ")}</b> 을(를) 채우면 만들 수 있어요.
+                <span style={styles.needWhy}> 비워 두면 날짜·아이 정보를 지어내서 다시 써야 해요.</span>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <main ref={scroller} style={styles.thread}>
-        {messages.length === 0 && <EmptyState mode={mode} onPick={send} />}
-        {turns.map((t, i) =>
-          // 아직 결과가 안 온 요청(생성 중)은 접지 않고 그대로 노출
-          !t.bot ? (
-            <div key={i} style={styles.userBubble}>{t.user.text}</div>
-          ) : (
-            <DocTurn key={i} turn={t} no={i + 1} open={openIdx === i}
-              onToggle={() => setOpenDoc((o) => ({ ...o, [mode]: openIdx === i ? null : i }))} />
-          )
+        {messages.length === 0 && !isLocked(mode) && (
+          <EmptyState mode={mode} onPick={send} disabled={!canGenerate} />
         )}
-        {loading && (
-          <div style={styles.loading}>
-            <span style={styles.botFace}><Mascot size={30} /></span>
-            <span style={styles.bubbleLoad}>
-              만드는 중<span className="dot d1">.</span><span className="dot d2">.</span><span className="dot d3">.</span>
-            </span>
+
+        {/* 보관함 도구 — 검색창은 문서가 쌓이기 시작할 때만 (한두 건일 땐 방해가 됩니다) */}
+        {allTurns.some((t) => t.bot) && (
+          <div style={styles.searchRow}>
+            {docCount >= 3 ? (
+              <>
+                <Search size={15} style={{ color: "#A9C3B9", flexShrink: 0 }} />
+                <input value={query} onChange={(e) => setQuery(e.target.value)}
+                  placeholder="저장된 문서 검색 (아이 이름·주차·내용)" style={styles.searchInput} />
+                {query && <button style={styles.searchClear} onClick={() => setQuery("")}>지우기</button>}
+              </>
+            ) : (
+              <span style={styles.searchCount}>📄 {docCount}건</span>
+            )}
+            <button style={styles.searchClear} onClick={reset} title="이 메뉴의 문서 모두 삭제">
+              <RotateCcw size={13} /> 비우기
+            </button>
           </div>
         )}
+        {query && turns.length === 0 && (
+          <div style={styles.emptySearch}>‘{query}’ 와 맞는 문서가 없어요.</div>
+        )}
+
+        {turns.map((t) =>
+          // 아직 결과가 안 온 요청(생성 중)은 접지 않고 그대로 노출
+          !t.bot ? (
+            <div key={t.user.uid} style={styles.userBubble}>{t.user.text}</div>
+          ) : (
+            <DocTurn
+              key={t.bot.uid}
+              turn={t}
+              no={t.no + 1}
+              open={openIdx === t.no}
+              guest={isGuest}
+              canExport={isAdmin || plan !== "free"}
+              onToggle={() => setOpenDoc((o) => ({ ...o, [mode]: openIdx === t.no ? null : t.no }))}
+              onEdit={(path, value) => editField(t.bot.uid, t.bot.docId, path, value)}
+              onDelete={() => deleteDoc(t)}
+              onRetry={() => send("", t.bot.uid)}
+              onNeedSignup={(kind) => setSignupWall({ kind })}
+              onNeedPlan={() => setPaywall({ need: "basic", reason: "export" })}
+            />
+          )
+        )}
+        {loading && <Generating eta={CFG[mode].eta || 15} elapsed={elapsed} />}
       </main>
 
-      <footer style={styles.inputBar}>
-        <input value={input} onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder={CFG[mode].free} style={styles.input} />
-        <button style={styles.sendBtn} onClick={() => send()} disabled={loading}>
-          {loading ? <Loader2 size={19} className="spin" /> : <Send size={19} />}
-        </button>
-      </footer>
+      {/* 이어 말하기 입력창 — 결과가 있어야 의미가 있어서, 그전에는 안내만 보여줍니다 */}
+      {isLocked(mode) ? null : messages.length === 0 ? (
+        <footer style={styles.inputHintBar}>
+          👆 먼저 위에서 <b>{CFG[mode].btn}</b> 를 눌러 만들어 보세요. 결과가 나오면 여기서 “더 짧게”처럼 다듬을 수 있어요.
+        </footer>
+      ) : (
+        <footer style={styles.inputBar}>
+          <input value={input} onChange={(e) => setInput(e.target.value)}
+            // 한글 입력은 Enter 로 조합을 확정하므로, 조합 중 Enter 를 전송으로 삼으면 두 번 보내집니다
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) send(); }}
+            placeholder={CFG[mode].free} style={styles.input} />
+          <button style={styles.sendBtn} onClick={() => send()} disabled={loading}>
+            {loading ? <Loader2 size={19} className="spin" /> : <Send size={19} />}
+          </button>
+        </footer>
+      )}
     </div>
     {showPricing && <PricingModal plan={plan} onChoose={choosePlan} onClose={() => setShowPricing(false)} />}
-    {showPaywall && <PaywallModal onOpenPricing={() => { setShowPaywall(false); setShowPricing(true); }} onClose={() => setShowPaywall(false)} />}
+    {paywall && (
+      <PaywallModal
+        info={paywall}
+        onOpenPricing={() => { setPaywall(null); setShowPricing(true); }}
+        onClose={() => setPaywall(null)}
+        onFallback={() => { setPaywall(null); setMode(MODES[0].key); }}
+      />
+    )}
+    {signupWall && (
+      <SignupWallModal
+        info={signupWall}
+        onSignup={() => { setSignupWall(null); setAuthMode("signup"); setView("auth"); }}
+        onLogin={() => { setSignupWall(null); setAuthMode("login"); setView("auth"); }}
+        onClose={() => setSignupWall(null)}
+        onFallback={() => { setSignupWall(null); setMode(MODES[0].key); }}
+      />
+    )}
     </>
+  );
+}
+
+/* ---------- 잠긴 문서 안내 ---------- */
+// 폼 대신 이 화면을 보여줘서, 다 적고 나서 막히는 일이 아예 생기지 않게 합니다.
+function LockedPanel({ label, guest, need, onOpen, onFallback }) {
+  return (
+    <div style={styles.lockPanel}>
+      <span style={styles.lockIcon}><Lock size={22} /></span>
+      <div style={styles.lockTitle}>
+        {guest ? `${label}는 가입 후에 열려요` : `${label}는 ${PLAN_NAME[need]} 플랜부터예요`}
+      </div>
+      <div style={styles.lockDesc}>
+        {guest
+          ? "지금은 놀이 활동을 가입 없이 만들어 보실 수 있어요."
+          : `${PLAN_NAME[need]} 플랜을 쓰면 ${docsOfPlan(need).join(" · ")}가 함께 열려요.`}
+      </div>
+      <button style={styles.lockCta} onClick={onOpen}>
+        {guest ? "가입하고 열기" : "요금제 보기"}
+      </button>
+      <button style={styles.lockGhost} onClick={onFallback}>
+        {MODES[0].label} 만들러 가기
+      </button>
+    </div>
+  );
+}
+
+/* ---------- 생성 중 (예상 시간 안내) ---------- */
+// 보육일지는 30~50초가 걸립니다. "만드는 중…"만 띄우면 멈춘 줄 알고 나가버리므로
+// 예상 시간과 경과를 함께 보여 줍니다.
+function Generating({ eta, elapsed }) {
+  const pct = Math.min(96, Math.round((elapsed / eta) * 100));
+  const late = elapsed > eta;
+  return (
+    <div style={styles.genWrap}>
+      <div style={styles.loading}>
+        <span style={styles.botFace}><Mascot size={30} /></span>
+        <span style={styles.bubbleLoad}>
+          만드는 중<span className="dot d1">.</span><span className="dot d2">.</span><span className="dot d3">.</span>
+          <span style={styles.genTime}>
+            {late ? "조금만 더요! 거의 다 됐어요" : `약 ${eta}초 정도 걸려요 · ${elapsed}초`}
+          </span>
+        </span>
+      </div>
+      <div style={styles.genTrack}><div style={{ ...styles.genFill, width: `${pct}%` }} /></div>
+    </div>
   );
 }
 
@@ -638,11 +1095,22 @@ function toTurns(messages) {
   const turns = [];
   for (const m of messages) {
     const last = turns[turns.length - 1];
-    if (m.role === "user") turns.push({ user: m, bot: null });
+    if (m.role === "user") turns.push({ user: m, bot: null, no: turns.length });
     else if (last && !last.bot) last.bot = m;
-    else turns.push({ user: null, bot: m });
+    else turns.push({ user: null, bot: m, no: turns.length });
   }
   return turns;
+}
+
+// 보관함 검색 — 제목뿐 아니라 본문까지 훑습니다(아이 이름·주차로 찾는 경우가 대부분).
+function filterTurns(turns, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return turns;
+  return turns.filter((t) => {
+    if (!t.bot) return false;
+    const hay = `${docTitle(t.bot)} ${t.user?.text || ""} ${JSON.stringify(t.bot.payload || "")}`.toLowerCase();
+    return hay.includes(q);
+  });
 }
 
 // 접힌 상태에서 무슨 문서인지 알아볼 수 있게 한 줄 요약
@@ -659,19 +1127,40 @@ function docTitle(bot) {
   return detail ? `${label} · ${detail}` : label;
 }
 
-function DocTurn({ turn, no, open, onToggle }) {
+function DocTurn({ turn, no, open, guest, canExport, onToggle, onEdit, onDelete, onRetry, onNeedSignup, onNeedPlan }) {
   const { user, bot } = turn;
+
+  // 생성이 실패한 자리 — 결과 대신 재시도 버튼을 둡니다(입력값은 폼에 그대로 남아 있음)
+  if (bot.error) {
+    return (
+      <div style={styles.errorBlock}>
+        <div style={styles.botRow}>
+          <span style={styles.botFace}><Mascot size={30} /></span>
+          <div style={styles.botText}>{bot.text}</div>
+        </div>
+        <button style={styles.retryBtn} onClick={onRetry}>
+          <RefreshCw size={14} /> 다시 시도하기
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.turnItem}>
-      <button style={{ ...styles.turnHead, ...(open ? styles.turnHeadOpen : {}) }}
-        onClick={onToggle} aria-expanded={open}>
-        <span style={styles.turnNo}>{no}</span>
-        <span style={styles.turnTitle}>{docTitle(bot)}</span>
-        <ChevronDown size={17} style={{
-          marginLeft: "auto", flexShrink: 0, color: "#7A9A90",
-          transition: "transform .15s", transform: open ? "rotate(180deg)" : "none",
-        }} />
-      </button>
+      <div style={{ ...styles.turnHead, ...(open ? styles.turnHeadOpen : {}) }}>
+        <button style={styles.turnHeadMain} onClick={onToggle} aria-expanded={open}>
+          <span style={styles.turnNo}>{no}</span>
+          <span style={styles.turnTitle}>{docTitle(bot)}</span>
+          <ChevronDown size={17} style={{
+            marginLeft: "auto", flexShrink: 0, color: "#7A9A90",
+            transition: "transform .15s", transform: open ? "rotate(180deg)" : "none",
+          }} />
+        </button>
+        <button style={styles.iconBtn} title="이 문서 삭제"
+          onClick={() => { if (window.confirm("이 문서를 삭제할까요? 되돌릴 수 없어요.")) onDelete(); }}>
+          <Trash2 size={14} />
+        </button>
+      </div>
       {open && (
         <div style={styles.turnBody}>
           {user && <div style={styles.userBubble}>{user.text}</div>}
@@ -680,7 +1169,11 @@ function DocTurn({ turn, no, open, onToggle }) {
               <span style={styles.botFace}><Mascot size={30} /></span>
               <div style={styles.botText}>{bot.text}</div>
             </div>
-            {bot.payload && <Card kind={bot.kind} p={bot.payload} />}
+            {bot.payload && (
+              <Card kind={bot.kind} p={bot.payload}
+                guest={guest} canExport={canExport} onEdit={onEdit}
+                onNeedSignup={onNeedSignup} onNeedPlan={onNeedPlan} />
+            )}
           </div>
         </div>
       )}
@@ -688,8 +1181,82 @@ function DocTurn({ turn, no, open, onToggle }) {
   );
 }
 
+/* ---------- 결과 직접 고치기 ---------- */
+// AI 가 쓴 문장 중 한 줄만 고치고 싶어서 밖으로 복사해 나가면 다시 돌아오지 않습니다.
+// 그래서 카드 안의 모든 서술 필드를 눌러서 바로 고칠 수 있게 했습니다.
+function Editable({ value, path, onEdit, style, multiline = true, placeholder = "내용을 적어주세요" }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const ref = useRef(null);
+
+  useEffect(() => { if (!editing) setDraft(value ?? ""); }, [value, editing]);
+  useEffect(() => {
+    if (!editing || !ref.current) return;
+    ref.current.focus();
+    ref.current.style.height = "auto";
+    ref.current.style.height = ref.current.scrollHeight + "px";
+  }, [editing]);
+
+  // 편집 기능이 연결되지 않은 곳(랜딩 샘플 등)에서는 그냥 글자로만 보여줍니다
+  if (!onEdit) return <p style={style}>{value}</p>;
+
+  const commit = () => { setEditing(false); if (draft !== value) onEdit(path, draft); };
+
+  if (editing) {
+    return (
+      <div style={styles.editWrap}>
+        <textarea ref={ref} value={draft} rows={multiline ? undefined : 1}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = e.target.scrollHeight + "px";
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); }
+            // 줄바꿈이 필요한 본문이라 Enter 는 살리고, 저장은 ⌘/Ctrl+Enter 로
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();
+          }}
+          style={styles.editArea} placeholder={placeholder} />
+        <div style={styles.editBtns}>
+          <button style={styles.editSave} onClick={commit}><Check size={13} /> 저장</button>
+          <button style={styles.editCancel} onClick={() => { setDraft(value ?? ""); setEditing(false); }}>취소</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <p style={{ ...style, ...styles.editable }} onClick={() => setEditing(true)}
+      title="눌러서 고치기" className="editable">
+      {value || <span style={{ color: "#A9C3B9" }}>{placeholder}</span>}
+      <Pencil size={11} className="pen" style={styles.editPen} />
+    </p>
+  );
+}
+
 /* ---------- 랜딩 / 구독 ---------- */
-function Landing({ onStart, onOpenPricing, onChoose, onPickDoc }) {
+// 랜딩에 그대로 렌더할 결과 샘플. "뭐가 나오는지" 못 보고 가입을 결정하게 두지 않기 위함.
+const SAMPLE_OBS = {
+  child: "○○", gender: "여", birth: "2021.5.12 / 47개월",
+  period: "2026년 3월 1일 ~ 3월 31일", recorder: "김민트",
+  areas: [
+    {
+      area: "사회관계",
+      datePlace: "3월 12일 · 교실 역할놀이 영역",
+      record: "친구가 병원놀이를 하는 곳으로 다가가 “나도 같이 해도 돼?” 하고 물어본 뒤, 친구가 고개를 끄덕이자 청진기를 들고 의사 역할을 맡았습니다. 인형을 눕히고 “아프지 마세요, 금방 나아요”라고 말하며 친구와 번갈아 진료하는 모습을 보였습니다.",
+      interpretation: "또래에게 먼저 놀이를 제안하고 역할을 나누어 맡으며 협동 놀이에 참여하고 있습니다. 상대의 반응을 기다린 뒤 놀이에 들어가는 모습에서 또래 관계 형성 기술이 자라고 있음을 볼 수 있습니다.",
+    },
+    {
+      area: "의사소통",
+      datePlace: "3월 19일 · 교실 언어 영역",
+      record: "그림책 『코끼리와 친구들』을 보며 “코끼리가 왜 혼자 있어?”라고 묻고, 교사의 대답을 들은 뒤 “나는 친구가 많아서 안 심심해”라고 자기 경험과 연결해 이야기했습니다.",
+      interpretation: "이야기 속 상황을 자신의 경험과 연결지어 표현하고 있으며, 궁금한 점을 문장으로 묻는 등 언어를 통한 상호작용이 활발합니다.",
+    },
+  ],
+  summary: "또래와의 놀이에서 먼저 다가가 제안하고 역할을 나누는 모습이 꾸준히 관찰됩니다. 자신의 생각을 문장으로 표현하는 힘도 함께 자라고 있어, 앞으로는 여러 명이 함께하는 협동 놀이 상황을 더 마련해 주려고 합니다.",
+};
+
+function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDoc, onLogin, onLegal, lockOf }) {
   return (
     <div style={styles.landing}>
       <style>{css}</style>
@@ -700,7 +1267,10 @@ function Landing({ onStart, onOpenPricing, onChoose, onPickDoc }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>
-          <button style={styles.navCta} onClick={onStart}>시작하기</button>
+          {!user && <button style={styles.navGhost} onClick={onLogin}>로그인</button>}
+          <button style={styles.navCta} onClick={onStart}>
+            {user ? "이어서 작업하기" : "무료로 시작"}
+          </button>
         </div>
       </nav>
 
@@ -709,32 +1279,64 @@ function Landing({ onStart, onOpenPricing, onChoose, onPickDoc }) {
         <h1 style={styles.heroTitle}>보육교사의 하루,<br />민트쌤이 함께해요</h1>
         <p style={styles.heroSub}>놀이 아이디어부터 관찰일지·알림장·상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
         <div style={styles.heroCtas}>
-          <button style={styles.ctaPrimary} onClick={onStart}>무료로 시작하기</button>
+          <button style={styles.ctaPrimary} onClick={onStart}>
+            {user ? "이어서 작업하기" : "가입 없이 만들어 보기"}
+          </button>
           <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>
         </div>
-        <div style={styles.heroNote}>가입 없이 무료 체험 · 신용카드 불필요</div>
+        <div style={styles.heroNote}>
+          {user ? "다시 오셨네요! 하던 작업이 그대로 있어요 🌿" : "회원가입 없이 1건 바로 만들어 볼 수 있어요 · 신용카드 불필요"}
+        </div>
       </section>
 
       <section style={styles.featWrap}>
         <div style={styles.sectionTitle}>이런 걸 만들어 드려요</div>
         <div style={styles.featGrid}>
-          {MODES.map((m) => (
-            <button key={m.key} className="feat-card" style={styles.featCard}
-              onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
-              <span style={{ fontSize: 24 }}>{m.emoji}</span>
-              <span style={styles.featLabel}>{m.label}</span>
-            </button>
-          ))}
+          {MODES.map((m) => {
+            // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다
+            const need = lockOf(m.key);
+            return (
+              <button key={m.key} className="feat-card" style={styles.featCard}
+                onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
+                <span style={{ fontSize: 24 }}>{m.emoji}</span>
+                <span style={styles.featLabel}>{m.label}</span>
+                {need
+                  ? <span style={styles.featLock}><Lock size={9} /> {PLAN_NAME[need]}</span>
+                  : <span style={styles.featFree}>무료 체험</span>}
+              </button>
+            );
+          })}
         </div>
+      </section>
+
+      {/* 결과물 미리보기 — 무엇이 나오는지 보고 결정할 수 있게 실제 카드를 그대로 보여줍니다 */}
+      <section style={styles.sampleWrap}>
+        <div style={styles.sectionTitle}>이렇게 나와요</div>
+        <div style={styles.sampleSub}>아래는 실제 생성 결과 화면이에요. 표 서식 그대로 한글·워드에 붙일 수 있어요.</div>
+        <div style={styles.sampleCard}>
+          <ObsCard o={SAMPLE_OBS} />
+        </div>
+        <button style={styles.sampleCta} onClick={onStart}>나도 만들어 보기</button>
       </section>
 
       <section style={styles.priceWrap}>
         <div style={styles.sectionTitle}>요금제</div>
-        <PlanCards onChoose={onChoose} />
-        <div style={styles.demoNote}>* 데모 미리보기입니다. 실제 결제는 연결되어 있지 않아요.</div>
+        <PlanCards plan={user ? plan : undefined} onChoose={onChoose} />
+        <div style={styles.demoNote}>
+          * 지금은 베타 기간이라 유료 플랜도 결제 없이 바로 이용 상태로 전환됩니다. 결제는 곧 연결될 예정이에요.
+        </div>
       </section>
 
-      <footer style={styles.landFoot}>민트쌤 · 보육교사를 위한 AI 도우미</footer>
+      <footer style={styles.landFoot}>
+        <div>민트쌤 · 보육교사를 위한 AI 도우미</div>
+        <div style={styles.footLinks}>
+          <button style={styles.footLink} onClick={() => onLegal("terms")}>이용약관</button>
+          <span style={styles.footDot}>·</span>
+          <button style={styles.footLink} onClick={() => onLegal("privacy")}>개인정보처리방침</button>
+          <span style={styles.footDot}>·</span>
+          <a style={styles.footLink} href="mailto:help@mintssaem.kr">문의하기</a>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -788,7 +1390,7 @@ function KakaoIcon() {
   );
 }
 
-function AuthPage({ mode, setMode, onHome }) {
+function AuthPage({ mode, setMode, onHome, onLegal }) {
   const isSignup = mode === "signup";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -919,7 +1521,125 @@ function AuthPage({ mode, setMode, onHome }) {
             onClick={() => switchMode(isSignup ? "login" : "signup")} disabled={busy}>
             {isSignup ? "로그인하러 가기" : "회원가입"}
           </button>
+
+          {isSignup && (
+            <div style={styles.authLegal}>
+              가입하면 <button style={styles.authLegalLink} onClick={() => onLegal?.("terms")}>이용약관</button> 과{" "}
+              <button style={styles.authLegalLink} onClick={() => onLegal?.("privacy")}>개인정보처리방침</button> 에 동의하는 것으로 봅니다.
+            </div>
+          )}
         </div>
+      </section>
+    </div>
+  );
+}
+
+/* ---------- 이용약관 · 개인정보처리방침 ---------- */
+// 회원가입과 아이 관련 기록을 받는 서비스라 반드시 있어야 하는 문서입니다.
+// 실제 사업자 정보(상호·대표자·주소·사업자번호)는 아래 [ ] 자리를 채워 주세요.
+function LegalPage({ tab, setTab, onHome }) {
+  const TABS = [["terms", "이용약관"], ["privacy", "개인정보처리방침"]];
+  return (
+    <div style={styles.landing}>
+      <style>{css}</style>
+      <nav style={styles.landNav}>
+        <button style={styles.brandBtn} onClick={onHome} title="돌아가기">
+          <span style={styles.logoMarkSm}><Mascot size={30} /></span>
+          <div style={styles.title}>민트쌤</div>
+        </button>
+        <button style={styles.navGhost} onClick={onHome}>돌아가기</button>
+      </nav>
+
+      <section style={styles.legalWrap}>
+        <div style={styles.legalTabs}>
+          {TABS.map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)}
+              style={{ ...styles.legalTab, ...(tab === k ? styles.legalTabOn : {}) }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={styles.legalCard}>
+          {tab === "terms" ? (
+            <>
+              <h2 style={styles.legalH}>이용약관</h2>
+              <p style={styles.legalP}>시행일: 2026년 3월 1일</p>
+
+              <h3 style={styles.legalH3}>제1조 (목적)</h3>
+              <p style={styles.legalP}>이 약관은 민트쌤(이하 “회사”)이 제공하는 보육 문서 작성 보조 서비스(이하 “서비스”)의 이용과 관련하여 회사와 회원의 권리·의무 및 책임사항을 정함을 목적으로 합니다.</p>
+
+              <h3 style={styles.legalH3}>제2조 (서비스의 내용)</h3>
+              <p style={styles.legalP}>회사는 회원이 입력한 메모를 바탕으로 놀이활동안, 보육일지, 관찰일지, 알림장, 적응일지, 상담일지 등의 초안을 생성하는 기능을 제공합니다. 생성된 결과물은 <b>초안</b>이며, 회원은 제출 전 내용의 사실 여부와 적절성을 직접 확인·수정할 책임이 있습니다.</p>
+
+              <h3 style={styles.legalH3}>제3조 (회원가입)</h3>
+              <p style={styles.legalP}>회원가입은 이메일 또는 소셜 계정(구글·카카오)으로 할 수 있습니다. 회원은 가입 없이도 일부 기능을 체험할 수 있으나, 결과물 보관·불러오기는 회원에게만 제공됩니다.</p>
+
+              <h3 style={styles.legalH3}>제4조 (요금 및 결제)</h3>
+              <p style={styles.legalP}>서비스는 무료 플랜과 유료 플랜(Basic 월 9,900원 / Pro 월 19,900원, 부가세 포함)으로 구성되며, 플랜별로 이용 가능한 문서 종류와 월 생성 횟수가 다릅니다. 월 생성 횟수는 매월 1일 초기화됩니다. 베타 기간에는 결제 없이 유료 플랜 기능을 제공할 수 있으며, 정식 결제 도입 시 사전에 공지합니다.</p>
+
+              <h3 style={styles.legalH3}>제5조 (회원의 의무)</h3>
+              <p style={styles.legalP}>회원은 타인의 개인정보를 무단으로 입력하거나, 서비스를 자동화된 방법으로 과도하게 호출하는 등 정상적인 운영을 방해하는 행위를 해서는 안 됩니다. 회사는 이러한 경우 이용을 제한할 수 있습니다.</p>
+
+              <h3 style={styles.legalH3}>제6조 (생성 결과물의 권리)</h3>
+              <p style={styles.legalP}>회원이 입력한 내용과 생성된 결과물에 대한 권리는 회원에게 있습니다. 회사는 서비스 제공·품질 개선 목적 외에 결과물을 이용하지 않습니다.</p>
+
+              <h3 style={styles.legalH3}>제7조 (책임의 제한)</h3>
+              <p style={styles.legalP}>서비스가 생성한 문서는 AI가 작성한 초안으로 사실과 다를 수 있습니다. 회사는 회원이 결과물을 확인 없이 제출하여 발생한 결과에 대해 책임지지 않습니다.</p>
+
+              <h3 style={styles.legalH3}>제8조 (문의)</h3>
+              <p style={styles.legalP}>서비스 이용 관련 문의: <a style={styles.legalLink} href="mailto:help@mintssaem.kr">help@mintssaem.kr</a></p>
+
+              <div style={styles.legalTodo}>
+                ※ 정식 공개 전 사업자 정보(상호 · 대표자 · 사업자등록번호 · 주소 · 통신판매업 신고번호)와
+                실제 문의 이메일을 채워 주세요. 유료 결제를 붙일 때는 청약철회·환불 조항도 함께 넣어야 합니다.
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 style={styles.legalH}>개인정보처리방침</h2>
+              <p style={styles.legalP}>시행일: 2026년 3월 1일</p>
+
+              <h3 style={styles.legalH3}>1. 수집하는 항목</h3>
+              <p style={styles.legalP}>
+                · 회원가입: 이메일, 이름(닉네임), 가입 경로(이메일·구글·카카오), 프로필 이미지<br />
+                · 서비스 이용: 요금제, 가입일, 마지막 접속일, 생성 횟수<br />
+                · 회원이 입력한 문서 내용 및 생성된 결과물
+              </p>
+
+              <h3 style={styles.legalH3}>2. 이용 목적</h3>
+              <p style={styles.legalP}>회원 식별과 로그인, 문서 생성·보관 기능 제공, 요금제별 이용 한도 관리, 서비스 개선 및 문의 응대에 이용합니다.</p>
+
+              <h3 style={styles.legalH3}>3. 아동 관련 정보에 대한 안내</h3>
+              <p style={styles.legalP}>
+                본 서비스는 보육교사가 업무 목적으로 작성하는 기록을 다룹니다. 회사는 영유아의 <b>실명 대신 이니셜·별명</b>을 사용할 것을 권고하며,
+                입력 화면에도 이를 안내하고 있습니다. 회원이 입력한 내용은 <b>본인 계정으로만</b> 조회할 수 있도록 접근이 제한되어 있습니다(행 수준 보안).
+              </p>
+
+              <h3 style={styles.legalH3}>4. 제3자 제공 및 처리위탁</h3>
+              <p style={styles.legalP}>
+                회사는 개인정보를 제3자에게 판매하지 않습니다. 다만 서비스 제공을 위해 아래 업체에 처리를 위탁합니다.<br />
+                · Supabase Inc. — 회원 인증 및 데이터 보관<br />
+                · Google LLC (Gemini API) — 문서 생성. 회원이 입력한 메모가 생성 요청에 포함되어 전송됩니다.<br />
+                · Vercel Inc. — 서비스 호스팅
+              </p>
+
+              <h3 style={styles.legalH3}>5. 보유 및 파기</h3>
+              <p style={styles.legalP}>회원 탈퇴 시 회원 정보와 생성된 문서는 지체 없이 삭제됩니다. 회원은 서비스 내에서 문서를 개별 또는 일괄 삭제할 수 있습니다.</p>
+
+              <h3 style={styles.legalH3}>6. 이용자의 권리</h3>
+              <p style={styles.legalP}>회원은 언제든지 자신의 개인정보 열람·정정·삭제·처리정지를 요청할 수 있으며, 아래 연락처로 요청하시면 지체 없이 조치합니다.</p>
+
+              <h3 style={styles.legalH3}>7. 개인정보 보호책임자</h3>
+              <p style={styles.legalP}>문의: <a style={styles.legalLink} href="mailto:help@mintssaem.kr">help@mintssaem.kr</a></p>
+
+              <div style={styles.legalTodo}>
+                ※ 정식 공개 전 개인정보 보호책임자의 성명·직위·연락처와 사업자 정보를 채워 주세요.
+                Gemini API 로 입력 내용이 전송되는 점은 반드시 고지해야 하므로 4항을 지우지 마세요.
+              </div>
+            </>
+          )}
+        </div>
+
+        <button style={styles.ctaGhost} onClick={onHome}>돌아가기</button>
       </section>
     </div>
   );
@@ -955,24 +1675,99 @@ function PricingModal({ plan, onChoose, onClose }) {
       <div style={styles.modalTitle}>요금제를 선택하세요</div>
       <div style={styles.modalSub}>필요할 때 언제든 바꿀 수 있어요.</div>
       <PlanCards plan={plan} onChoose={onChoose} />
-      <div style={styles.demoNote}>* 데모 — 유료 플랜을 누르면 결제 없이 바로 이용 상태로 전환돼요.</div>
+      <div style={styles.demoNote}>* 베타 기간 — 유료 플랜을 누르면 결제 없이 바로 이용 상태로 전환돼요.</div>
     </ModalShell>
   );
 }
 
-function PaywallModal({ onOpenPricing, onClose }) {
+// 회원에게 뜨는 벽. "3종/6종" 같은 추상적인 숫자 대신
+// 그 플랜에서 정확히 어떤 문서가 열리는지 이름으로 보여줍니다.
+function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
+  const need = info.need || "basic";
+  const opened = docsOfPlan(need);
+  const quotaOver = info.reason === "quota";
+  const exportWall = info.reason === "export";
+
+  const title = quotaOver ? "이번 달 생성 횟수를 다 썼어요"
+    : exportWall ? "파일로 내려받기는 유료 플랜 기능이에요"
+    : `${info.modeLabel || "이 문서"}는 ${PLAN_NAME[need]} 플랜부터예요`;
+
   return (
     <ModalShell onClose={onClose}>
       <div style={styles.modalMascot}><Mascot size={54} /></div>
-      <div style={styles.modalTitle}>더 많은 문서를 열어보세요</div>
-      <div style={styles.modalSub}>이 문서는 상위 요금제에서 이용할 수 있어요.<br />프로는 3종, 맥스는 6종 문서를 전체 이용할 수 있어요.</div>
+      <div style={styles.modalTitle}>{title}</div>
+      <div style={styles.modalSub}>
+        {quotaOver
+          ? (info.msg || `요금제를 올리면 바로 이어서 만들 수 있어요.\nBasic 은 월 500회, Pro 는 월 2,000회예요.`)
+          : exportWall
+            ? "표 복사는 무료 플랜에서도 쓸 수 있어요.\n워드·한글 파일 내려받기는 Basic 부터 열려요."
+            : `${PLAN_NAME[need]} 플랜을 쓰면 아래 문서가 함께 열려요.`}
+      </div>
       <div style={styles.paywallFeats}>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86" }} /> 프로 · 문서 3종 이용</div>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86" }} /> 맥스 · 문서 6종 전체 이용</div>
-        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86" }} /> 생성 무제한 · 새 기능 우선</div>
+        {!quotaOver && !exportWall && opened.map((label) => (
+          <div key={label} style={styles.planFeat}>
+            <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> {label}
+          </div>
+        ))}
+        <div style={styles.planFeat}>
+          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} />
+          월 {PLAN_QUOTA[need].toLocaleString()}회 생성
+        </div>
+        <div style={styles.planFeat}>
+          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 워드·한글 파일 내려받기
+        </div>
+        <div style={styles.planFeat}>
+          <Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 문서 보관함 · 결과 직접 수정
+        </div>
       </div>
       <button style={styles.ctaPrimary} onClick={onOpenPricing}>요금제 보기</button>
+      {!quotaOver && !exportWall && (
+        <button style={styles.textBtn} onClick={onFallback}>
+          지금은 무료로 되는 {MODES[0].label} 쓸래요
+        </button>
+      )}
       <button style={styles.textBtn} onClick={onClose}>다음에 할게요</button>
+    </ModalShell>
+  );
+}
+
+// 체험 중인 게스트에게 뜨는 벽. "가입해야 한다"가 아니라
+// "지금까지 만든 걸 저장하려면"으로 말해야 가입 동기가 생깁니다.
+function SignupWallModal({ info, onSignup, onLogin, onClose, onFallback }) {
+  const copy = {
+    guestOver: {
+      t: "체험 문서를 다 만들었어요",
+      d: "가입하시면 방금 만든 문서가 그대로 저장되고,\n이어서 계속 만들 수 있어요. (무료 · 월 3회)",
+    },
+    lockedDoc: {
+      t: `${info.modeLabel || "이 문서"}는 가입 후에 열려요`,
+      d: "가입은 30초면 끝나요. 카카오·구글로 바로 시작할 수 있어요.\n체험으로 만든 문서도 같이 옮겨 드려요.",
+    },
+    save: {
+      t: "저장하려면 가입이 필요해요",
+      d: "가입하시면 만든 문서가 계정에 보관되고,\n다음에 들어와도 그대로 남아 있어요.",
+    },
+    copy: {
+      t: "복사하려면 가입이 필요해요",
+      d: "가입하시면 표 서식 그대로 복사해서\n한글·워드에 바로 붙일 수 있어요.",
+    },
+  }[info.kind] || { t: "가입하고 이어서 쓰기", d: "" };
+
+  return (
+    <ModalShell onClose={onClose}>
+      <div style={styles.modalMascot}><Mascot size={54} /></div>
+      <div style={styles.modalTitle}>{copy.t}</div>
+      <div style={styles.modalSub}>{copy.d}</div>
+      <div style={styles.paywallFeats}>
+        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 만든 문서 자동 저장 · 다시 불러오기</div>
+        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 결과를 직접 고쳐서 보관</div>
+        <div style={styles.planFeat}><Check size={14} style={{ color: "#2E9E86", flexShrink: 0 }} /> 무료로 월 3회 생성</div>
+      </div>
+      <button style={styles.ctaPrimary} onClick={onSignup}>30초 만에 가입하기</button>
+      <button style={styles.textBtn} onClick={onLogin}>이미 계정이 있어요</button>
+      {info.kind === "lockedDoc" && (
+        <button style={styles.textBtn} onClick={onFallback}>지금은 {MODES[0].label} 체험할래요</button>
+      )}
     </ModalShell>
   );
 }
@@ -1184,7 +1979,7 @@ function CounselPanel({ form, setF }) {
   );
 }
 /* ---------- 빈 화면 ---------- */
-function EmptyState({ mode, onPick }) {
+function EmptyState({ mode, onPick, disabled }) {
   const copy = {
     play: { t: "오늘은 어떤 놀이를 해볼까요?", d: "연령·영역을 고르고 만들거나, 아래를 눌러 시작해요!" },
     daily: { t: "주간 보육일지를 만들어 드려요", d: "주제와 이번 주 놀이를 적으면\n영역별 놀이·요일별 평가까지 정리해 드려요." },
@@ -1201,7 +1996,8 @@ function EmptyState({ mode, onPick }) {
       {mode === "play" && (
         <div style={styles.starters}>
           {STARTERS.play.map((s) => (
-            <button key={s} style={styles.starter} onClick={() => onPick(s.replace(/^[^\s]+\s/, ""))}>{s}</button>
+            <button key={s} style={styles.starter} disabled={disabled}
+              onClick={() => onPick(s.replace(/^[^\s]+\s/, ""))}>{s}</button>
           ))}
         </div>
       )}
@@ -1209,40 +2005,74 @@ function EmptyState({ mode, onPick }) {
   );
 }
 
-/* ---------- 복사 버튼 ---------- */
-function CopyBtn({ text }) {
-  const [done, setDone] = useState(false);
+/* ---------- 내보내기 (표 복사 · 파일 저장) ---------- */
+// 표 서식(text/html)까지 클립보드에 넣기 때문에 한글·워드에 그대로 붙습니다.
+// 파일 저장은 유료 플랜의 핵심 혜택이라 무료 플랜에서는 요금제 안내로 연결합니다.
+function ExportBar({ ctx }) {
+  const [done, setDone] = useState("");
+  if (!ctx) return null;
+  const { kind, payload, guest, canExport, onNeedSignup, onNeedPlan } = ctx;
+
+  const flash = (k) => { setDone(k); setTimeout(() => setDone(""), 1600); };
+
+  const doCopy = async () => {
+    if (guest) { onNeedSignup?.("copy"); return; }
+    const ok = await copyDoc(kind, payload);
+    if (ok) flash("copy");
+  };
+  const doDownload = () => {
+    if (guest) { onNeedSignup?.("save"); return; }
+    if (!canExport) { onNeedPlan?.(); return; }
+    if (downloadDoc(kind, payload)) flash("dl");
+  };
+
   return (
-    <button style={{ ...styles.copyBtn, ...(done ? styles.copyDone : {}) }}
-      onClick={async () => { try { await navigator.clipboard.writeText(text); } catch {} setDone(true); setTimeout(() => setDone(false), 1500); }}>
-      {done ? <><Check size={13} /> 복사됨</> : <><Copy size={13} /> 복사</>}
-    </button>
+    <div style={styles.exportBar}>
+      <button style={{ ...styles.copyBtn, ...(done === "copy" ? styles.copyDone : {}) }}
+        onClick={doCopy} title="표 서식 그대로 복사 — 한글·워드에 붙여넣기">
+        {done === "copy" ? <><Check size={13} /> 복사됨</> : <><Copy size={13} /> 표로 복사</>}
+      </button>
+      <button style={{ ...styles.copyBtn, ...(done === "dl" ? styles.copyDone : {}) }}
+        onClick={doDownload} title="워드·한글에서 열리는 파일로 저장">
+        {done === "dl" ? <><Check size={13} /> 저장됨</> : <><Download size={13} /> 파일 저장</>}
+        {!guest && !canExport && <Lock size={10} style={{ marginLeft: 2, color: "#B08900" }} />}
+      </button>
+    </div>
   );
 }
 
 /* ---------- 카드 라우터 ---------- */
-function Card({ kind, p }) {
-  if (kind === "play") return <>{arr(p.activities).map((a, i) => <ActivityCard key={i} a={a} />)}</>;
-  if (kind === "daily" && p.daily) return <DailyCard d={p.daily} />;
-  if (kind === "obs" && p.observation) return <ObsCard o={p.observation} />;
-  if (kind === "note" && p.note) return <NoteCard n={p.note} />;
-  if (kind === "adapt" && p.adapt) return <AdaptCard a={p.adapt} />;
-  if (kind === "counsel" && p.counsel) return <CounselCard c={p.counsel} />;
+// ctx 를 통해 "이 문서가 누구 것이고, 어떻게 고치고 내보낼 수 있는지"를 카드에 전달합니다.
+// 랜딩 샘플처럼 ctx 가 없으면 읽기 전용 카드가 됩니다.
+function Card({ kind, p, guest, canExport, onEdit, onNeedSignup, onNeedPlan }) {
+  const ctx = (payload) => ({ kind, payload, guest, canExport, onNeedSignup, onNeedPlan, editable: !!onEdit });
+  if (kind === "play")
+    return <>{arr(p.activities).map((a, i) => (
+      <ActivityCard key={i} a={a} base={["activities", i]} onEdit={onEdit} ctx={ctx({ activities: [a] })} />
+    ))}</>;
+  if (kind === "daily" && p.daily) return <DailyCard d={p.daily} base={["daily"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "obs" && p.observation) return <ObsCard o={p.observation} base={["observation"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "note" && p.note) return <NoteCard n={p.note} base={["note"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "adapt" && p.adapt) return <AdaptCard a={p.adapt} base={["adapt"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "counsel" && p.counsel) return <CounselCard c={p.counsel} base={["counsel"]} onEdit={onEdit} ctx={ctx(p)} />;
   return null;
 }
 
-function CardShell({ stripe, title, badge, copy, children, foot }) {
+function CardShell({ stripe, title, badge, ctx, children, foot }) {
   return (
     <div style={styles.card}>
       <div style={{ ...styles.cardBar, background: stripe }} />
       <div style={styles.cardInner}>
         <div style={styles.docHead}>
-          <div>
+          <div style={styles.docHeadMain}>
             {badge && <span style={styles.docBadge}>{badge}</span>}
             <h3 style={styles.cardTitle}>{title}</h3>
           </div>
-          <CopyBtn text={copy} />
+          <ExportBar ctx={ctx} />
         </div>
+        {ctx?.editable && (
+          <div style={styles.editHint}>✏️ 고치고 싶은 문장을 누르면 바로 수정할 수 있어요.</div>
+        )}
         {children}
         {foot && <div style={styles.footnote}>📝 {foot}</div>}
       </div>
@@ -1259,56 +2089,45 @@ function Sec({ icon, label, children, tint }) {
   );
 }
 
-// 일반 문서 카드 (일과/서술형 섹션)
-function DocCard({ stripe, title, badge, foot, meta = [], sections = [], copy }) {
-  return (
-    <CardShell stripe={stripe} title={title} badge={badge} copy={copy} foot={foot}>
-      {meta.length > 0 && (
-        <div style={styles.meta}>
-          {meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}
-        </div>
-      )}
-      {sections.map((s, i) =>
-        s.value ? (
-          <Sec key={i} icon={<span style={{ fontSize: 14 }}>{s.icon}</span>} label={s.label} tint={s.tint}>
-            <p style={styles.body}>{s.value}</p>
-          </Sec>
-        ) : null
-      )}
-    </CardShell>
-  );
-}
-
-function ActivityCard({ a }) {
+function ActivityCard({ a, base = [], onEdit, ctx }) {
   const stripe = arr(a.domains).map((d) => DOMAIN_COLOR[d]).filter(Boolean)[0] || "#45C4A8";
-  const copy =
-    `[놀이활동] ${a.title}\n대상:${a.age} · 장소:${a.place} · 시간:${a.duration}\n목표:${a.goal}\n준비물:${arr(a.materials).join(", ")}\n진행:\n${arr(a.steps).map((s, i) => `${i + 1}. ${s}`).join("\n")}${a.extension ? `\n확장:${a.extension}` : ""}${a.safety ? `\n안전:${a.safety}` : ""}`;
+  const at = (...k) => [...base, ...k];
   return (
-    <CardShell stripe={stripe} title={a.title} copy={copy}
+    <CardShell stripe={stripe} title={a.title} ctx={ctx}
       badge={<span style={styles.tagRow2}>{arr(a.domains).map((d) => <span key={d} style={{ ...styles.tag, background: (DOMAIN_COLOR[d] || "#aaa") + "33", color: "#5c6b64" }}>{dEmoji(d)} {d}</span>)}</span>}>
       <div style={styles.meta}>
         {a.age && <span style={styles.metaItem}>👶 {a.age}</span>}
         {a.place && <span style={styles.metaItem}><MapPin size={12} /> {a.place}</span>}
         {a.duration && <span style={styles.metaItem}><Clock size={12} /> {a.duration}</span>}
       </div>
-      {a.goal && <Sec icon={<Target size={14} />} label="목표" tint="#FFEFD6"><p style={styles.body}>{a.goal}</p></Sec>}
+      {a.goal && <Sec icon={<Target size={14} />} label="목표" tint="#FFEFD6">
+        <Editable value={a.goal} path={at("goal")} onEdit={onEdit} style={styles.body} /></Sec>}
       {arr(a.materials).length > 0 && <Sec icon={<Package size={14} />} label="준비물" tint="#E8F6EE"><div style={styles.matWrap}>{arr(a.materials).map((m, i) => <span key={i} style={styles.matChip}>{m}</span>)}</div></Sec>}
-      {arr(a.steps).length > 0 && <Sec icon={<ListOrdered size={14} />} label="이렇게 놀아요" tint="#E5F7F0"><ol style={styles.steps}>{arr(a.steps).map((s, i) => <li key={i} style={styles.step}><span style={{ ...styles.stepNum, background: stripe }}>{i + 1}</span><span>{s}</span></li>)}</ol></Sec>}
-      {a.extension && <Sec icon={<span style={{ fontSize: 14 }}>✨</span>} label="이렇게 더!" tint="#EDE8FA"><p style={styles.body}>{a.extension}</p></Sec>}
+      {arr(a.steps).length > 0 && (
+        <Sec icon={<ListOrdered size={14} />} label="이렇게 놀아요" tint="#E5F7F0">
+          <ol style={styles.steps}>
+            {arr(a.steps).map((s, i) => (
+              <li key={i} style={styles.step}>
+                <span style={{ ...styles.stepNum, background: stripe }}>{i + 1}</span>
+                <Editable value={stripNum(s)} path={at("steps", i)} onEdit={onEdit} style={styles.stepText} />
+              </li>
+            ))}
+          </ol>
+        </Sec>
+      )}
+      {a.extension && <Sec icon={<span style={{ fontSize: 14 }}>✨</span>} label="이렇게 더!" tint="#EDE8FA">
+        <Editable value={a.extension} path={at("extension")} onEdit={onEdit} style={styles.body} /></Sec>}
       {a.safety && <div style={styles.safety}><ShieldCheck size={14} /> <span>{a.safety}</span></div>}
     </CardShell>
   );
 }
 
-function ObsCard({ o }) {
+function ObsCard({ o, base = [], onEdit, ctx }) {
   const meta = [o.gender && `${o.gender}`, o.birth && `🎂 ${o.birth}`, o.period && `🗓️ ${o.period}`, o.recorder && `✍️ ${o.recorder}`].filter(Boolean);
   const areas = arr(o.areas);
-  const copy =
-    `[영유아 관찰기록] ${o.child || ""} (${o.gender || ""})\n생년월일/월령: ${o.birth || ""}   관찰기간: ${o.period || ""}   기록자: ${o.recorder || ""}\n\n` +
-    areas.map((a) => `■ ${a.area || ""}${a.datePlace ? " (" + a.datePlace + ")" : ""}\n[관찰] ${a.record || ""}${a.interpretation ? "\n[해석] " + a.interpretation : ""}`).join("\n\n") +
-    `\n\n■ 종합 해석(비고)\n${o.summary || ""}`;
+  const at = (...k) => [...base, ...k];
   return (
-    <CardShell stripe="#8FCDF2" title={`${o.child || "영유아"} 관찰기록`} badge="원장님 제출용" copy={copy}
+    <CardShell stripe="#8FCDF2" title={`${o.child || "영유아"} 관찰기록`} badge="원장님 제출용" ctx={ctx}
       foot="제출 전 아동 정보·관찰기간과 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
       {areas.map((a, i) => (
@@ -1317,63 +2136,51 @@ function ObsCard({ o }) {
           {a.datePlace && (
             <div style={styles.obsField}>
               <span style={styles.obsFieldLabel}>관찰 일시 및 장소</span>
-              <p style={styles.obsFieldVal}>{a.datePlace}</p>
+              <Editable value={a.datePlace} path={at("areas", i, "datePlace")} onEdit={onEdit} style={styles.obsFieldVal} multiline={false} />
             </div>
           )}
           {a.record && (
             <div style={styles.obsField}>
               <span style={styles.obsFieldLabel}>관찰 상황</span>
-              <p style={styles.obsFieldVal}>{a.record}</p>
+              <Editable value={a.record} path={at("areas", i, "record")} onEdit={onEdit} style={styles.obsFieldVal} />
             </div>
           )}
           {a.interpretation && (
             <div style={styles.obsField}>
               <span style={styles.obsFieldLabel}>해석 및 평가</span>
-              <div style={styles.obsInterp}>{a.interpretation}</div>
+              <Editable value={a.interpretation} path={at("areas", i, "interpretation")} onEdit={onEdit} style={styles.obsInterp} />
             </div>
           )}
         </div>
       ))}
-      {o.summary && <Sec icon={<span style={{ fontSize: 14 }}>🧠</span>} label="종합 해석 (비고)" tint="#EDE8FA"><p style={styles.body}>{o.summary}</p></Sec>}
+      {o.summary && <Sec icon={<span style={{ fontSize: 14 }}>🧠</span>} label="종합 해석 (비고)" tint="#EDE8FA">
+        <Editable value={o.summary} path={at("summary")} onEdit={onEdit} style={styles.body} /></Sec>}
     </CardShell>
   );
 }
 
-function NoteCard({ n }) {
-  const copy = `${n.message || ""}${n.homeTip ? `\n\n💛 ${n.homeTip}` : ""}`;
+function NoteCard({ n, base = [], onEdit, ctx }) {
   return (
-    <CardShell stripe="#FF9E7D" title="오늘의 알림장" badge="학부모님께" copy={copy}>
-      <div style={styles.noteBody}>{n.message}</div>
-      {n.homeTip && <div style={styles.homeTip}>💛 {n.homeTip}</div>}
+    <CardShell stripe="#FF9E7D" title="오늘의 알림장" badge="학부모님께" ctx={ctx}>
+      <Editable value={n.message} path={[...base, "message"]} onEdit={onEdit} style={styles.noteBody} />
+      {n.homeTip && (
+        <div style={styles.homeTipWrap}>
+          <span style={styles.homeTipIcon}>💛</span>
+          <Editable value={n.homeTip} path={[...base, "homeTip"]} onEdit={onEdit} style={styles.homeTip} />
+        </div>
+      )}
     </CardShell>
   );
 }
 
-function DailyCard({ d }) {
+function DailyCard({ d, base = [], onEdit, ctx }) {
   const meta = [d.klass && `🏫 ${d.klass}`, d.age && `👶 ${d.age}`, d.theme && `🌱 ${d.theme}`, d.nextTheme && `🔜 다음: ${d.nextTheme}`].filter(Boolean);
   const sched = arr(d.schedule);
   const areas = arr(d.areas);
   const days = arr(d.days);
-  const copy =
-    `[주간 보육일지] ${d.week || ""}  ${d.klass || ""} ${d.age || ""}\n주제: ${d.theme || ""}${d.nextTheme ? "  (다음: " + d.nextTheme + ")" : ""}\n\n■ 하루 일과\n` +
-    sched.map((s) => `· ${s.name}${s.time ? " (" + s.time + ")" : ""}: ${s.content || ""}`).join("\n") +
-    `\n· 오전 실내놀이 (09:40~10:40)\n` + areas.map((a) => `  - ${a.area}: ${a.content}`).join("\n") +
-    `\n· 실외놀이 (10:50~11:30): ${d.outdoor || ""}\n\n■ 실행 놀이 평가 및 지원계획\n` +
-    days.map((x) => {
-      const read = arr(x.reading).filter(Boolean);
-      // 이전 버전으로 저장된 문서는 record 한 덩어리만 있음
-      const parts = (x.playEval || x.supportPlan || read.length)
-        ? [
-            x.playEval && `  [놀이평가(배움읽기)]\n  ${x.playEval}`,
-            x.supportPlan && `  [놀이와 배움지원계획]\n  ${x.supportPlan}`,
-            read.length > 0 && `  [배움읽기]\n${read.map((r) => `  • ${r}`).join("\n")}`,
-          ].filter(Boolean)
-        : [`  ${x.record || ""}`];
-      return `· ${x.day}\n${parts.join("\n")}`;
-    }).join("\n\n") +
-    `\n\n■ 주간 보육 평가\n${d.weekEval || ""}\n\n■ 안전교육\n${d.safety || ""}${d.special ? "\n\n■ 반 운영 특이사항\n" + d.special : ""}`;
+  const at = (...k) => [...base, ...k];
   return (
-    <CardShell stripe="#59C7B0" title={`${d.week || ""} 보육일지`} badge="주간 보육일지" copy={copy}
+    <CardShell stripe="#59C7B0" title={`${d.week || ""} 보육일지`} badge="주간 보육일지" ctx={ctx}
       foot="제출 전 양식(주제·요일·일과)에 맞춰 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
 
@@ -1383,7 +2190,9 @@ function DailyCard({ d }) {
             {sched.map((s, i) => (
               <div key={i} style={styles.schedRow}>
                 <div style={styles.schedTop}><span style={styles.schedName}>{s.name}</span>{s.time && <span style={styles.schedTime}>{s.time}</span>}</div>
-                {s.content && <div style={styles.schedContent}>{s.content}</div>}
+                {s.content && (
+                  <Editable value={s.content} path={at("schedule", i, "content")} onEdit={onEdit} style={styles.schedContent} />
+                )}
               </div>
             ))}
           </div>
@@ -1396,13 +2205,14 @@ function DailyCard({ d }) {
             {areas.map((a, i) => (
               <div key={i} style={styles.week}>
                 <div style={styles.weekHead}><span style={styles.weekTag}>{a.area}</span></div>
-                <p style={styles.body}>{a.content}</p>
+                <Editable value={a.content} path={at("areas", i, "content")} onEdit={onEdit} style={styles.body} />
               </div>
             ))}
           </div>
         </Sec>
       )}
-      {d.outdoor && <Sec icon={<span style={{ fontSize: 14 }}>🌳</span>} label="실외놀이" tint="#E7F2FB"><p style={styles.body}>{d.outdoor}</p></Sec>}
+      {d.outdoor && <Sec icon={<span style={{ fontSize: 14 }}>🌳</span>} label="실외놀이" tint="#E7F2FB">
+        <Editable value={d.outdoor} path={at("outdoor")} onEdit={onEdit} style={styles.body} /></Sec>}
 
       {days.length > 0 && (
         <Sec icon={<span style={{ fontSize: 14 }}>📝</span>} label="실행 놀이 평가 및 지원계획" tint="#FDEBF1">
@@ -1416,47 +2226,52 @@ function DailyCard({ d }) {
                   {x.playEval && (
                     <div style={styles.dayField}>
                       <span style={styles.dayFieldLabel}>놀이평가(배움읽기)</span>
-                      <p style={styles.body}>{x.playEval}</p>
+                      <Editable value={x.playEval} path={at("days", i, "playEval")} onEdit={onEdit} style={styles.body} />
                     </div>
                   )}
                   {x.supportPlan && (
                     <div style={styles.dayField}>
                       <span style={styles.dayFieldLabel}>놀이와 배움지원계획</span>
-                      <p style={styles.body}>{x.supportPlan}</p>
+                      <Editable value={x.supportPlan} path={at("days", i, "supportPlan")} onEdit={onEdit} style={styles.body} />
                     </div>
                   )}
                   {read.length > 0 && (
                     <div style={styles.dayField}>
                       <span style={styles.dayFieldLabel}>배움읽기</span>
                       <ul style={styles.readList}>
-                        {read.map((r, j) => <li key={j} style={styles.readItem}>{r}</li>)}
+                        {read.map((r, j) => (
+                          <li key={j} style={styles.readItem}>
+                            <Editable value={r} path={at("days", i, "reading", j)} onEdit={onEdit} style={styles.readItemText} />
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   )}
                   {/* 이전 버전으로 저장된 문서(record 한 덩어리) 호환 */}
-                  {!hasNew && x.record && <p style={styles.body}>{x.record}</p>}
+                  {!hasNew && x.record && (
+                    <Editable value={x.record} path={at("days", i, "record")} onEdit={onEdit} style={styles.body} />
+                  )}
                 </div>
               );
             })}
           </div>
         </Sec>
       )}
-      {d.weekEval && <Sec icon={<span style={{ fontSize: 14 }}>📊</span>} label="주간 보육 평가" tint="#EDE8FA"><p style={styles.bodyPara}>{d.weekEval}</p></Sec>}
-      {d.special && <Sec icon={<span style={{ fontSize: 14 }}>📌</span>} label="반 운영 특이사항" tint="#F1F9F5"><p style={styles.body}>{d.special}</p></Sec>}
+      {d.weekEval && <Sec icon={<span style={{ fontSize: 14 }}>📊</span>} label="주간 보육 평가" tint="#EDE8FA">
+        <Editable value={d.weekEval} path={at("weekEval")} onEdit={onEdit} style={styles.bodyPara} /></Sec>}
+      {d.special && <Sec icon={<span style={{ fontSize: 14 }}>📌</span>} label="반 운영 특이사항" tint="#F1F9F5">
+        <Editable value={d.special} path={at("special")} onEdit={onEdit} style={styles.body} /></Sec>}
       {d.safety && <div style={styles.safety}><ShieldCheck size={14} /> <span>{d.safety}</span></div>}
     </CardShell>
   );
 }
 
-function AdaptCard({ a }) {
+function AdaptCard({ a, base = [], onEdit, ctx }) {
   const meta = [a.age && `👶 ${a.age}`, a.klass && `🏫 ${a.klass}`, a.birth && `🎂 ${a.birth}`, a.period && `🗓️ ${a.period}`].filter(Boolean);
   const days = arr(a.days);
-  const copy =
-    `[신입원아 적응일지] ${a.child || ""} (${a.age || ""})${a.klass ? "  " + a.klass : ""}\n생년월일: ${a.birth || ""}   적응기간: ${a.period || ""}\n\n` +
-    days.map((x) => `■ ${x.day || ""}${x.date ? " (" + x.date + ")" : ""}${x.level ? " · 적응정도:" + x.level : ""}${x.note ? " · 비고:" + x.note : ""}\n등원 ${x.arrive || "-"} / 하원 ${x.leave || "-"}${x.health && x.health !== "-" ? " / 건강·투약 " + x.health : ""}\n${x.record || ""}`).join("\n\n") +
-    `\n\n■ 종합 의견 및 적응 계획\n${a.summary || ""}`;
+  const at = (...k) => [...base, ...k];
   return (
-    <CardShell stripe="#C9A7E8" title={`${a.child || "신입원아"} 적응일지`} badge="원장님 제출용" copy={copy}
+    <CardShell stripe="#C9A7E8" title={`${a.child || "신입원아"} 적응일지`} badge="원장님 제출용" ctx={ctx}
       foot="제출 전 아동 정보·일차별 날짜와 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
       {days.map((x, i) => (
@@ -1473,34 +2288,33 @@ function AdaptCard({ a }) {
               {x.health && x.health !== "-" ? ` · 💊 ${x.health}` : ""}
             </div>
           )}
-          {x.record && <p style={styles.body}>{x.record}</p>}
+          {x.record && <Editable value={x.record} path={at("days", i, "record")} onEdit={onEdit} style={styles.body} />}
         </div>
       ))}
-      {a.summary && <Sec icon={<span style={{ fontSize: 14 }}>🌱</span>} label="종합 의견 및 적응 계획" tint="#EDE8FA"><p style={styles.body}>{a.summary}</p></Sec>}
+      {a.summary && <Sec icon={<span style={{ fontSize: 14 }}>🌱</span>} label="종합 의견 및 적응 계획" tint="#EDE8FA">
+        <Editable value={a.summary} path={at("summary")} onEdit={onEdit} style={styles.body} /></Sec>}
     </CardShell>
   );
 }
 
-function CounselCard({ c }) {
+function CounselCard({ c, base = [], onEdit, ctx }) {
   const meta = [c.klass && `🏫 ${c.klass}`, c.age && `👶 ${c.age}`, c.birth && `🎂 ${c.birth}`, c.date && `📅 ${c.date}`, c.method && `💬 ${c.method}`, c.guardian && `👪 ${c.guardian}`, c.teacher && `✍️ ${c.teacher}`].filter(Boolean);
   const domains = arr(c.domains);
-  const copy =
-    `[학부모 상담일지] ${c.child || ""}${c.klass ? "  " + c.klass : ""}\n생년월일: ${c.birth || ""}   면담일: ${c.date || ""}   형태: ${c.method || ""}   보호자: ${c.guardian || ""}   교사: ${c.teacher || ""}\n\n[현행수준]\n` +
-    domains.map((d) => `■ ${d.area || ""}\n${d.content || ""}`).join("\n\n") +
-    (c.parentNote ? `\n\n■ 부모 의견\n${c.parentNote}` : "") +
-    `\n\n■ 면담내용 및 종합의견\n${c.summary || ""}`;
+  const at = (...k) => [...base, ...k];
   return (
-    <CardShell stripe="#FFC074" title={`${c.child || "원아"} 상담일지`} badge="학부모 상담" copy={copy}
+    <CardShell stripe="#FFC074" title={`${c.child || "원아"} 상담일지`} badge="학부모 상담" ctx={ctx}
       foot="제출 전 원아 정보·면담 정보와 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
       {domains.map((d, i) => (
         <div key={i} style={styles.cnslArea}>
           <div style={styles.obsAreaHead}><span style={styles.cnslTag}>{d.area}</span></div>
-          {d.content && <p style={styles.body}>{d.content}</p>}
+          {d.content && <Editable value={d.content} path={at("domains", i, "content")} onEdit={onEdit} style={styles.body} />}
         </div>
       ))}
-      {c.parentNote && <Sec icon={<span style={{ fontSize: 14 }}>🗣️</span>} label="부모 의견" tint="#E7F2FB"><p style={styles.body}>{c.parentNote}</p></Sec>}
-      {c.summary && <Sec icon={<span style={{ fontSize: 14 }}>📋</span>} label="면담내용 및 종합의견" tint="#EDE8FA"><p style={styles.body}>{c.summary}</p></Sec>}
+      {c.parentNote && <Sec icon={<span style={{ fontSize: 14 }}>🗣️</span>} label="부모 의견" tint="#E7F2FB">
+        <Editable value={c.parentNote} path={at("parentNote")} onEdit={onEdit} style={styles.body} /></Sec>}
+      {c.summary && <Sec icon={<span style={{ fontSize: 14 }}>📋</span>} label="면담내용 및 종합의견" tint="#EDE8FA">
+        <Editable value={c.summary} path={at("summary")} onEdit={onEdit} style={styles.body} /></Sec>}
     </CardShell>
   );
 }
@@ -1511,8 +2325,9 @@ const MINT = "#45C4A8";
 const MINT_STRONG = "#2FA88C";
 const SH = "#D6EFE6";
 
+// 웹폰트는 index.html <head> 에서 미리 불러옵니다.
+// (여기에 @import 로 두면 이 <style> 이 붙는 컴포넌트마다 중복 요청되고 첫 화면이 늦게 뜹니다)
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
   .spin { animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   * { box-sizing: border-box; }
@@ -1533,6 +2348,10 @@ const css = `
   .feat-card { transition: transform .12s ease, box-shadow .12s ease; }
   .feat-card:hover { transform: translateY(-2px); box-shadow: 0 5px 0 ${MINT}; }
   .feat-card:active { transform: scale(0.96); }
+  /* 결과 안에서 고칠 수 있는 문장 — 눌러야 한다는 걸 은근히 알려줌 */
+  .editable { cursor: text; border-radius: 8px; transition: background .12s ease; }
+  .editable:hover { background: #F1F9F5; box-shadow: 0 0 0 4px #F1F9F5; }
+  .editable:hover .pen { opacity: .55; }
   .dot { animation: blink 1.2s infinite; } .d2 { animation-delay: .2s; } .d3 { animation-delay: .4s; }
   @keyframes blink { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .spin,.dot { animation: none; } button { transition: none; } }
@@ -1543,7 +2362,7 @@ const BODY = `"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",
 
 const styles = {
   wrap: {
-    fontFamily: BODY, color: INK, background: PAPER, minHeight: "100vh",
+    fontFamily: BODY, color: INK, background: PAPER, minHeight: "100dvh",
     display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto",
     backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px",
   },
@@ -1614,7 +2433,8 @@ const styles = {
   card: { background: "#fff", borderRadius: 22, overflow: "hidden", boxShadow: `0 4px 0 ${SH}, 0 10px 28px rgba(69,196,168,0.12)` },
   cardBar: { height: 7, width: "100%" },
   cardInner: { padding: "15px 18px 18px" },
-  docHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 },
+  docHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8, flexWrap: "wrap" },
+  docHeadMain: { flex: "1 1 190px", minWidth: 0 },
   docBadge: { display: "inline-block", fontSize: 11, fontWeight: 800, color: "#2E9E86", background: "#E5F7F0", padding: "3px 9px", borderRadius: 999, marginBottom: 6 },
   cardTitle: { margin: 0, fontSize: 18, fontFamily: DISPLAY, color: "#2E4A42", lineHeight: 1.3 },
   copyBtn: { flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "#6f8079", background: "#EEF7F3", border: "none", borderRadius: 999, padding: "7px 12px" },
@@ -1686,13 +2506,100 @@ const styles = {
   inputBar: { display: "flex", gap: 9, padding: "12px 14px 16px" },
   input: { flex: 1, fontSize: 14, padding: "13px 17px", borderRadius: 999, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 3px 0 ${SH}` },
   sendBtn: { width: 50, height: 50, borderRadius: 999, border: "none", background: MINT, color: "#fff", display: "grid", placeItems: "center", boxShadow: `0 4px 0 ${MINT_STRONG}`, flexShrink: 0 },
+  // 결과가 없을 때는 "이어 말하기" 입력창 대신 무엇을 먼저 해야 하는지 알려 줍니다
+  inputHintBar: { margin: "0 14px 16px", padding: "12px 15px", background: "#F1F9F5", borderRadius: 16, fontSize: 12.5, color: "#5E7168", lineHeight: 1.6, textAlign: "center" },
+
+  /* ── 로그인 사용자 · 사용량 ─────────────────────────── */
+  userChip: { display: "inline-flex", alignItems: "center", gap: 6, maxWidth: 150, background: "#fff", border: "none", borderRadius: 999, padding: "5px 11px 5px 5px", boxShadow: `0 3px 0 ${SH}` },
+  avatar: { width: 24, height: 24, borderRadius: 999, objectFit: "cover", flexShrink: 0 },
+  avatarFallback: { width: 24, height: 24, borderRadius: 999, background: "#CDEEDD", color: "#1F6B5A", fontSize: 12, fontWeight: 800, display: "grid", placeItems: "center", flexShrink: 0 },
+  userName: { fontSize: 12.5, fontWeight: 700, color: "#5A6B64", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  quotaBar: { margin: "0 16px 4px", padding: "8px 13px", background: "#fff", borderRadius: 12, fontSize: 12, color: "#5E7168", boxShadow: `0 2px 0 ${SH}`, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  linkBtn: { marginLeft: 6, fontSize: 12, fontWeight: 800, color: "#2E9E86", background: "transparent", border: "none", padding: 0, textDecoration: "underline" },
+
+  /* ── 잠긴 문서 안내 ─────────────────────────────────── */
+  lockPanel: { background: "#fff", borderRadius: 20, padding: "26px 20px 20px", textAlign: "center", boxShadow: `0 3px 0 ${SH}`, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 },
+  lockIcon: { width: 46, height: 46, borderRadius: 999, background: "#FFF3D1", color: "#B08900", display: "grid", placeItems: "center" },
+  lockTitle: { fontFamily: DISPLAY, fontSize: 18, color: "#2E4A42", marginTop: 2 },
+  lockDesc: { fontSize: 13, color: "#7A9A90", lineHeight: 1.65, maxWidth: 340 },
+  lockCta: { width: "100%", maxWidth: 280, marginTop: 8, fontSize: 14.5, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "13px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
+  lockGhost: { width: "100%", maxWidth: 280, fontSize: 13.5, fontWeight: 700, color: "#1F6B5A", background: "#E5F7F0", border: "none", borderRadius: 14, padding: "11px", boxShadow: "0 3px 0 #CDEEDD" },
+
+  /* ── 입력 안내 ──────────────────────────────────────── */
+  privacyNote: { marginBottom: 11, padding: "9px 13px", background: "#F1F9F5", borderRadius: 12, fontSize: 11.5, color: "#5E7168", lineHeight: 1.6 },
+  genBtnOff: { background: "#CFE6DD", boxShadow: "0 4px 0 #B6D7CC", color: "#fff" },
+  needHint: { marginTop: 9, fontSize: 12, color: "#B08900", background: "#FFF8E1", borderRadius: 12, padding: "9px 13px", lineHeight: 1.6 },
+  needWhy: { color: "#A08A4B", fontWeight: 400 },
+
+  /* ── 보관함 검색 ────────────────────────────────────── */
+  searchRow: { display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "8px 12px", boxShadow: `0 2px 0 ${SH}` },
+  searchInput: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 13, color: INK, fontFamily: "inherit" },
+  searchClear: { display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#7A9A90", background: "#EEF7F3", border: "none", borderRadius: 999, padding: "5px 10px" },
+  searchCount: { flex: 1, fontSize: 12, fontWeight: 700, color: "#7A9A90" },
+  emptySearch: { textAlign: "center", fontSize: 13, color: "#8AA79D", padding: "18px 0" },
+
+  /* ── 생성 중 진행 표시 ──────────────────────────────── */
+  genWrap: { display: "flex", flexDirection: "column", gap: 8 },
+  genTime: { display: "block", marginTop: 3, fontSize: 11.5, color: "#A9C3B9", fontWeight: 600 },
+  genTrack: { height: 5, background: "#DCEEE7", borderRadius: 999, overflow: "hidden", marginLeft: 46 },
+  genFill: { height: "100%", background: MINT, borderRadius: 999, transition: "width 1s linear" },
+
+  /* ── 결과 목록 헤더 · 삭제 ──────────────────────────── */
+  turnHeadMain: { flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "transparent", border: "none", padding: "13px 4px 13px 14px", textAlign: "left" },
+  iconBtn: { flexShrink: 0, display: "grid", placeItems: "center", width: 34, height: 34, marginRight: 8, color: "#B7CFC6", background: "transparent", border: "none", borderRadius: 10 },
+
+  /* ── 실패 · 재시도 ──────────────────────────────────── */
+  errorBlock: { alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 10, background: "#FFF6F5", borderRadius: 16, padding: "13px 14px", boxShadow: "0 3px 0 #F6DEDC" },
+  retryBtn: { alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 46, fontSize: 13, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 999, padding: "9px 16px", boxShadow: `0 3px 0 ${MINT_STRONG}` },
+
+  /* ── 내보내기 · 인라인 편집 ─────────────────────────── */
+  exportBar: { display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" },
+  editHint: { fontSize: 11, color: "#A9C3B9", marginBottom: 10 },
+  editable: { position: "relative", padding: "2px 3px", margin: "-2px -3px" },
+  editPen: { display: "inline", verticalAlign: "middle", marginLeft: 5, opacity: 0, color: "#7A9A90", transition: "opacity .12s ease" },
+  editWrap: { display: "flex", flexDirection: "column", gap: 7 },
+  editArea: { width: "100%", minHeight: 60, fontSize: 13.5, lineHeight: 1.6, padding: "10px 12px", borderRadius: 12, border: "1.5px solid #7FD8C4", background: "#fff", color: INK, outline: "none", resize: "vertical" },
+  editBtns: { display: "flex", gap: 7, alignItems: "center" },
+  editSave: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 999, padding: "7px 14px", boxShadow: `0 2px 0 ${MINT_STRONG}` },
+  editCancel: { fontSize: 12, fontWeight: 700, color: "#7A9A90", background: "#EEF7F3", border: "none", borderRadius: 999, padding: "7px 13px" },
+  stepText: { margin: 0, flex: 1, fontSize: 13.5, lineHeight: 1.55, color: "#48564F" },
+  readItemText: { margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "#48564F" },
+  homeTipWrap: { display: "flex", alignItems: "flex-start", gap: 6, marginTop: 10, background: "#FFF3E0", padding: "10px 13px", borderRadius: 14 },
+  homeTipIcon: { flexShrink: 0, fontSize: 13 },
+
+  /* ── 랜딩 추가 요소 ─────────────────────────────────── */
+  featLock: { display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 800, color: "#B08900", background: "#FFF3D1", padding: "2px 8px", borderRadius: 999 },
+  featFree: { fontSize: 10, fontWeight: 800, color: "#1F6B5A", background: "#CDEEDD", padding: "2px 8px", borderRadius: 999 },
+  sampleWrap: { padding: "26px 20px 6px" },
+  sampleSub: { fontSize: 12.5, color: "#7A9A90", textAlign: "center", marginTop: -8, marginBottom: 16, lineHeight: 1.6 },
+  sampleCard: { position: "relative", maxHeight: 430, overflow: "hidden", borderRadius: 22, WebkitMaskImage: "linear-gradient(#000 74%, transparent 100%)", maskImage: "linear-gradient(#000 74%, transparent 100%)" },
+  sampleCta: { display: "block", width: "100%", maxWidth: 300, margin: "-6px auto 0", fontSize: 14.5, fontWeight: 800, color: "#1F6B5A", background: "#E5F7F0", border: "none", borderRadius: 16, padding: "13px", boxShadow: "0 3px 0 #CDEEDD" },
+  footLinks: { display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  footLink: { fontSize: 12, color: "#7A9A90", background: "transparent", border: "none", padding: 0, textDecoration: "underline", fontFamily: "inherit" },
+  footDot: { color: "#C3D9D0", fontSize: 12 },
+  authLegal: { marginTop: 16, fontSize: 11.5, color: "#8AA79D", lineHeight: 1.6 },
+  authLegalLink: { fontSize: 11.5, color: "#2E9E86", fontWeight: 700, background: "transparent", border: "none", padding: 0, textDecoration: "underline", fontFamily: "inherit" },
+
+  /* ── 약관 · 개인정보처리방침 ────────────────────────── */
+  legalWrap: { padding: "12px 18px 40px", display: "flex", flexDirection: "column", gap: 14, alignItems: "center" },
+  legalTabs: { display: "flex", gap: 7, alignSelf: "center" },
+  legalTab: { fontSize: 13, fontWeight: 700, color: "#7A9A90", background: "#fff", border: "none", borderRadius: 999, padding: "9px 16px", boxShadow: `0 2px 0 ${SH}` },
+  legalTabOn: { background: "#CDEEDD", color: "#1F6B5A", fontWeight: 800 },
+  legalCard: { width: "100%", background: "#fff", borderRadius: 20, padding: "22px 20px", boxShadow: `0 4px 0 ${SH}`, textAlign: "left" },
+  legalH: { fontFamily: DISPLAY, fontSize: 21, color: "#2E4A42", margin: "0 0 4px" },
+  legalH3: { fontSize: 14, fontWeight: 800, color: "#1F6B5A", margin: "18px 0 6px" },
+  legalP: { margin: 0, fontSize: 13, lineHeight: 1.75, color: "#48564F" },
+  legalLink: { color: "#2E9E86", fontWeight: 700 },
+  legalTodo: { marginTop: 22, fontSize: 11.5, color: "#B08900", background: "#FFF8E1", borderRadius: 12, padding: "11px 13px", lineHeight: 1.6 },
 
   headRight: { display: "flex", alignItems: "center", gap: 8 },
   planPro: { fontSize: 12.5, fontWeight: 800, color: "#7A5A00", background: "#FFE9A8", padding: "7px 12px", borderRadius: 999, boxShadow: "0 2px 0 #F0D480" },
   // 업그레이드 유도 버튼 — 민트색 배경에 묻히지 않도록 산뜻한 연노랑으로 대비를 줌
   planFree: { fontSize: 12, fontWeight: 800, color: "#7A5A00", background: "#FFF3B0", border: "none", padding: "8px 12px", borderRadius: 999, boxShadow: "0 2px 0 #EFD26A" },
 
-  landing: { fontFamily: BODY, color: INK, background: PAPER, minHeight: 560, height: "100%", maxHeight: "100vh", overflowY: "auto", maxWidth: 760, margin: "0 auto", backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px" },
+  // 내부 스크롤 컨테이너로 두면 모바일 주소창이 접힐 때 100vh 가 흔들려 스크롤이 어색해집니다.
+  // 페이지(body) 스크롤에 맡기고 높이는 dvh 로 잡습니다.
+  landing: { fontFamily: BODY, color: INK, background: PAPER, minHeight: "100dvh", maxWidth: 760, margin: "0 auto", backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px" },
   landNav: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 18px", position: "sticky", top: 0, background: "rgba(234,247,241,0.92)", backdropFilter: "blur(6px)", zIndex: 5 },
   logoMarkSm: { width: 44, height: 44, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 3px 0 #CDEBDF" },
   navGhost: { fontSize: 13, fontWeight: 700, color: "#2E9E86", background: "transparent", border: "none", padding: "9px 12px", borderRadius: 999 },
@@ -1752,7 +2659,7 @@ const styles = {
   modalClose: { position: "absolute", top: 14, right: 16, fontSize: 16, color: "#7A9A90", background: "transparent", border: "none", lineHeight: 1 },
   modalMascot: { display: "flex", justifyContent: "center", marginBottom: 6 },
   modalTitle: { fontFamily: DISPLAY, fontSize: 21, color: "#2E4A42", marginTop: 4 },
-  modalSub: { fontSize: 13.5, color: "#5E7168", lineHeight: 1.7, marginTop: 8, marginBottom: 18 },
+  modalSub: { fontSize: 13.5, color: "#5E7168", lineHeight: 1.7, marginTop: 8, marginBottom: 18, whiteSpace: "pre-line" },
   paywallFeats: { display: "inline-flex", flexDirection: "column", gap: 8, textAlign: "left", background: "#fff", borderRadius: 16, padding: "14px 18px", margin: "4px auto 18px", boxShadow: `0 3px 0 ${SH}` },
   textBtn: { display: "block", width: "100%", marginTop: 10, fontSize: 13, fontWeight: 700, color: "#7A9A90", background: "transparent", border: "none", padding: "8px" },
 };
