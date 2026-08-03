@@ -1277,7 +1277,7 @@ function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDoc, onLo
       <section style={styles.hero}>
         <div style={styles.heroMascot}><Mascot size={104} /></div>
         <h1 style={styles.heroTitle}>보육교사의 하루,<br />민트쌤이 함께해요</h1>
-        <p style={styles.heroSub}>놀이 아이디어부터 관찰일지·알림장·상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
+        <p style={styles.heroSub}>놀이 아이디어부터 관찰일지 · 알림장 · 상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
         <div style={styles.heroCtas}>
           <button style={styles.ctaPrimary} onClick={onStart}>
             {user ? "이어서 작업하기" : "가입 없이 만들어 보기"}
@@ -1571,10 +1571,10 @@ function LegalPage({ tab, setTab, onHome }) {
               <p style={styles.legalP}>회사는 회원이 입력한 메모를 바탕으로 놀이활동안, 보육일지, 관찰일지, 알림장, 적응일지, 상담일지 등의 초안을 생성하는 기능을 제공합니다. 생성된 결과물은 <b>초안</b>이며, 회원은 제출 전 내용의 사실 여부와 적절성을 직접 확인·수정할 책임이 있습니다.</p>
 
               <h3 style={styles.legalH3}>제3조 (회원가입)</h3>
-              <p style={styles.legalP}>회원가입은 이메일 또는 소셜 계정(구글·카카오)으로 할 수 있습니다. 회원은 가입 없이도 일부 기능을 체험할 수 있으나, 결과물 보관·불러오기는 회원에게만 제공됩니다.</p>
+              <p style={styles.legalP}>회원가입은 이메일 또는 소셜 계정 (구글 · 카카오) 으로 할 수 있습니다. 회원은 가입 없이도 일부 기능을 체험할 수 있으나, 결과물 보관 · 불러오기는 회원에게만 제공됩니다.</p>
 
               <h3 style={styles.legalH3}>제4조 (요금 및 결제)</h3>
-              <p style={styles.legalP}>서비스는 무료 플랜과 유료 플랜(Basic 월 9,900원 / Pro 월 19,900원, 부가세 포함)으로 구성되며, 플랜별로 이용 가능한 문서 종류와 월 생성 횟수가 다릅니다. 월 생성 횟수는 매월 1일 초기화됩니다. 베타 기간에는 결제 없이 유료 플랜 기능을 제공할 수 있으며, 정식 결제 도입 시 사전에 공지합니다.</p>
+              <p style={styles.legalP}>서비스는 무료 플랜과 유료 플랜 (Basic 월 9,900원 / Pro 월 19,900원, 부가세 포함) 으로 구성되며, 플랜별로 이용 가능한 문서 종류와 월 생성 횟수가 다릅니다. 월 생성 횟수는 매월 1일 초기화됩니다. 베타 기간에는 결제 없이 유료 플랜 기능을 제공할 수 있으며, 정식 결제 도입 시 사전에 공지합니다.</p>
 
               <h3 style={styles.legalH3}>제5조 (회원의 의무)</h3>
               <p style={styles.legalP}>회원은 타인의 개인정보를 무단으로 입력하거나, 서비스를 자동화된 방법으로 과도하게 호출하는 등 정상적인 운영을 방해하는 행위를 해서는 안 됩니다. 회사는 이러한 경우 이용을 제한할 수 있습니다.</p>
@@ -1600,7 +1600,7 @@ function LegalPage({ tab, setTab, onHome }) {
 
               <h3 style={styles.legalH3}>1. 수집하는 항목</h3>
               <p style={styles.legalP}>
-                · 회원가입: 이메일, 이름(닉네임), 가입 경로(이메일·구글·카카오), 프로필 이미지<br />
+                · 회원가입: 이메일, 이름 (닉네임), 가입 경로 (이메일 · 구글 · 카카오), 프로필 이미지<br />
                 · 서비스 이용: 요금제, 가입일, 마지막 접속일, 생성 횟수<br />
                 · 회원이 입력한 문서 내용 및 생성된 결과물
               </p>
@@ -1626,13 +1626,13 @@ function LegalPage({ tab, setTab, onHome }) {
               <p style={styles.legalP}>회원 탈퇴 시 회원 정보와 생성된 문서는 지체 없이 삭제됩니다. 회원은 서비스 내에서 문서를 개별 또는 일괄 삭제할 수 있습니다.</p>
 
               <h3 style={styles.legalH3}>6. 이용자의 권리</h3>
-              <p style={styles.legalP}>회원은 언제든지 자신의 개인정보 열람·정정·삭제·처리정지를 요청할 수 있으며, 아래 연락처로 요청하시면 지체 없이 조치합니다.</p>
+              <p style={styles.legalP}>회원은 언제든지 자신의 개인정보 열람 · 정정 · 삭제 · 처리정지를 요청할 수 있으며, 아래 연락처로 요청하시면 지체 없이 조치합니다.</p>
 
               <h3 style={styles.legalH3}>7. 개인정보 보호책임자</h3>
               <p style={styles.legalP}>문의: <a style={styles.legalLink} href="mailto:help@mintssaem.kr">help@mintssaem.kr</a></p>
 
               <div style={styles.legalTodo}>
-                ※ 정식 공개 전 개인정보 보호책임자의 성명·직위·연락처와 사업자 정보를 채워 주세요.
+                ※ 정식 공개 전 개인정보 보호책임자의 성명 · 직위 · 연락처와 사업자 정보를 채워 주세요.
                 Gemini API 로 입력 내용이 전송되는 점은 반드시 고지해야 하므로 4항을 지우지 마세요.
               </div>
             </>
@@ -2331,6 +2331,10 @@ const css = `
   .spin { animation: spin 0.9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   * { box-sizing: border-box; }
+  /* 한글은 어절(공백) 단위로만 줄을 바꿉니다. keep-all 이 없으면 "있어요" 가 "있어 / 요" 로 잘립니다.
+     overflow-wrap:break-word 는 "끊을 곳이 아예 없을 때"만 개입하므로(한 어절이 통째로
+     컨테이너보다 넓은 경우), 한글 어절은 그대로 두면서 긴 영문·URL 의 넘침만 막아 줍니다. */
+  html, body, input, textarea, button, select { word-break: keep-all; overflow-wrap: break-word; }
   ::placeholder { color: #A9C3B9; }
   button { font-family: inherit; cursor: pointer; transition: transform .12s ease; }
   button:active { transform: scale(0.96); }

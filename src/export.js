@@ -200,7 +200,7 @@ export function docPlain(kind, p) {
 
 const PAGE = (title, body) =>
   `<!doctype html><html><head><meta charset="utf-8" /><title>${esc(title)}</title></head>` +
-  `<body style="font-family:'맑은 고딕','Malgun Gothic',sans-serif;color:#111;">${body}</body></html>`;
+  `<body style="font-family:'맑은 고딕','Malgun Gothic',sans-serif;color:#111;word-break:keep-all;overflow-wrap:break-word;">${body}</body></html>`;
 
 /**
  * 클립보드에 표 서식(text/html)과 플레인 텍스트를 동시에 넣습니다.
