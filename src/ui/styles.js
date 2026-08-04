@@ -126,6 +126,9 @@ export const styles = {
   obsField: { marginTop: 9 },
   obsFieldLabel: { display: "block", fontSize: 11, fontWeight: 800, color: "#2C6FA6", marginBottom: 4 },
   obsFieldVal: { margin: 0, fontSize: 13, lineHeight: 1.55, color: "#48564F" },
+  // 배움읽기·가정연계는 해석과 구분되도록 다른 색을 씁니다
+  obsLearning: { fontSize: 13, color: "#1F6B5A", background: "#E5F7F0", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
+  obsHome: { fontSize: 13, color: "#8A5A2B", background: "#FFF6EA", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
   obsInterp: { fontSize: 13, color: "#2C5A8C", background: "#EAF2FB", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
   adaptDay: { marginTop: 12, background: "#FBF7FE", borderRadius: 14, padding: "12px 14px" },
   adaptDayHead: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" },

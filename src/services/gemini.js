@@ -64,7 +64,9 @@ export async function generateDocument({ mode, form, extra = "", history = [], a
       generationConfig: {
         maxOutputTokens: cfg.tokens || ai.defaultMaxTokens,
         responseMimeType: "application/json", // JSON 형식 강제 → 파싱 안정화
-        thinkingConfig: { thinkingBudget: 0 }, // 사고 비활성화(속도·토큰 절약)
+        // 사고는 기본적으로 끕니다(속도·토큰 절약). 다만 "항목마다 몇 자 이상" 같은
+        // 분량 규정이 있는 문서는 사고 없이는 규정을 지키지 못해, 문서별로 예산을 켭니다.
+        thinkingConfig: { thinkingBudget: cfg.thinkingBudget ?? ai.defaultThinkingBudget },
       },
     }),
   });

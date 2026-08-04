@@ -120,6 +120,16 @@ export function ActivityCard({ a, base = [], onEdit, ctx }) {
   );
 }
 
+// 관찰기록 한 영역에 들어가는 항목들. 순서와 이름을 여기서만 정합니다.
+// (프롬프트의 JSON 키와 짝이 맞아야 합니다 — src/prompts/obs.js)
+const OBS_FIELDS = [
+  { key: "datePlace", label: "관찰 일시 및 장소", style: "obsFieldVal" },
+  { key: "record", label: "관찰내용", style: "obsFieldVal" },
+  { key: "interpretation", label: "해석 및 평가", style: "obsInterp" },
+  { key: "learning", label: "배움읽기", style: "obsLearning" },
+  { key: "homeConnection", label: "가정-기관 연계 방안", style: "obsHome" },
+];
+
 export function ObsCard({ o, base = [], onEdit, ctx }) {
   const meta = [o.gender && `${o.gender}`, o.birth && `🎂 ${o.birth}`, o.period && `🗓️ ${o.period}`, o.recorder && `✍️ ${o.recorder}`].filter(Boolean);
   const areas = arr(o.areas);
@@ -131,23 +141,20 @@ export function ObsCard({ o, base = [], onEdit, ctx }) {
       {areas.map((a, i) => (
         <div key={i} style={styles.obsArea}>
           <div style={styles.obsAreaHead}><span style={styles.obsTag}>{a.area}</span></div>
-          {a.datePlace && (
-            <div style={styles.obsField}>
-              <span style={styles.obsFieldLabel}>관찰 일시 및 장소</span>
-              <Editable value={a.datePlace} path={at("areas", i, "datePlace")} onEdit={onEdit} style={styles.obsFieldVal} multiline={false} />
-            </div>
-          )}
-          {a.record && (
-            <div style={styles.obsField}>
-              <span style={styles.obsFieldLabel}>관찰 상황</span>
-              <Editable value={a.record} path={at("areas", i, "record")} onEdit={onEdit} style={styles.obsFieldVal} />
-            </div>
-          )}
-          {a.interpretation && (
-            <div style={styles.obsField}>
-              <span style={styles.obsFieldLabel}>해석 및 평가</span>
-              <Editable value={a.interpretation} path={at("areas", i, "interpretation")} onEdit={onEdit} style={styles.obsInterp} />
-            </div>
+          {/* 예전에 저장한 문서에는 배움읽기·가정연계가 없으므로 있는 항목만 그립니다 */}
+          {OBS_FIELDS.map(({ key, label, style }) =>
+            a[key] ? (
+              <div key={key} style={styles.obsField}>
+                <span style={styles.obsFieldLabel}>{label}</span>
+                <Editable
+                  value={a[key]}
+                  path={at("areas", i, key)}
+                  onEdit={onEdit}
+                  multiline={key !== "datePlace"}
+                  style={styles[style]}
+                />
+              </div>
+            ) : null
           )}
         </div>
       ))}

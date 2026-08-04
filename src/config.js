@@ -19,6 +19,8 @@ export const ai = {
   defaultMaxTokens: 1400,
   // 문서별로 CFG.eta 가 없을 때 쓰는 예상 소요(초)
   defaultEta: 15,
+  // 사고(thinking) 기본값. 0 이면 끔 — 대부분의 문서는 이 편이 빠르고 저렴합니다.
+  defaultThinkingBudget: 0,
 };
 
 export const trial = {

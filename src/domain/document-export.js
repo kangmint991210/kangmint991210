@@ -114,19 +114,38 @@ function buildDaily(d) {
   return { title: `주간보육일지 ${d.week || ""}`.trim(), plain, html };
 }
 
+// 관찰기록 한 영역의 항목 — 화면(Card.jsx 의 OBS_FIELDS)과 같은 순서·이름을 씁니다.
+const OBS_COLUMNS = [
+  ["datePlace", "관찰 일시 및 장소"],
+  ["record", "관찰내용"],
+  ["interpretation", "해석 및 평가"],
+  ["learning", "배움읽기"],
+  ["homeConnection", "가정-기관 연계 방안"],
+];
+
 function buildObs(o) {
   const areas = arr(o.areas);
+  // 예전에 저장한 문서에는 배움읽기·가정연계가 없으므로, 실제로 값이 있는 항목만 표에 넣습니다.
+  const columns = OBS_COLUMNS.filter(([key]) => areas.some((a) => a[key]));
+
   const plain =
     `[영유아 관찰기록] ${o.child || ""} (${o.gender || ""})\n생년월일/월령: ${o.birth || ""}   관찰기간: ${o.period || ""}   기록자: ${o.recorder || ""}\n\n` +
-    areas.map((a) => `■ ${a.area || ""}${a.datePlace ? " (" + a.datePlace + ")" : ""}\n[관찰] ${a.record || ""}${a.interpretation ? "\n[해석] " + a.interpretation : ""}`).join("\n\n") +
+    areas.map((a) =>
+      `■ ${a.area || ""}\n` +
+      columns.filter(([key]) => a[key]).map(([key, label]) => `[${label}] ${a[key]}`).join("\n")
+    ).join("\n\n") +
     `\n\n■ 종합 해석(비고)\n${o.summary || ""}`;
 
   const html =
     `<h1 style="font-size:14pt;margin:0 0 8px;">영유아 관찰기록</h1>` +
     kvTable([["아동", o.child], ["성별", o.gender], ["생년월일·월령", o.birth], ["관찰기간", o.period], ["기록자", o.recorder]]) +
     h2("발달 영역별 관찰") +
-    gridTable(["영역", "관찰 일시 및 장소", "관찰 상황", "해석 및 평가"],
-      areas.map((a) => [a.area || "", a.datePlace || "", a.record || "", a.interpretation || ""])) +
+    // 항목마다 글이 길어(250~500자) 가로 표로 만들면 칸이 눌립니다.
+    // 영역별로 세로 표를 하나씩 두어 한글·워드에서 읽기 좋게 합니다.
+    areas.map((a) =>
+      `<h3 style="font-size:11pt;margin:14px 0 4px;">${esc(a.area || "")}</h3>` +
+      kvTable(columns.map(([key, label]) => [label, a[key]]))
+    ).join("") +
     (o.summary ? h2("종합 해석 (비고)") + `<p style="font-size:10pt;line-height:1.7;">${rich(o.summary)}</p>` : "");
 
   return { title: `관찰기록 ${o.child || ""}`.trim(), plain, html };
