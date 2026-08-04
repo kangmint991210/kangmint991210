@@ -11,7 +11,35 @@ export class QuotaExceededError extends Error {
   }
 }
 
-/** 모델 응답에서 JSON 을 꺼냅니다. 코드펜스가 섞여 와도 견디도록. */
+/**
+ * 문자열에서 "첫 번째 완전한 JSON 객체"만 잘라냅니다.
+ *
+ * 정규식(/\{[\s\S]*\}/)으로는 안 됩니다 — 모델이 응답 끝을 반복 출력하거나
+ * 뒤에 설명을 덧붙이면, 욕심 많은 매칭이 뒤쪽 중괄호까지 삼켜 통째로 깨집니다.
+ * 실제로 그런 응답이 관측돼서, 중괄호 균형을 세어 첫 객체만 꺼냅니다.
+ * (문자열 안의 중괄호와 이스케이프된 따옴표를 건너뜁니다)
+ */
+export function extractFirstJsonObject(text) {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0, inString = false, escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) return text.slice(start, i + 1);
+  }
+  return null; // 끝까지 닫히지 않음 = 출력이 잘린 응답
+}
+
+/** 모델 응답에서 JSON 을 꺼냅니다. 코드펜스나 뒤에 붙은 군더더기가 있어도 견딥니다. */
 function parsePayload(data) {
   const text = (data?.candidates?.[0]?.content?.parts || [])
     .map((p) => p.text || "")
@@ -21,10 +49,9 @@ function parsePayload(data) {
   try {
     return JSON.parse(clean);
   } catch {
-    // 앞뒤에 설명이 붙어 온 경우 가장 바깥 중괄호만 다시 시도
-    const m = clean.match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    try { return JSON.parse(m[0]); } catch { return null; }
+    const only = extractFirstJsonObject(clean);
+    if (!only) return null;
+    try { return JSON.parse(only); } catch { return null; }
   }
 }
 

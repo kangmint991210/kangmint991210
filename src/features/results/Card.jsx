@@ -334,6 +334,9 @@ export function CounselCard({ c, base = [], onEdit, ctx }) {
       ))}
       {c.parentNote && <Sec icon={<span style={{ fontSize: 14 }}>🗣️</span>} label="부모 의견" tint="#E7F2FB">
         <Editable value={c.parentNote} path={at("parentNote")} onEdit={onEdit} style={styles.body} /></Sec>}
+      {/* 예전에 저장한 상담일지에는 없는 항목이라 있을 때만 그립니다 */}
+      {c.homeConnection && <Sec icon={<span style={{ fontSize: 14 }}>🏠</span>} label="가정-기관 연계 지원 방안" tint="#FFF6EA">
+        <Editable value={c.homeConnection} path={at("homeConnection")} onEdit={onEdit} style={styles.obsHome} /></Sec>}
       {c.summary && <Sec icon={<span style={{ fontSize: 14 }}>📋</span>} label="면담내용 및 종합의견" tint="#EDE8FA">
         <Editable value={c.summary} path={at("summary")} onEdit={onEdit} style={styles.body} /></Sec>}
     </CardShell>

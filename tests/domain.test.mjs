@@ -225,3 +225,27 @@ test("사용자 지시문에 설정과 메모가 함께 담긴다", () => {
   assert.ok(msg.includes("2026년 3월 2주"), "주간 라벨이 들어가야 임의 날짜를 지어내지 않음");
   assert.ok(msg.includes("블록놀이"));
 });
+
+/* ─────────────── 모델 응답 파싱 ─────────────── */
+// 실제로 관측된 실패: 모델이 응답 끝을 반복 출력해 JSON 뒤에 군더더기가 붙는 경우.
+// 정규식으로 가장 바깥 중괄호를 잡으면 뒤쪽까지 삼켜 통째로 깨집니다.
+
+test("JSON 뒤에 군더더기가 붙어도 첫 객체만 꺼낸다", async () => {
+  const { extractFirstJsonObject } = await import("../src/services/gemini.js");
+  const good = '{"counsel":{"summary":"부탁드립니다."}}';
+  assert.equal(extractFirstJsonObject(good + '\n부탁드립니다."}}\n탁드립니다."}}'), good);
+  assert.equal(extractFirstJsonObject("설명 " + good + " 뒤에도 설명"), good);
+});
+
+test("문자열 안의 중괄호와 이스케이프를 건너뛴다", async () => {
+  const { extractFirstJsonObject } = await import("../src/services/gemini.js");
+  const tricky = '{"note":{"message":"괄호 { 와 따옴표 \\" 가 든 문장"}}';
+  assert.equal(extractFirstJsonObject(tricky + "군더더기"), tricky);
+  assert.deepEqual(JSON.parse(extractFirstJsonObject(tricky)).note.message, '괄호 { 와 따옴표 " 가 든 문장');
+});
+
+test("닫히지 않은(잘린) 응답은 null 로 돌려준다", async () => {
+  const { extractFirstJsonObject } = await import("../src/services/gemini.js");
+  assert.equal(extractFirstJsonObject('{"a":{"b":"잘림'), null);
+  assert.equal(extractFirstJsonObject("중괄호가 없음"), null);
+});

@@ -209,6 +209,7 @@ function buildCounsel(c) {
     `[학부모 상담일지] ${c.child || ""}${c.klass ? "  " + c.klass : ""}\n생년월일: ${c.birth || ""}   면담일: ${c.date || ""}   형태: ${c.method || ""}   보호자: ${c.guardian || ""}   교사: ${c.teacher || ""}\n\n[현행수준]\n` +
     domains.map((d) => `■ ${d.area || ""}\n${d.content || ""}`).join("\n\n") +
     (c.parentNote ? `\n\n■ 부모 의견\n${c.parentNote}` : "") +
+    (c.homeConnection ? `\n\n■ 가정-기관 연계 지원 방안\n${c.homeConnection}` : "") +
     `\n\n■ 면담내용 및 종합의견\n${c.summary || ""}`;
 
   const html =
@@ -216,7 +217,12 @@ function buildCounsel(c) {
     kvTable([["원아", c.child], ["반", c.klass], ["생년월일", c.birth], ["면담일", c.date], ["면담형태", c.method], ["보호자", c.guardian], ["면담교사", c.teacher]]) +
     h2("발달 영역별 현행수준") +
     gridTable(["영역", "현행수준"], domains.map((d) => [d.area || "", d.content || ""])) +
-    kvTable([["부모 의견", c.parentNote], ["면담내용 및 종합의견", c.summary]]);
+    // 항목마다 글이 길어(200~450자) 세로 표로 둡니다. 없는 항목은 kvTable 이 알아서 걸러 냅니다.
+    kvTable([
+      ["부모 의견", c.parentNote],
+      ["가정-기관 연계 지원 방안", c.homeConnection],
+      ["면담내용 및 종합의견", c.summary],
+    ]);
 
   return { title: `상담일지 ${c.child || ""}`.trim(), plain, html };
 }
