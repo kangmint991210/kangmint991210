@@ -59,8 +59,9 @@ export default function MintSsaem() {
       <AuthPage
         mode={app.authMode}
         setMode={app.setAuthMode}
-        onHome={() => app.setView("landing")}
+        onHome={() => { app.setAuthError(null); app.setView("landing"); }}
         onLegal={app.openLegal}
+        initialError={app.authError}
       />
     );
   }

@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../supabaseClient.js";
 import { storage, KEYS } from "../lib/storage.js";
+import { readAuthRedirectError } from "../lib/auth-redirect.js";
 import { uid } from "../lib/utils.js";
 import { ai } from "../config.js";
 import {
@@ -32,6 +33,8 @@ export function useMintApp() {
   const [view, setView] = useState("landing");     // landing | auth | app | legal
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [legalTab, setLegalTab] = useState("terms");  // terms | privacy
+  // 소셜 로그인이 실패해 되돌아온 경우의 안내 (주소창에 실려 옵니다)
+  const [authError, setAuthError] = useState(() => readAuthRedirectError());
   const legalFrom = useRef("landing");               // 약관을 열기 직전 화면
 
   /* ── 모달 ────────────────────────────────────── */
@@ -89,6 +92,10 @@ export function useMintApp() {
     if (isGuest) setSignupWall({ kind: "lockedDoc", modeLabel: label });
     else setPaywall({ need: minPlanFor(key), reason: "lock", modeLabel: label });
   }, [isGuest]);
+
+  useEffect(() => {
+    if (authError) { setAuthMode("login"); setView("auth"); }
+  }, [authError]);
 
   /* ── 부수 효과 ───────────────────────────────── */
 
@@ -266,7 +273,7 @@ export function useMintApp() {
 
   return {
     // 화면 상태
-    view, setView, authMode, setAuthMode, legalTab, setLegalTab,
+    view, setView, authMode, setAuthMode, legalTab, setLegalTab, authError, setAuthError,
     showPricing, setShowPricing, paywall, setPaywall, signupWall, setSignupWall,
     // 계정 / 체험
     ...account, guest,

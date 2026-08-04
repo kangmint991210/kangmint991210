@@ -27,13 +27,14 @@ export function KakaoIcon() {
   );
 }
 
-export function AuthPage({ mode, setMode, onHome, onLegal }) {
+export function AuthPage({ mode, setMode, onHome, onLegal, initialError }) {
   const isSignup = mode === "signup";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
-  const [err, setErr] = useState("");
+  // 소셜 로그인이 실패해 되돌아온 경우 그 이유를 처음부터 보여 줍니다.
+  const [err, setErr] = useState(initialError || "");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
 

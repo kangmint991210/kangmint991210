@@ -92,3 +92,45 @@ from auth.users u
 left join public.profiles p on p.id = u.id
 group by 1
 order by 1;
+
+-- ═══════════════════════════════════════════════════════════
+-- 7) 1) 에서 "빠진 회원 0" 이 나왔다면 여기부터 보세요.
+--    profiles 는 auth.users 를 기준으로 세므로, SNS 가입 자체가 안 되고 있으면
+--    누락이 0 으로 보입니다. 실제로 SNS 계정이 만들어졌는지 직접 확인합니다.
+-- ═══════════════════════════════════════════════════════════
+
+-- 7-1) 연결된 로그인 수단별 인원. google / kakao 행이 아예 없으면
+--      SNS 로그인이 한 번도 성공한 적이 없다는 뜻입니다.
+--      (Supabase → Authentication → Providers 설정과 Redirect URL 을 확인하세요)
+select provider as 로그인수단, count(*) as 인원
+from auth.identities
+group by provider
+order by provider;
+
+-- 7-2) 최근 가입자 20명의 실제 로그인 수단
+--      ⚠ provider 는 "최초" 가입 경로만 남습니다.
+--         이미 같은 이메일로 가입한 계정이 있으면 구글·카카오로 로그인해도
+--         새 회원이 생기지 않고 기존 계정에 연결됩니다(providers 배열에만 추가됨).
+--         그 경우 profiles.provider 는 계속 'email' 로 보입니다.
+select
+  u.created_at                                     as 가입일,
+  coalesce(nullif(u.email, ''), '(이메일 없음)')    as 이메일,
+  u.raw_app_meta_data->>'provider'                 as 최초_가입경로,
+  u.raw_app_meta_data->'providers'                 as 연결된_수단들,
+  (select string_agg(i.provider, ', ') from auth.identities i where i.user_id = u.id) as identities
+from auth.users u
+order by u.created_at desc
+limit 20;
+
+-- 7-3) profiles.provider 를 실제 연결 수단으로 다시 맞추기 (선택)
+--      SNS 로 로그인하는데 'email' 로 기록돼 있는 회원을 바로잡습니다.
+update public.profiles p
+set provider = sub.providers
+from (
+  select user_id, string_agg(provider, ',' order by provider) as providers
+  from auth.identities group by user_id
+) sub
+where p.id = sub.user_id and p.provider is distinct from sub.providers;
+
+select provider as 기록된_가입경로, count(*) as 인원
+from public.profiles group by provider order by provider;
