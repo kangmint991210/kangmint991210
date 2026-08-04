@@ -133,6 +133,7 @@ export const styles = {
   adaptDay: { marginTop: 12, background: "#FBF7FE", borderRadius: 14, padding: "12px 14px" },
   adaptDayHead: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" },
   adaptTag: { fontSize: 11.5, fontWeight: 800, color: "#7B4F9E", background: "#EADDF7", padding: "3px 10px", borderRadius: 999 },
+  adaptFieldLabel: { display: "block", fontSize: 11, fontWeight: 800, color: "#7B4F9E", marginBottom: 4 },
   adaptTime: { fontSize: 12, color: "#8AA79D", fontWeight: 600, marginBottom: 6 },
   adaptNote: { fontSize: 11, fontWeight: 700, color: "#7A6B62", background: "#F1ECE6", padding: "3px 9px", borderRadius: 999 },
   cnslArea: { marginTop: 12, background: "#FFFBF3", borderRadius: 14, padding: "12px 14px" },

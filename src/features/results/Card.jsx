@@ -271,6 +271,14 @@ export function DailyCard({ d, base = [], onEdit, ctx }) {
   );
 }
 
+// 적응일지 한 일차에 들어가는 본문 항목. 프롬프트의 JSON 키와 짝이 맞아야 합니다.
+// (src/prompts/adapt.js)
+const ADAPT_FIELDS = [
+  { key: "record", label: "관찰내용", style: "obsFieldVal" },
+  { key: "interpretation", label: "해석 및 교사지원", style: "obsInterp" },
+  { key: "homeConnection", label: "가정과의 연계", style: "obsHome" },
+];
+
 export function AdaptCard({ a, base = [], onEdit, ctx }) {
   const meta = [a.age && `👶 ${a.age}`, a.klass && `🏫 ${a.klass}`, a.birth && `🎂 ${a.birth}`, a.period && `🗓️ ${a.period}`].filter(Boolean);
   const days = arr(a.days);
@@ -293,7 +301,15 @@ export function AdaptCard({ a, base = [], onEdit, ctx }) {
               {x.health && x.health !== "-" ? ` · 💊 ${x.health}` : ""}
             </div>
           )}
-          {x.record && <Editable value={x.record} path={at("days", i, "record")} onEdit={onEdit} style={styles.body} />}
+          {/* 예전에 저장한 문서에는 record 만 있으므로 있는 항목만 그립니다 */}
+          {ADAPT_FIELDS.map(({ key, label, style }) =>
+            x[key] ? (
+              <div key={key} style={styles.obsField}>
+                <span style={styles.adaptFieldLabel}>{label}</span>
+                <Editable value={x[key]} path={at("days", i, key)} onEdit={onEdit} style={styles[style]} />
+              </div>
+            ) : null
+          )}
         </div>
       ))}
       {a.summary && <Sec icon={<span style={{ fontSize: 14 }}>🌱</span>} label="종합 의견 및 적응 계획" tint="#EDE8FA">

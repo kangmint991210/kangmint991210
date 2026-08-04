@@ -160,19 +160,44 @@ function buildNote(n) {
   return { title: "알림장", plain, html };
 }
 
+// 적응일지 한 일차의 본문 항목 — 화면(Card.jsx 의 ADAPT_FIELDS)과 같은 순서·이름.
+const ADAPT_COLUMNS = [
+  ["record", "관찰내용"],
+  ["interpretation", "해석 및 교사지원"],
+  ["homeConnection", "가정과의 연계"],
+];
+
 function buildAdapt(a) {
   const days = arr(a.days);
+  // 예전에 저장한 문서에는 record 만 있으므로, 실제로 값이 있는 항목만 넣습니다.
+  const columns = ADAPT_COLUMNS.filter(([key]) => days.some((x) => x[key]));
+
+  const head = (x) =>
+    `■ ${x.day || ""}${x.date ? " (" + x.date + ")" : ""}${x.level ? " · 적응정도:" + x.level : ""}${x.note ? " · 비고:" + x.note : ""}\n` +
+    `등원 ${x.arrive || "-"} / 하원 ${x.leave || "-"}${x.health && x.health !== "-" ? " / 건강·투약 " + x.health : ""}`;
+
   const plain =
     `[신입원아 적응일지] ${a.child || ""} (${a.age || ""})${a.klass ? "  " + a.klass : ""}\n생년월일: ${a.birth || ""}   적응기간: ${a.period || ""}\n\n` +
-    days.map((x) => `■ ${x.day || ""}${x.date ? " (" + x.date + ")" : ""}${x.level ? " · 적응정도:" + x.level : ""}${x.note ? " · 비고:" + x.note : ""}\n등원 ${x.arrive || "-"} / 하원 ${x.leave || "-"}${x.health && x.health !== "-" ? " / 건강·투약 " + x.health : ""}\n${x.record || ""}`).join("\n\n") +
+    days.map((x) =>
+      head(x) + "\n" +
+      columns.filter(([key]) => x[key]).map(([key, label]) => `[${label}] ${x[key]}`).join("\n")
+    ).join("\n\n") +
     `\n\n■ 종합 의견 및 적응 계획\n${a.summary || ""}`;
 
   const html =
     `<h1 style="font-size:14pt;margin:0 0 8px;">신입원아 적응일지</h1>` +
     kvTable([["아동", a.child], ["연령", a.age], ["반", a.klass], ["생년월일", a.birth], ["적응기간", a.period]]) +
     h2("일차별 적응 기록") +
-    gridTable(["일차", "날짜", "등원", "하원", "적응정도", "건강·투약", "비고", "관찰내용"],
-      days.map((x) => [x.day || "", x.date || "", x.arrive || "-", x.leave || "-", x.level || "", x.health || "-", x.note || "", x.record || ""])) +
+    // 항목마다 글이 길어(280~550자) 가로 표로 만들면 칸이 눌립니다.
+    // 일차별로 세로 표를 하나씩 두어 한글·워드에서 읽기 좋게 합니다.
+    days.map((x) =>
+      `<h3 style="font-size:11pt;margin:14px 0 4px;">${esc(x.day || "")}${x.date ? ` (${esc(x.date)})` : ""}</h3>` +
+      kvTable([
+        ["날짜", x.date], ["등원", x.arrive], ["하원", x.leave],
+        ["적응정도", x.level], ["건강·투약", x.health], ["비고", x.note],
+        ...columns.map(([key, label]) => [label, x[key]]),
+      ])
+    ).join("") +
     (a.summary ? h2("종합 의견 및 적응 계획") + `<p style="font-size:10pt;line-height:1.7;">${rich(a.summary)}</p>` : "");
 
   return { title: `적응일지 ${a.child || ""}`.trim(), plain, html };
