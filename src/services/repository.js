@@ -34,10 +34,11 @@ export const profiles = {
   },
 
   /** 마지막 접속·요금제·SNS 정보 갱신.
-   *  DB 트리거가 행을 못 만든 경우(트리거 생성 전 가입자)도 여기서 보강됩니다. */
+   *  DB 트리거가 행을 못 만든 경우(트리거 생성 전 가입자)도 여기서 보강됩니다.
+   *  회원 기록이 통째로 사라지는 자리라, 한 번 실패하면 재시도합니다. */
   async upsert(user, plan) {
     if (!supabase || !user) return;
-    const { error } = await supabase.from("profiles").upsert({
+    const row = {
       id: user.id,
       email: user.email,
       name: user.name,
@@ -45,8 +46,17 @@ export const profiles = {
       avatar_url: user.avatar,
       plan,
       last_seen_at: new Date().toISOString(),
-    }, { onConflict: "id" });
-    if (error) warn("profiles 저장 — schema.sql 을 실행했는지 확인하세요", error);
+    };
+    let { error } = await supabase.from("profiles").upsert(row, { onConflict: "id" });
+    if (error) {
+      // 로그인 직후에는 토큰 갱신과 겹쳐 일시적으로 실패할 수 있습니다.
+      await new Promise((r) => setTimeout(r, 500));
+      ({ error } = await supabase.from("profiles").upsert(row, { onConflict: "id" }));
+    }
+    if (error) {
+      warn(`profiles 저장 (${user.provider} 가입자 ${user.id}) — ` +
+           "schema.sql 을 실행했는지, plan 제약이 free/basic/pro 인지 확인하세요", error);
+    }
   },
 
   /** 요금제만 갱신 */

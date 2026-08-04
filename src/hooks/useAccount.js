@@ -39,10 +39,18 @@ export function useAccount({ onSignedIn } = {}) {
       }
       setUser(mapUser(session.user));
       if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-        syncProfile(session.user);
-        fetchIsAdmin(session.user.id).then(setIsAdmin);
-        reloadUsage(session.user.id);
-        onSignedIn?.(session.user, { isFirstSignIn: event === "SIGNED_IN" });
+        // ⚠ 이 콜백은 Supabase 가 내부 auth 락을 잡은 채로 호출합니다.
+        //    여기서 곧바로 supabase 를 다시 호출하면 서로 락을 기다리다 멈춰,
+        //    profiles 저장이 조용히 실패합니다(구글·카카오처럼 리다이렉트로 돌아오는
+        //    로그인에서 특히 잘 걸립니다 — SNS 가입자가 DB 에 안 남던 원인).
+        //    상태 업데이트만 여기서 하고, 서버 호출은 다음 틱으로 미룹니다.
+        const signedUser = session.user;
+        setTimeout(() => {
+          syncProfile(signedUser);
+          fetchIsAdmin(signedUser.id).then(setIsAdmin);
+          reloadUsage(signedUser.id);
+          onSignedIn?.(signedUser, { isFirstSignIn: event === "SIGNED_IN" });
+        }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
