@@ -105,6 +105,11 @@ api/
   _supabase-admin.js   service_role 전용 서버 질의
 tests/
   domain.test.mjs      규칙 회귀 테스트 — `npm test`
+supabase/
+  schema.sql               테이블·RLS·가입 트리거 (처음 한 번 + 개편 시 재실행)
+  grant-admin-existing.sql 기존 회원 전원 관리자 부여 (1회성)
+  set-all-pro.sql          현재 가입자 전원 Pro 전환 (1회성)
+  diagnose-signup.sql      회원이 profiles 에 안 남을 때 원인 진단 + 복구
 ```
 
 ### 고칠 때 어디를 보면 되는지
