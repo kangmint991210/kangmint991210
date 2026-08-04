@@ -1,61 +1,50 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { guardRequest, clientIp } from "./api/_guard.js";
+import { handleGeminiRequest, bearerToken } from "./api/_gemini-proxy.js";
+import { clientIp } from "./api/_guard.js";
 
 // 개발 서버에서 POST /api/gemini 를 처리하는 미들웨어.
-// 프로덕션의 api/gemini.js(Vercel 서버리스 함수)와 동일하게 동작합니다.
-// (요청 본문의 model 로 Google URL 을 조립하고 GEMINI_API_KEY 를 붙여 전달. 키는 브라우저에 노출되지 않음)
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
-  const key = env.GEMINI_API_KEY || "";
-  const UPSTREAM = "https://generativelanguage.googleapis.com";
-
-  const geminiDevProxy = {
+// 프로덕션(api/gemini.js)과 "같은 모듈"을 호출하므로 개발과 배포의 동작이 어긋나지 않습니다.
+function geminiDevProxy(apiKey) {
+  return {
     name: "gemini-dev-proxy",
     configureServer(server) {
       server.middlewares.use("/api/gemini", (req, res) => {
-        const done = (status, body) => {
+        const send = ({ status, contentType, headers = {}, body }) => {
           res.statusCode = status;
-          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Content-Type", contentType);
+          for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
           res.end(body);
         };
-        if (req.method !== "POST") return done(405, '{"error":{"message":"POST 요청만 지원합니다."}}');
-        if (!key) return done(500, '{"error":{"message":"GEMINI_API_KEY 가 .env 에 설정되지 않았습니다."}}');
+        if (req.method !== "POST") {
+          return send({ status: 405, contentType: "application/json",
+            body: JSON.stringify({ error: { message: "POST 요청만 지원합니다." } }) });
+        }
 
         let raw = "";
         req.on("data", (c) => (raw += c));
         req.on("end", async () => {
-          try {
-            const { model, kind, ...rest } = JSON.parse(raw || "{}");
-            if (!model) return done(400, '{"error":{"message":"요청 본문에 model 필드가 필요합니다."}}');
-
-            // 프로덕션(api/gemini.js)과 동일한 가드 — 게스트 레이트리밋 + 요금제 월 한도
-            const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "").trim();
-            const gate = await guardRequest({ token, ip: clientIp(req), kind });
-            if (!gate.ok) {
-              return done(gate.status, JSON.stringify({ error: { message: gate.message, code: "quota" } }));
-            }
-
-            const upstream = await fetch(`${UPSTREAM}/v1beta/models/${model}:generateContent`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-              body: JSON.stringify(rest),
-            });
-            const text = await upstream.text();
-            res.statusCode = upstream.status;
-            res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json");
-            res.setHeader("X-Usage-Counted", gate.counted ? "1" : "0");
-            res.end(text);
-          } catch (e) {
-            done(502, JSON.stringify({ error: { message: "Gemini 프록시 요청 실패: " + (e?.message || String(e)) } }));
-          }
+          send(await handleGeminiRequest({
+            rawBody: raw,
+            apiKey,
+            token: bearerToken(req),
+            ip: clientIp(req),
+          }));
         });
       });
     },
   };
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  // .env 의 값을 서버리스와 같은 이름으로 넘겨 줍니다(개발 미들웨어는 process.env 를 못 봄).
+  for (const k of ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "VITE_SUPABASE_URL"]) {
+    if (env[k] && !process.env[k]) process.env[k] = env[k];
+  }
 
   return {
-    plugins: [react(), geminiDevProxy],
+    plugins: [react(), geminiDevProxy(env.GEMINI_API_KEY || "")],
     server: { port: 5173, open: true },
   };
 });

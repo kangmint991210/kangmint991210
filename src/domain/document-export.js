@@ -10,11 +10,7 @@
 //
 // buildDoc(kind, payload) 이 {title, plain, html} 을 만들고 위 두 함수가 이를 사용합니다.
 
-const arr = (x) => (Array.isArray(x) ? x : x == null || x === "" ? [] : [x]);
-
-// 모델이 진행 단계에 "1." 을 붙여 주는 경우가 있는데, 화면·문서 모두 번호를 따로 매기므로
-// 그대로 두면 "1. 1. …" 이 됩니다. 표시 직전에 선행 번호를 걷어냅니다.
-export const stripNum = (s) => String(s ?? "").replace(/^\s*\d+\s*[.)]\s*/, "");
+import { arr, stripLeadingNumber as stripNum } from "../lib/utils.js";
 
 const esc = (s) =>
   String(s ?? "")

@@ -68,18 +68,61 @@ npm run preview    # 빌드 결과 미리보기
 ```
 
 ## 구조
-- `민트쌤.jsx` — 앱 전체 (단일 컴포넌트) · 인증/DB 연동 · 랜딩/약관 포함
-- `src/export.js` — 생성 결과 → 표 HTML 변환 (표 복사 · 워드/한글 파일 저장)
-- `api/_guard.js` — 남용 방어 + 요금제 한도 검증 (개발·프로덕션 공용)
-- `public/og.png` — 카카오톡·밴드 공유 미리보기 이미지
-- `src/main.jsx` — React 진입점
-- `src/supabaseClient.js` — Supabase 클라이언트 (env 로 URL/키 주입)
-- `supabase/schema.sql` — DB 테이블 + RLS 정책 + 가입 자동 기록 트리거
-- `supabase/grant-admin-existing.sql` — 기존 회원 전원 관리자 부여 (1회성)
-- `index.html` — HTML 셸
-- `vite.config.js` — (개발 전용) `/api/gemini` 미들웨어. 요청 body 의 model 로 Gemini 호출 + 키 주입
-- `api/gemini.js` — (프로덕션) Vercel 서버리스 함수. 배포본에서 `/api/gemini` 에 키를 붙여 Gemini 로 전달
-- 프론트는 `POST /api/gemini` 로 `{ model, systemInstruction, contents, generationConfig }` 전송 (URL 에 콜론 없음 → Vercel 라우팅 안정)
+
+한 파일에 몰려 있던 코드를 역할별로 나눴습니다. 위에서 아래로 의존하며, 반대 방향 참조는 없습니다.
+(도메인은 화면을 모르고, 화면은 통신 방법을 모릅니다)
+
+```
+민트쌤.jsx              어느 화면을 보여 줄지만 정하는 진입점
+src/
+  config.js            브랜드·모델·체험 한도 등 설정값 (하드코딩을 모으는 자리)
+  domain/              화면을 모르는 순수 규칙 — 테스트하기 쉬운 곳
+    documents.js         문서 6종 정의, 필수 입력, 폼 초기값
+    plans.js             요금제·문서 개방 범위·월 한도  ※ 서버도 이 파일을 씁니다
+    threads.js           생성 기록 묶기·검색·요약
+    document-export.js   표 HTML 생성, 클립보드 복사, 워드/한글 파일 저장
+  prompts/             문서별 AI 프롬프트 (문서를 추가하려면 파일 하나 + index 등록)
+  services/            바깥 세계와의 통신
+    gemini.js            생성 요청과 응답 파싱
+    repository.js        Supabase 접근 (테이블·컬럼을 아는 유일한 곳)
+  hooks/               React 상태
+    useAccount.js        세션·요금제·관리자·사용량
+    useGuestTrial.js     가입 없는 체험
+    useThreads.js        생성 기록 CRUD
+    useMintApp.js        위를 화면의 흐름으로 엮음
+  ui/                  도메인을 모르는 표현 요소
+    theme.js             색·폰트·전역 CSS
+    styles.js            화면 스타일
+    primitives.jsx       Mascot · Brand · Editable · ModalShell · Sec
+    fields.jsx           드롭다운·날짜·라벨 등 입력 필드
+  features/            화면 단위
+    landing/ auth/ legal/ pricing/ editor/ results/ workspace/
+api/
+  gemini.js            Vercel 서버리스 진입점 (HTTP 어댑터)
+  _gemini-proxy.js     실제 처리 — 개발 서버(vite.config.js)와 공유
+  _guard.js            남용 방어 + 요금제 한도 정책
+  _rate-limit.js       IP 레이트리밋 (교체 가능하도록 분리)
+  _supabase-admin.js   service_role 전용 서버 질의
+tests/
+  domain.test.mjs      규칙 회귀 테스트 — `npm test`
+```
+
+### 고칠 때 어디를 보면 되는지
+| 하고 싶은 일 | 고칠 파일 |
+|---|---|
+| 요금제·가격·월 한도 변경 | `src/domain/plans.js` (화면과 서버가 함께 참조) |
+| 문서 종류 추가 | `src/domain/documents.js` + `src/prompts/<새문서>.js` + `prompts/index.js` |
+| 프롬프트·분량 규정 손보기 | `src/prompts/<문서>.js` |
+| 색·폰트 | `src/ui/theme.js` |
+| 브랜드 문구·문의처·모델명 | `src/config.js` |
+| 약관·개인정보처리방침 | `src/features/legal/LegalPage.jsx` |
+| DB 질의 | `src/services/repository.js` |
+
+## 테스트
+```bash
+npm test      # 요금제·필수입력·날짜·내보내기 규칙 회귀 테스트 (의존성 없음)
+```
+요금제 범위나 문서 내보내기를 손볼 때는 이 테스트를 먼저 돌려 보세요.
 
 ## 요금제와 이용 한도
 
