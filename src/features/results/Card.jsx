@@ -63,6 +63,7 @@ export function Card({ kind, p, guest, canExport, onEdit, onNeedSignup, onNeedPl
   if (kind === "adapt" && p.adapt) return <AdaptCard a={p.adapt} base={["adapt"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "counsel" && p.counsel) return <CounselCard c={p.counsel} base={["counsel"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "life" && p.life) return <LifeCard l={p.life} base={["life"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "assess" && p.assess) return <AssessCard a={p.assess} base={["assess"]} onEdit={onEdit} ctx={ctx(p)} />;
   return null;
 }
 
@@ -321,6 +322,30 @@ export function AdaptCard({ a, base = [], onEdit, ctx }) {
 
 // 생활기록부. 항목 8개 × 상·중·하 3줄을 개조식 블릿으로 보여 줍니다.
 // 수준을 배열이 아닌 고정 키(high/mid/low)로 받으므로, 한 줄이 비어도 나머지가 밀리지 않습니다.
+// 발달평가 총평. 영역 6문단 + 지원계획 + 부모면담 활용을 줄글로 보여 줍니다.
+// 문단이 길어(320~450자) 불릿 대신 문단 그대로 두고, 문단마다 눌러 고칠 수 있게 합니다.
+export function AssessCard({ a, base = [], onEdit, ctx }) {
+  const meta = [a.age && `👶 ${a.age}`, a.klass && `🏫 ${a.klass}`, a.period && `🗓️ ${a.period}`].filter(Boolean);
+  const areas = arr(a.areas);
+  const at = (...k) => [...base, ...k];
+  return (
+    <CardShell stripe="#7FB3E8" title={`${a.child || "영유아"} 발달평가 총평`} badge="표준보육과정·누리과정 근거" ctx={ctx}
+      foot="제출 전 원아 정보와 영역별 내용을 확인·수정해 주세요.">
+      {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
+      {areas.map((x, i) => (
+        <div key={i} style={styles.assessArea2}>
+          <div style={styles.obsAreaHead}><span style={styles.assessTag}>{x.area}</span></div>
+          <Editable value={x.content} path={at("areas", i, "content")} onEdit={onEdit} style={styles.bodyPara} />
+        </div>
+      ))}
+      {a.supportPlan && <Sec icon={<span style={{ fontSize: 14 }}>🎯</span>} label="맞춤형 지원 계획" tint="#E5F7F0">
+        <Editable value={a.supportPlan} path={at("supportPlan")} onEdit={onEdit} style={styles.bodyPara} /></Sec>}
+      {a.parentMeeting && <Sec icon={<span style={{ fontSize: 14 }}>👪</span>} label="부모 면담 활용 내용" tint="#FFF6EA">
+        <Editable value={a.parentMeeting} path={at("parentMeeting")} onEdit={onEdit} style={styles.obsHome} /></Sec>}
+    </CardShell>
+  );
+}
+
 export function LifeCard({ l, base = [], onEdit, ctx }) {
   const meta = [l.age && `👶 ${l.age}`, l.klass && `🏫 ${l.klass}`, l.date && `📅 ${l.date}`].filter(Boolean);
   const items = arr(l.items);

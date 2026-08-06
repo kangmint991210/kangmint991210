@@ -94,6 +94,9 @@ export async function generateDocument({ mode, form, extra = "", history = [], a
         // 사고는 기본적으로 끕니다(속도·토큰 절약). 다만 "항목마다 몇 자 이상" 같은
         // 분량 규정이 있는 문서는 사고 없이는 규정을 지키지 못해, 문서별로 예산을 켭니다.
         thinkingConfig: { thinkingBudget: cfg.thinkingBudget ?? ai.defaultThinkingBudget },
+        // 온도는 문서별 선택입니다. 분량·문체 규정이 빡빡한 문서는 낮춰야 편차가 줄어듭니다
+        // (기본값으로 두면 같은 입력에도 분량이 1.5배까지 벌어집니다).
+        ...(cfg.temperature != null ? { temperature: cfg.temperature } : {}),
       },
     }),
   });

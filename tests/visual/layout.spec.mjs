@@ -8,9 +8,13 @@
 // 실행: npm run test:visual
 
 import { test, expect } from "@playwright/test";
+import { MODE_KEYS } from "../../src/domain/documents.js";
+
+/** 혜택 목록의 첫 줄 — 문서를 추가하면 "8종 전체"처럼 숫자가 바뀌므로 실제 값에서 만듭니다 */
+const DOC_COUNT_LABEL = `문서 ${MODE_KEYS.length}종 전체`;
 
 /** 검수 페이지의 카드 종류 — 새 문서를 추가하면 여기에도 넣어 주세요. */
-const CARD_KINDS = ["play", "daily", "obs", "note", "adapt", "counsel", "life"];
+const CARD_KINDS = ["play", "daily", "obs", "note", "adapt", "counsel", "life", "assess"];
 
 /* ─────────────── 가로 넘침 ─────────────── */
 // 좁은 화면에서 칸을 넘치면 가로 스크롤이 생기고 글자가 잘립니다.
@@ -78,7 +82,7 @@ test("요금제 안내 — 버튼과 혜택 목록이 한 줄에 나란히 놓�
   await page.goto("/gallery.html?v=paywall");
 
   const cta = page.getByRole("button", { name: "요금제 보기" });
-  const feats = page.getByText("문서 7종 전체", { exact: true });
+  const feats = page.getByText(DOC_COUNT_LABEL, { exact: true });
   await expect(cta).toBeVisible();
   await expect(feats).toBeVisible();
 
@@ -92,7 +96,7 @@ test("요금제 안내 — 버튼이 안내 문장과 혜택 목록 사이에 �
 
   const sub = page.getByText("플랜을 쓰면", { exact: false });
   const cta = page.getByRole("button", { name: "요금제 보기" });
-  const feats = page.getByText("문서 7종 전체", { exact: true });
+  const feats = page.getByText(DOC_COUNT_LABEL, { exact: true });
 
   const [s, c, f] = [await sub.boundingBox(), await cta.boundingBox(), await feats.boundingBox()];
   expect(c.y).toBeGreaterThan(s.y);

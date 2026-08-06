@@ -2,7 +2,7 @@
 // 공통 필드(ui/fields.jsx)를 조합만 하고, 무엇이 필수인지는 domain/documents.js 가 정합니다.
 
 import React from "react";
-import { AGES, PLACES, DURATIONS, COUNSEL_METHODS } from "../../domain/documents.js";
+import { AGES, PLACES, DURATIONS, COUNSEL_METHODS, ASSESS_AREAS } from "../../domain/documents.js";
 import { Chips, DomainChips, DateField, Lbl } from "../../ui/fields.jsx";
 import { styles } from "../../ui/styles.js";
 
@@ -144,8 +144,35 @@ export function LifePanel({ form, setF }) {
   );
 }
 
+// 발달평가 총평은 영역 여섯 칸을 모두 받습니다.
+// 칸을 나눠 두면 결과 문단과 1:1 로 맞아, 비어 있는 영역을 AI 가 지어내지 않습니다.
+export function AssessPanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.row}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      {ASSESS_AREAS.map((a) => (
+        <div key={a.key} style={styles.assessField}>
+          <span style={styles.assessLabel}>{a.emoji} {a.input}</span>
+          <textarea
+            value={form[a.form]}
+            onChange={(e) => setF(a.form, e.target.value)}
+            placeholder={a.hint}
+            style={styles.assessArea}
+          />
+        </div>
+      ))}
+      <div style={styles.rowSplit}>
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 원아명 (이니셜, 선택)" style={styles.field} />
+        <input value={form.klass} onChange={(e) => setF("klass", e.target.value)} placeholder="🏫 반 (선택)" style={styles.field} />
+        <input value={form.assessPeriod} onChange={(e) => setF("assessPeriod", e.target.value)} placeholder="🗓️ 평가기간 (예: 3~8월, 선택)" style={styles.field} />
+      </div>
+    </>
+  );
+}
+
 /** 문서 종류 → 입력 폼. 화면은 이 표만 보고 폼을 고릅니다. */
 export const PANELS = {
   play: PlayPanel, daily: DailyPanel, obs: ObsPanel,
   note: NotePanel, adapt: AdaptPanel, counsel: CounselPanel, life: LifePanel,
+  assess: AssessPanel,
 };

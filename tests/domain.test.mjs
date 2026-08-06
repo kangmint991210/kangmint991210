@@ -14,7 +14,7 @@ import {
 } from "../src/domain/plans.js";
 import {
   MODE_KEYS, DEFAULT_MODE, missingFields, createEmptyForm, labelOf,
-  LIFE_AREAS, LIFE_LEVELS, restoreMode,
+  LIFE_AREAS, LIFE_LEVELS, ASSESS_AREAS, restoreMode,
 } from "../src/domain/documents.js";
 import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
@@ -135,6 +135,29 @@ test("생활기록부는 항목 8개와 상·중·하 세 수준이 고정이다
   for (const area of LIFE_AREAS) assert.ok(system.includes(`"area":"${area}"`), `${area} 가 스키마에 없음`);
 });
 
+test("발달평가 총평은 연령과 여섯 영역을 모두 받아야 만들 수 있다", () => {
+  const empty = createEmptyForm();
+  // 연령은 기본값이 있으므로 빈 폼에서 부족한 것은 여섯 영역입니다.
+  assert.deepEqual(missingFields("assess", empty), ASSESS_AREAS.map((a) => a.input));
+
+  const filled = { ...empty, ...Object.fromEntries(ASSESS_AREAS.map((a) => [a.form, "관찰"])) };
+  assert.deepEqual(missingFields("assess", filled), []);
+  // 한 칸이라도 비면 막습니다 — 비워 두면 그 영역을 AI 가 통째로 지어냅니다.
+  assert.deepEqual(missingFields("assess", { ...filled, assessArt: "" }), ["예술경험"]);
+});
+
+test("발달평가 총평의 영역 정의는 입력칸·프롬프트·결과가 같은 표를 본다", () => {
+  assert.equal(ASSESS_AREAS.length, 6);
+  const { system } = promptFor("assess");
+  for (const a of ASSESS_AREAS) {
+    // 결과 스키마에는 교육과정 영역명(신체운동·건강)이 들어가야 합니다.
+    assert.ok(system.includes(`"area":"${a.label}"`), `${a.label} 가 스키마에 없음`);
+    // 폼 키가 createEmptyForm 에 실제로 있어야 입력이 저장됩니다.
+    assert.ok(a.form in createEmptyForm(), `${a.form} 이 폼 초기값에 없음`);
+  }
+  assert.ok(system.includes("supportPlan") && system.includes("parentMeeting"));
+});
+
 /* ─────────────── 새로고침 복원 ─────────────── */
 // 새로고침하면 랜딩으로 튕기고, 돌아와 보면 고른 문서 종류도 초기화되던 문제의 회귀 테스트.
 
@@ -251,6 +274,7 @@ test("접힌 목록의 한 줄 요약", () => {
 
 test("문서 종류 모두 내보낼 수 있고, 양식 문서는 표를 갖는다", () => {
   const samples = {
+    assess: { assess: { child: "○○", areas: [{ area: "의사소통", content: "표현이 늘었음." }], supportPlan: "지원할 계획임.", parentMeeting: "안내하고자 함." } },
     life: { life: { child: "○○", items: [{ area: "수면", high: "스스로 잠듦.", mid: "도움받아 잠듦.", low: "시도함." }] } },
     play: { activities: [{ title: "풍선놀이", steps: ["놓아요"], materials: ["풍선"] }] },
     daily: { daily: { week: "3월 2주", schedule: [{ time: "09:00", name: "등원", content: "인사함" }], days: [] } },

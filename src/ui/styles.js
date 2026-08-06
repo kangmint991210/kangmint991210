@@ -48,6 +48,10 @@ export const styles = {
   dateInput: { flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "inherit", fontSize: 13.5, color: INK },
   dateText: { fontSize: 12.5, color: "#7A9A90", fontWeight: 700, flexShrink: 0 },
   field: { flex: "1 1 150px", fontSize: 13.5, padding: "11px 15px", borderRadius: 16, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 2px 0 ${SH}` },
+  // 발달평가 총평 — 영역 여섯 칸을 세로로 쌓습니다 (칸마다 무엇을 적을지 라벨로 안내)
+  assessField: { marginBottom: 10 },
+  assessLabel: { display: "block", fontSize: 12.5, fontWeight: 800, color: "#5E7168", marginBottom: 5 },
+  assessArea: { width: "100%", minHeight: 62, fontSize: 13.5, lineHeight: 1.55, padding: "11px 14px", borderRadius: 14, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 2px 0 ${SH}`, resize: "vertical" },
   textarea: { width: "100%", minHeight: 78, fontSize: 13.5, lineHeight: 1.55, padding: "12px 15px", borderRadius: 16, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 2px 0 ${SH}`, marginBottom: 10 },
   genBtn: { width: "100%", marginTop: 4, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "13px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
 
@@ -145,6 +149,9 @@ export const styles = {
     fontSize: 11, fontWeight: 800, color, background: tint, padding: "3px 7px", borderRadius: 999,
   }),
   lifeText: { margin: 0, flex: 1, fontSize: 13, lineHeight: 1.6, color: "#48564F" },
+  // 발달평가 총평 결과 — 영역별 문단 (입력폼의 assessField 와 이름이 겹치지 않게 2 를 붙임)
+  assessArea2: { marginTop: 12, background: "#F5F9FD", borderRadius: 14, padding: "12px 14px" },
+  assessTag: { fontSize: 11.5, fontWeight: 800, color: "#2C6FA6", background: "#DCEBF8", padding: "3px 10px", borderRadius: 999 },
   cnslArea: { marginTop: 12, background: "#FFFBF3", borderRadius: 14, padding: "12px 14px" },
   cnslTag: { fontSize: 11.5, fontWeight: 800, color: "#9A6B1F", background: "#FDECCB", padding: "3px 10px", borderRadius: 999 },
   levelTag: (lvl) => ({

@@ -10,6 +10,7 @@ export const MODES = [
   { key: "adapt", label: "신입원아 적응일지", emoji: "🐣" },
   { key: "counsel", label: "학부모 상담일지", emoji: "🗣️" },
   { key: "life", label: "생활기록부", emoji: "📗" },
+  { key: "assess", label: "발달평가 총평", emoji: "📊" },
 ];
 
 export const MODE_KEYS = MODES.map((m) => m.key);
@@ -54,6 +55,7 @@ export const EMPTY_COPY = {
   adapt: { title: "신입원아 적응일지를 만들어 드려요", desc: "적응 시작일과 일차별 모습을 적으면\n원장님 제출용으로 정리해 드려요." },
   counsel: { title: "학부모 상담일지를 만들어 드려요", desc: "아이의 현재 모습을 적으면\n영역별 현행수준으로 정리해 드려요." },
   life: { title: "생활기록부를 만들어 드려요", desc: "연령과 아이의 특징만 적으면\n8개 항목을 상·중·하로 정리해 드려요." },
+  assess: { title: "발달평가 총평을 만들어 드려요", desc: "영역별 관찰을 적으면\n표준보육과정·누리과정에 근거한 80줄 총평으로 정리해 드려요." },
 };
 
 /**
@@ -62,6 +64,27 @@ export const EMPTY_COPY = {
  */
 export const LIFE_AREAS = [
   "수면", "배변", "식사", "신체운동", "사회관계", "의사소통", "자연탐구", "예술경험",
+];
+
+/**
+ * 발달평가 총평의 영역. 입력칸 · 프롬프트 · 결과 카드 · 내보내기가 모두 이 표를 봅니다.
+ *
+ * input 은 교사가 적을 때 쓰는 이름(신체활동), label 은 결과 문서에 쓰는 교육과정 영역명
+ * (신체운동·건강)입니다. 둘이 달라서 한쪽만 고치면 어긋나므로 여기서 짝지어 둡니다.
+ */
+export const ASSESS_AREAS = [
+  { key: "physical", form: "assessPhysical", input: "신체활동", label: "신체운동·건강", emoji: "🏃",
+    hint: "걷기·뛰기·계단 오르기·공놀이·소근육 활동 등" },
+  { key: "comm", form: "assessComm", input: "의사소통", label: "의사소통", emoji: "💬",
+    hint: "단어·문장 사용, 교사·친구와 대화, 표현 등" },
+  { key: "social", form: "assessSocial", input: "사회관계", label: "사회관계", emoji: "🤝",
+    hint: "또래와 놀이, 교사와 애착, 감정 표현 등" },
+  { key: "art", form: "assessArt", input: "예술경험", label: "예술경험", emoji: "🎨",
+    hint: "음악, 미술, 역할놀이 등" },
+  { key: "nature", form: "assessNature", input: "자연탐구", label: "자연탐구", emoji: "🌱",
+    hint: "곤충 관찰, 물·모래놀이, 블록, 퍼즐 등" },
+  { key: "habit", form: "assessHabit", input: "생활습관", label: "기본생활습관", emoji: "🍚",
+    hint: "식사, 낮잠, 배변, 손 씻기, 정리정돈 등" },
 ];
 
 /** 생활기록부의 수준 — 키 · 화면 표시 · 결과 카드의 색 */
@@ -83,6 +106,9 @@ export const REQUIRED_FIELDS = {
   adapt: [["child", "아동(이니셜)"], ["adaptStart", "적응 시작일"], ["adaptMemo", "적응 모습 메모"]],
   counsel: [["child", "원아명"], ["counselMemo", "상담 메모"]],
   life: [["age", "연령"], ["lifeMemo", "아이의 특징"]],
+  // 여섯 영역을 모두 받는 이유 — 비워 두면 그 영역의 관찰을 AI 가 통째로 지어냅니다.
+  // 원장님·부모님께 가는 문서라 지어낸 관찰이 섞이면 안 됩니다.
+  assess: [["age", "연령"], ...ASSESS_AREAS.map((a) => [a.form, a.input])],
 };
 
 /** 아직 채워지지 않은 필수 입력의 "사람이 읽는 이름" 목록 */
@@ -103,6 +129,8 @@ export const createEmptyForm = () => ({
   counselMethod: "방문", counselMemo: "", guardian: "", teacher: "", counselBirth: "",
   gender: "여", birth: "", recorder: "", obsPeriod: "",
   lifeMemo: "", lifeDate: "",
+  assessPeriod: "",
+  ...Object.fromEntries(ASSESS_AREAS.map((a) => [a.form, ""])),
 });
 
 /** 문서 종류별 빈 대화 목록 */

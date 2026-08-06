@@ -45,6 +45,7 @@ const DETAIL_OF = {
   adapt: (a) => [a.child, a.period].filter(Boolean).join(" · "),
   counsel: (c) => [c.child, c.date].filter(Boolean).join(" · "),
   life: (l) => [l.child, l.date].filter(Boolean).join(" · "),
+  assess: (a) => [a.child, a.period].filter(Boolean).join(" · "),
   activities: (list) => arr(list)[0]?.title || "",
 };
 

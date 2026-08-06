@@ -251,6 +251,29 @@ function buildLife(l) {
   return { title: `생활기록부 ${l.child || ""}`.trim(), plain, html };
 }
 
+function buildAssess(a) {
+  const areas = arr(a.areas);
+  const plain =
+    `[영유아 발달평가 총평] ${a.child || ""}${a.klass ? "  " + a.klass : ""}\n연령: ${a.age || ""}   평가기간: ${a.period || ""}\n\n` +
+    areas.map((x) => `■ ${x.area || ""}\n${x.content || ""}`).join("\n\n") +
+    (a.supportPlan ? `\n\n■ 맞춤형 지원 계획\n${a.supportPlan}` : "") +
+    (a.parentMeeting ? `\n\n■ 부모 면담 활용 내용\n${a.parentMeeting}` : "");
+
+  // 문단마다 글이 길어(320~450자) 가로 표로 만들면 칸이 눌립니다.
+  // 관찰기록과 같은 방식으로 세로 2열 표에 담아 한글·워드에서 읽기 좋게 합니다.
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">영유아 발달평가 총평</h1>` +
+    kvTable([["원아", a.child], ["반", a.klass], ["연령", a.age], ["평가기간", a.period]]) +
+    h2("영역별 총평") +
+    kvTable(areas.map((x) => [x.area || "", x.content])) +
+    kvTable([
+      ["맞춤형 지원 계획", a.supportPlan],
+      ["부모 면담 활용 내용", a.parentMeeting],
+    ]);
+
+  return { title: `발달평가 총평 ${a.child || ""}`.trim(), plain, html };
+}
+
 /** 문서 payload → {title, plain, html}. 알 수 없는 형식이면 null */
 export function buildDoc(kind, p) {
   if (!p) return null;
@@ -261,6 +284,7 @@ export function buildDoc(kind, p) {
   if (kind === "adapt" && p.adapt) return buildAdapt(p.adapt);
   if (kind === "counsel" && p.counsel) return buildCounsel(p.counsel);
   if (kind === "life" && p.life) return buildLife(p.life);
+  if (kind === "assess" && p.assess) return buildAssess(p.assess);
   return null;
 }
 

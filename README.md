@@ -1,6 +1,6 @@
 # 민트쌤 🌿
 
-유치원 교사 보조 웹앱 (놀이활동 · 보육일지 · 관찰일지 · 알림장 · 적응일지 · 상담일지 · 생활기록부) — React + Vite.
+유치원 교사 보조 웹앱 (놀이활동 · 보육일지 · 관찰일지 · 알림장 · 적응일지 · 상담일지 · 생활기록부 · 발달평가 총평) — React + Vite.
 
 ## 실행 방법
 
@@ -46,7 +46,7 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 > `documents` 테이블만 보인다면 `schema.sql` 을 아직 실행하지 않은 것이니 전체를 실행해 주세요.
 > 실행하면 트리거가 없던 시절에 가입한 기존 회원(SNS 포함)도 소급 등록됩니다. 저장 실패 시 브라우저 콘솔에 경고가 찍힙니다.
 >
-> 데이터 저장: 로그인한 사용자가 7종 문서(놀이활동·보육일지·관찰일지·알림장·적응일지·상담일지·생활기록부)를 생성하면
+> 데이터 저장: 로그인한 사용자가 8종 문서(놀이활동·보육일지·관찰일지·알림장·적응일지·상담일지·생활기록부·발달평가총평)를 생성하면
 > 자동으로 `documents` 테이블에 저장되고, 다음 로그인 시 다시 불러옵니다. 각자 본인 데이터만 접근 가능(RLS).
 > 결과를 고친 뒤 **[저장]** 을 누르면 `documents.payload` 가 갱신되고, 별표(즐겨찾기)는 `documents.is_favorite` 에 남습니다.
 
@@ -56,6 +56,10 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 > 결과에 `max` 가 없으면 이미 끝난 것입니다.
 > (예전에는 이 문장이 `schema.sql` 안에 있어, 문서를 추가하며 재실행할 때마다 회원이 강등됐습니다)
 
+> ⚠ **문서를 새로 추가할 때마다 `schema.sql` 을 다시 실행해야 합니다.**
+> `documents.kind` 허용 목록에 새 종류가 들어가야 저장이 됩니다(현재 `life`, `assess`).
+> 실행하면 마지막에 확인 표가 나오니, 전부 ✅ 인지 보고 넘어가세요.
+>
 > ⚠ **생활기록부 · 즐겨찾기 추가에도 `schema.sql` 재실행이 필요합니다.**
 > `documents.kind` 허용값에 `life` 가 더해졌고, 즐겨찾기용 `documents.is_favorite` 컬럼이 생겼습니다.
 > 재실행하지 않으면 생활기록부 저장과 별표가 실패하고, 화면에는 남아 있다가 새로고침 때 사라집니다.
@@ -149,7 +153,7 @@ supabase/
 | 요금제·가격·월 한도 변경 | `src/domain/plans.js` (화면과 서버가 함께 참조) |
 | 문서 종류 추가 | `src/domain/documents.js` + `src/prompts/<새문서>.js` + `prompts/index.js` + `features/editor/Panels.jsx` + `features/results/Card.jsx` + `domain/document-export.js` + `supabase/schema.sql` 의 `kind` 목록 |
 | 즐겨찾기·저장 동작 | `src/hooks/useThreads.js` (초안·저장·별표를 한 곳에서 관리) |
-| 프롬프트·분량 규정 손보기 | `src/prompts/<문서>.js` |
+| 프롬프트·분량 규정 손보기 | `src/prompts/<문서>.js` (분량 편차가 크면 `temperature` 를 낮추세요) |
 | 색·폰트 | `src/ui/theme.js` |
 | 브랜드 문구·문의처·모델명 | `src/config.js` |
 | 약관·개인정보처리방침 | `src/features/legal/LegalPage.jsx` |
@@ -187,8 +191,8 @@ npm run gallery    # http://localhost:5173/gallery.html
 | 플랜 | 가격 | 문서 종류 | 월 생성 | 파일 저장 |
 |---|---|---|---|---|
 | 무료 | ₩0 | 1종 (놀이 활동) | 3회 | ✕ |
-| Basic | ₩9,900/월 | **7종 전체** | 500회 | ✓ |
-| Pro | ₩19,900/월 | **7종 전체** | 2,000회 | ✓ |
+| Basic | ₩9,900/월 | **8종 전체** | 500회 | ✓ |
+| Pro | ₩19,900/월 | **8종 전체** | 2,000회 | ✓ |
 
 - **유료 플랜은 문서를 나누지 않습니다.** Basic 과 Pro 의 차이는 월 생성 횟수뿐입니다.
   무료만 놀이 활동 1종으로 제한됩니다.
