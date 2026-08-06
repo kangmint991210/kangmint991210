@@ -2,44 +2,72 @@
 -- Supabase 대시보드 → SQL Editor 에 붙여넣고 실행하세요. 아무것도 바꾸지 않고 확인만 합니다.
 --
 -- 증상: 문서를 만들었는데 새로고침하면 사라진다 / 즐겨찾기(별표)가 눌리지 않는다.
--- 대부분 schema.sql 을 아직 실행하지 않았거나, **다른 프로젝트**의 SQL Editor 에서 실행한 경우입니다.
 --
--- ⚠ 가장 흔한 실수 — 여러 Supabase 프로젝트를 갖고 있을 때 엉뚱한 프로젝트에 실행하기.
---    아래 1번의 결과가 앱의 VITE_SUPABASE_URL 과 같은 프로젝트인지 먼저 확인하세요.
+-- ⚠ SQL Editor 는 여러 문장을 실행하면 **마지막 결과만** 보여 줍니다.
+--    그래서 이 파일은 확인 항목을 한 표로 묶어 한 번에 나오게 만들었습니다.
+--    아래를 통째로 복사해 실행하고, 나온 표를 그대로 알려 주시면 됩니다.
+--
+-- ⚠ 프로젝트를 여러 개 갖고 있다면, 앱의 VITE_SUPABASE_URL 과 **같은 프로젝트**에서 실행하세요.
+--    (로컬은 .env, 배포본은 Vercel → Settings → Environment Variables 에 있습니다)
 
--- 1) 지금 이 SQL 을 실행 중인 프로젝트가 어디인가
-select current_database() as 데이터베이스,
-       coalesce(current_setting('app.settings.project_ref', true), '(알 수 없음)') as 프로젝트;
+with 컬럼 as (
+  select column_name from information_schema.columns
+  where table_schema = 'public' and table_name = 'documents'
+),
+제약 as (
+  select pg_get_constraintdef(oid) as 정의 from pg_constraint
+  where conrelid = 'public.documents'::regclass and contype = 'c'
+)
+select * from (
+  values (0, '이 프로젝트', current_database())
+) as t(순번, 항목, 결과)
 
--- 2) documents 테이블에 필요한 컬럼이 다 있는가 (is_favorite 이 없으면 즐겨찾기가 실패합니다)
-select column_name as 컬럼, data_type as 타입, column_default as 기본값
-from information_schema.columns
-where table_schema = 'public' and table_name = 'documents'
-order by ordinal_position;
+union all
+select 1, '판정 · is_favorite 컬럼',
+       case when exists (select 1 from 컬럼 where column_name = 'is_favorite')
+            then '있음 ✅' else '없음 ❌ → schema.sql 을 이 프로젝트에서 실행하세요' end
 
--- 3) 허용된 문서 종류에 새 문서(life 등)가 들어 있는가
---    빠져 있으면 그 종류만 저장이 거부되고, 화면에는 남아 있다가 새로고침 때 사라집니다.
-select conname as 제약이름, pg_get_constraintdef(oid) as 정의
-from pg_constraint
-where conrelid = 'public.documents'::regclass and contype = 'c';
+union all
+select 2, '판정 · life(생활기록부) 허용',
+       case when exists (select 1 from 제약 where 정의 like '%life%')
+            then '허용됨 ✅'
+            when not exists (select 1 from 제약)
+            then '제약 없음 (모든 종류 허용) ✅'
+            else '빠짐 ❌ → schema.sql 을 이 프로젝트에서 실행하세요' end
 
--- 4) 실제로 종류별 몇 건이 저장돼 있는가
-select kind as 종류, count(*) as 건수,
-       count(*) filter (where is_favorite) as 즐겨찾기,
-       max(created_at) as 마지막저장
-from public.documents
-group by kind
-order by kind;
+union all
+select 3, 'documents 컬럼 전체',
+       coalesce((select string_agg(column_name, ', ') from 컬럼), '테이블 없음 ❌')
 
--- 5) RLS 정책이 살아 있는가 (없으면 본인 문서를 읽지도 쓰지도 못합니다)
-select policyname as 정책, cmd as 동작
-from pg_policies
-where schemaname = 'public' and tablename = 'documents'
-order by cmd;
+union all
+select 4, 'kind 제약 정의',
+       coalesce((select string_agg(정의, ' | ') from 제약), '(없음)')
+
+union all
+select 5, '종류별 저장 건수',
+       coalesce((select string_agg(kind || '=' || n, ', ' order by kind)
+                 from (select kind, count(*) as n from public.documents group by kind) x),
+                '(한 건도 없음)')
+
+union all
+select 6, '즐겨찾기 표시된 문서',
+       case when exists (select 1 from 컬럼 where column_name = 'is_favorite')
+            then (select count(*)::text from public.documents where is_favorite)
+            else '(컬럼 없음)' end
+
+union all
+select 7, '최근 저장 시각',
+       coalesce((select max(created_at)::text from public.documents), '(없음)')
+
+union all
+select 8, 'RLS 정책',
+       coalesce((select string_agg(policyname, ', ' order by policyname) from pg_policies
+                 where schemaname = 'public' and tablename = 'documents'),
+                '(없음 ❌)')
+order by 순번;
 
 -- ── 결과 읽는 법 ──────────────────────────────────────────────────
--- · 2번에 is_favorite 이 없다 →  schema.sql 을 (이 프로젝트에서) 실행하세요.
--- · 3번 정의에 'life' 가 없다 →  같은 이유. schema.sql 을 실행하세요.
--- · 4번에 최근 문서가 없다     →  저장 자체가 거부되고 있습니다. 브라우저 콘솔의
---                                `[민트쌤] 문서 저장 (kind=…) 실패` 경고에 정확한 원인이 찍힙니다.
--- · 5번에 정책이 4개(select/insert/update/delete) 가 아니다 → schema.sql 을 실행하세요.
+-- · 1번이 '없음' 이거나 2번이 '빠짐' → schema.sql 을 이 프로젝트에서 실행하세요.
+-- · 5번에 최근 만든 문서 종류가 없다 → 저장이 거부되고 있습니다.
+--   브라우저 콘솔의 `[민트쌤] 문서 저장 (kind=…) 실패` 경고에 정확한 원인이 찍힙니다.
+-- · 8번 정책이 4개(select/insert/update/delete) 가 아니다 → schema.sql 을 실행하세요.
