@@ -19,7 +19,7 @@ import {
 import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
-import { toTurns, filterTurns, docTitle } from "../src/domain/threads.js";
+import { toTurns, filterTurns, docTitle, shouldFollowNewest } from "../src/domain/threads.js";
 import { buildDoc } from "../src/domain/document-export.js";
 import { promptFor, PROMPTS } from "../src/prompts/index.js";
 
@@ -279,6 +279,18 @@ test("즐겨찾기 거르기는 검색과 함께 걸린다", () => {
 test("접힌 목록의 한 줄 요약", () => {
   assert.equal(docTitle(toTurns(msgs)[0].bot), "관찰일지 · ○○ · 3월");
   assert.equal(docTitle({ kind: "note", payload: null }), "알림장");
+});
+
+test("화면에 들어설 때가 아니라 방금 보냈을 때만 새 결과를 따라간다", () => {
+  // 저장된 문서가 복원되며 개수가 0 → 5 로 늘어나는 상황(화면 진입)
+  assert.equal(shouldFollowNewest({ mode: null, count: 0 }, { mode: "life", count: 5 }), false);
+  // 메뉴를 바꿔 다른 문서 목록이 들어온 상황
+  assert.equal(shouldFollowNewest({ mode: "obs", count: 2 }, { mode: "life", count: 9 }), false);
+  // 같은 메뉴에서 방금 보내 메시지가 늘어난 상황 — 이때만 따라갑니다
+  assert.equal(shouldFollowNewest({ mode: "life", count: 2 }, { mode: "life", count: 3 }), true);
+  // 지워서 줄어든 경우
+  assert.equal(shouldFollowNewest({ mode: "life", count: 3 }, { mode: "life", count: 1 }), false);
+  assert.equal(shouldFollowNewest(null, { mode: "life", count: 1 }), false);
 });
 
 /* ─────────────── 내보내기 ─────────────── */

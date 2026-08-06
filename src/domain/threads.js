@@ -65,3 +65,14 @@ export const toHistory = (messages) =>
       ? { role: "user", text: m.text }
       : { role: "model", text: JSON.stringify(m.payload || {}).slice(0, 900) }
   );
+
+/**
+ * 새 결과 쪽으로 화면을 따라 내려보낼 것인가.
+ *
+ * ⚠ "메시지가 바뀌면 무조건 끝으로" 로 두면, 화면에 들어서거나 메뉴를 바꾸는 순간
+ *    저장된 문서가 복원되면서 곧바로 맨 아래로 끌려갑니다. 그러면 입력 폼 대신
+ *    지난 문서의 끝이 먼저 보입니다. 실제로 그 버그가 났습니다.
+ *    같은 메뉴에서 메시지가 "늘어났을 때"(= 방금 보냈을 때)만 따라갑니다.
+ */
+export const shouldFollowNewest = (prev, next) =>
+  Boolean(prev && next && prev.mode === next.mode && next.count > prev.count);

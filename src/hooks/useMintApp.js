@@ -17,7 +17,7 @@ import {
 import {
   DEFAULT_PLAN, planIncludes, minPlanFor, canExportFiles, PLAN_KEYS,
 } from "../domain/plans.js";
-import { toTurns, filterTurns, toHistory } from "../domain/threads.js";
+import { toTurns, filterTurns, toHistory, shouldFollowNewest } from "../domain/threads.js";
 import { promptFor } from "../prompts/index.js";
 import { generateDocument, QuotaExceededError } from "../services/gemini.js";
 import { documents } from "../services/repository.js";
@@ -107,11 +107,21 @@ export function useMintApp() {
 
   /* ── 부수 효과 ───────────────────────────────── */
 
-  // 결과 영역이 페이지 흐름으로 늘어나므로, 새 메시지를 페이지 스크롤로 보이게 함
+  // 화면을 옮기면 맨 위부터 보여 줍니다.
+  // 같은 문서 안에서 화면만 바뀌므로, 이렇게 하지 않으면 랜딩에서 스크롤해 둔 위치가
+  // 그대로 남아 작업 화면의 중간·아래가 먼저 보입니다.
+  useEffect(() => { window.scrollTo(0, 0); }, [view, mode]);
+
+  // 결과 영역이 페이지 흐름으로 늘어나므로, 새 결과를 페이지 스크롤로 보이게 함.
+  // 단 "방금 보냈을 때"만 따라갑니다 — 규칙은 domain/threads.js 의 shouldFollowNewest.
   const scroller = useRef(null);
+  const seen = useRef({ mode: null, count: 0 });
   useEffect(() => {
-    scroller.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [messages, loading]);
+    const next = { mode, count: messages.length };
+    const follow = shouldFollowNewest(seen.current, next);
+    seen.current = next;
+    if (follow) scroller.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [mode, messages]);
 
   // 생성 중 경과 시간 — "얼마나 더 기다려야 하는지" 보여주면 이탈이 크게 줄어듭니다
   useEffect(() => {
