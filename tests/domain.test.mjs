@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   PLANS, PLAN_KEYS, DEFAULT_PLAN, planName, quotaOf, docsOf,
   planIncludes, minPlanFor, newDocsIn, higherPlan, normalizePlan, canExportFiles,
-  upgradeCopy, planBenefits,
+  upgradeCopy, planBenefits, canJudgePlan,
 } from "../src/domain/plans.js";
 import {
   MODE_KEYS, DEFAULT_MODE, missingFields, createEmptyForm, labelOf,
@@ -98,6 +98,17 @@ test("요금제 안내 문구의 숫자는 실제 한도에서 나온다", () =>
     assert.ok(line.includes(quotaOf(p.key).toLocaleString()), `${p.key} 안내 문구와 한도 불일치`);
   }
   assert.equal(planName("basic"), "Basic");
+});
+
+test("요금제를 알기 전에는 요금제로 막지 않는다", () => {
+  // 새로고침하면 세션은 즉시 되살아나지만 profiles.plan 조회는 한 박자 뒤입니다.
+  // 그 사이에 판단하면 Pro 회원에게 "이 문서는 Basic 플랜부터예요" 가 뜹니다.
+  assert.equal(canJudgePlan({ authReady: true, signedIn: true, planLoaded: false }), false);
+  assert.equal(canJudgePlan({ authReady: true, signedIn: true, planLoaded: true }), true);
+  // 세션 자체를 아직 모를 때도 판단하면 안 됩니다.
+  assert.equal(canJudgePlan({ authReady: false, signedIn: false, planLoaded: true }), false);
+  // 로그인하지 않았다면 기다릴 요금제가 없으므로 바로 판단할 수 있습니다.
+  assert.equal(canJudgePlan({ authReady: true, signedIn: false, planLoaded: false }), true);
 });
 
 /* ─────────────── 필수 입력 ─────────────── */

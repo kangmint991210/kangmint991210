@@ -121,5 +121,20 @@ export function normalizePlan(raw) {
   return PLAN_KEYS.includes(v) ? v : DEFAULT_PLAN;
 }
 
+/**
+ * 요금제로 무언가를 막아도 되는 시점인가.
+ *
+ * ⚠ 세션이 복원되는 것과 요금제를 알게 되는 것은 시점이 다릅니다.
+ *    새로고침하면 세션은 즉시 되살아나지만 profiles.plan 조회는 한 박자 뒤라,
+ *    그 사이에 판단하면 Pro 회원을 무료로 취급해 "이 문서는 Basic 플랜부터예요" 를
+ *    띄우게 됩니다. 실제로 그 버그가 났습니다.
+ *
+ * @param {boolean} authReady  저장된 세션을 확인했는가
+ * @param {boolean} signedIn   로그인 상태인가
+ * @param {boolean} planLoaded 그 회원의 요금제를 서버에서 받아왔는가
+ */
+export const canJudgePlan = ({ authReady, signedIn, planLoaded }) =>
+  Boolean(authReady && (!signedIn || planLoaded));
+
 /** 파일 내려받기처럼 유료 플랜에서만 열리는 기능인지 */
 export const canExportFiles = (planKey) => (RANK[planKey] ?? 0) > RANK[DEFAULT_PLAN];

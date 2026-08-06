@@ -68,7 +68,7 @@ export function useMintApp() {
     },
   });
 
-  const { user, plan, isAdmin, isGuest, quotaLeft, authReady } = account;
+  const { user, plan, isAdmin, isGuest, quotaLeft, planReady } = account;
 
   /* ── 파생 값 ─────────────────────────────────── */
   const messages = threads.messagesOf(mode);
@@ -86,12 +86,13 @@ export function useMintApp() {
 
   /** 게스트 체험은 첫 문서만, 회원은 요금제가 정한 문서만 열립니다. */
   const isLocked = useCallback((key) => {
-    // 저장된 세션을 아직 확인하지 못했다면 잠그지 않습니다 —
-    // 새로고침 직후 회원에게 "가입 후에 열려요" 가 잠깐 보이는 일을 막습니다.
-    if (!authReady) return false;
+    // 세션과 요금제를 모두 확인하기 전에는 잠그지 않습니다.
+    // 새로고침하면 세션은 즉시 되살아나지만 요금제 조회는 한 박자 뒤라, 그 사이에 판단하면
+    // Pro 회원에게 "이 문서는 Basic 플랜부터예요" 가 뜹니다. (plans.js 의 canJudgePlan)
+    if (!planReady) return false;
     if (isGuest) return key !== DEFAULT_MODE;
     return !isAdmin && !planIncludes(plan, key);
-  }, [authReady, isGuest, isAdmin, plan]);
+  }, [planReady, isGuest, isAdmin, plan]);
 
   /** 잠긴 문서를 만나면 상대에 맞는 안내를 띄웁니다. */
   const explainLock = useCallback((key) => {
@@ -144,10 +145,11 @@ export function useMintApp() {
   // 로그인 후 첫 진입에서 잠긴 문서를 고른 상태라면 입력하기 "전에" 알려 줍니다.
   const greeted = useRef(false);
   useEffect(() => {
-    if (view !== "app" || !user || greeted.current) return;
+    // planReady 를 기다리지 않으면 요금제를 알기 전에 판단해 엉뚱한 안내를 띄웁니다.
+    if (view !== "app" || !user || !planReady || greeted.current) return;
     greeted.current = true;
     if (isLocked(mode)) explainLock(mode);
-  }, [view, user, mode, isLocked, explainLock]);
+  }, [view, user, planReady, mode, isLocked, explainLock]);
 
   /* ── 입력 조작 ───────────────────────────────── */
   const setField = useCallback((key, value) => setForm((f) => ({ ...f, [key]: value })), []);
@@ -164,8 +166,8 @@ export function useMintApp() {
    */
   const send = useCallback(async (rawText, retryOf) => {
     if (loading) return;
-    // isLocked 가 세션 확인 전에는 잠그지 않으므로, 그 틈에 생성이 새지 않게 여기서 막습니다.
-    if (!authReady) return;
+    // isLocked 가 확인 전에는 잠그지 않으므로, 그 틈에 생성이 새지 않게 여기서 막습니다.
+    if (!planReady) return;
     if (isLocked(mode)) return explainLock(mode);
     if (isGuest && guest.isOver) return setSignupWall({ kind: "guestOver" });
     if (!isGuest && quotaLeft <= 0) {
@@ -224,7 +226,7 @@ export function useMintApp() {
       setLoading(false);
       threads.resetOpen(mode);
     }
-  }, [loading, mode, form, input, messages, isGuest, plan, quotaLeft, user, authReady,
+  }, [loading, mode, form, input, messages, isGuest, plan, quotaLeft, user, planReady,
       isLocked, explainLock, prompt, threads, guest, account]);
 
   /* ── 보관함 ──────────────────────────────────── */
