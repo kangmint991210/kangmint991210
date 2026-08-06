@@ -336,6 +336,9 @@ export const styles = {
   modalMascot: { display: "flex", justifyContent: "center", marginBottom: 6 },
   modalTitle: { fontFamily: DISPLAY, fontSize: 21, color: "#2E4A42", marginTop: 4 },
   modalSub: { fontSize: 13.5, color: "#5E7168", lineHeight: 1.7, marginTop: 8, marginBottom: 18, whiteSpace: "pre-line" },
-  paywallFeats: { display: "inline-flex", flexDirection: "column", gap: 8, textAlign: "left", background: "#fff", borderRadius: 16, padding: "14px 18px", margin: "4px auto 18px", boxShadow: `0 3px 0 ${SH}` },
+  // ⚠ inline-flex 로 두면 안 됩니다 — 인라인 요소라 뒤따르는 버튼이 같은 줄에 붙어
+  //   목록과 버튼이 2열로 나옵니다. 항목 문구가 짧아질수록 잘 생깁니다.
+  //   블록으로 두고 maxWidth + margin auto 로 가운데 정렬합니다.
+  paywallFeats: { display: "flex", flexDirection: "column", gap: 8, textAlign: "left", background: "#fff", borderRadius: 16, padding: "14px 18px", width: "100%", maxWidth: 340, margin: "14px auto", boxShadow: `0 3px 0 ${SH}` },
   textBtn: { display: "block", width: "100%", marginTop: 10, fontSize: 13, fontWeight: 700, color: "#7A9A90", background: "transparent", border: "none", padding: "8px" },
 };

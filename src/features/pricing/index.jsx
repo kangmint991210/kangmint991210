@@ -74,6 +74,9 @@ export function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
             ? "표 복사는 무료 플랜에서도 쓸 수 있어요.\n워드·한글 파일 내려받기는 Basic 부터 열려요."
             : `${planName(need)} 플랜을 쓰면 ${upgradeCopy(need)}`}
       </div>
+      {/* 버튼을 혜택 목록 위에 둡니다 — 안내 문장을 읽은 직후가 누를 마음이 가장 큰 지점이고,
+          목록은 "무엇이 열리는지" 확인하려는 사람만 이어서 보면 됩니다. */}
+      <button style={styles.ctaPrimary} onClick={onOpenPricing}>요금제 보기</button>
       <div style={styles.paywallFeats}>
         {planBenefits(need).map((label) => (
           <div key={label} style={styles.planFeat}>
@@ -81,7 +84,6 @@ export function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
           </div>
         ))}
       </div>
-      <button style={styles.ctaPrimary} onClick={onOpenPricing}>요금제 보기</button>
       {!quotaOver && !exportWall && (
         <button style={styles.textBtn} onClick={onFallback}>
           지금은 무료로 되는 {MODES[0].label} 쓸래요
