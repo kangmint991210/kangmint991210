@@ -45,6 +45,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), geminiDevProxy(env.GEMINI_API_KEY || "")],
-    server: { port: 5173, open: true },
+    // 화면 검증(Playwright)은 서버를 직접 띄우므로, 그때는 브라우저를 열지 않습니다.
+    server: { port: 5173, strictPort: true, open: !process.env.VITE_NO_OPEN },
   };
 });

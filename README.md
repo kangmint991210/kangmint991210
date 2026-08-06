@@ -44,10 +44,11 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 > 자동으로 `documents` 테이블에 저장되고, 다음 로그인 시 다시 불러옵니다. 각자 본인 데이터만 접근 가능(RLS).
 > 결과를 고친 뒤 **[저장]** 을 누르면 `documents.payload` 가 갱신되고, 별표(즐겨찾기)는 `documents.is_favorite` 에 남습니다.
 
-> ⚠ **요금제 개편(무료 / Basic / Pro) 반영에는 `schema.sql` 재실행이 필요합니다.**
-> `profiles.plan` 의 허용값이 `free/pro/max` → `free/basic/pro` 로 바뀌었고,
-> 기존 회원은 문서 종류 수 기준으로 자동 이관됩니다(구 pro→basic, 구 max→pro).
-> 재실행하지 않으면 유료 플랜 저장이 실패합니다. 같은 파일에 월 사용량 원장(`usage_events`)도 함께 들어 있습니다.
+> ⚠ **요금제 이름 개편(구 `free/pro/max` → 신 `free/basic/pro`)은 1회성 이관입니다.**
+> 아직 하지 않았다면 [`supabase/migrate-plan-names.sql`](supabase/migrate-plan-names.sql) 을 **딱 한 번만** 실행하세요.
+> 두 번 실행하면 실제 Pro 회원이 Basic 으로 내려갑니다. `select plan, count(*) from public.profiles group by plan;`
+> 결과에 `max` 가 없으면 이미 끝난 것입니다.
+> (예전에는 이 문장이 `schema.sql` 안에 있어, 문서를 추가하며 재실행할 때마다 회원이 강등됐습니다)
 
 > ⚠ **생활기록부 · 즐겨찾기 추가에도 `schema.sql` 재실행이 필요합니다.**
 > `documents.kind` 허용값에 `life` 가 더해졌고, 즐겨찾기용 `documents.is_favorite` 컬럼이 생겼습니다.
@@ -124,6 +125,9 @@ api/
   _supabase-admin.js   service_role 전용 서버 질의
 tests/
   domain.test.mjs      규칙 회귀 테스트 — `npm test`
+  visual/layout.spec.mjs 배치 회귀 테스트 — `npm run test:visual`
+dev/
+  gallery.jsx          화면 조각 검수 페이지 (개발 전용, 배포본 제외)
 supabase/
   schema.sql               테이블·RLS·가입 트리거 (문서를 추가할 때마다 재실행 — 몇 번 해도 안전)
   grant-admin-existing.sql 기존 회원 전원 관리자 부여 (1회성)
@@ -146,10 +150,31 @@ supabase/
 | DB 질의 | `src/services/repository.js` |
 
 ## 테스트
+
+두 가지를 따로 돌립니다. **규칙**은 코드로, **배치**는 실제 브라우저로 확인합니다.
+
 ```bash
-npm test      # 요금제·필수입력·날짜·내보내기 규칙 회귀 테스트 (의존성 없음)
+npm test           # 규칙 회귀 — 요금제·필수입력·날짜·내보내기 (의존성 없음, 1초)
+npm run test:visual  # 배치 회귀 — 실제 브라우저에서 치수를 잼 (Playwright)
 ```
-요금제 범위나 문서 내보내기를 손볼 때는 이 테스트를 먼저 돌려 보세요.
+
+- 요금제 범위나 문서 내보내기를 손볼 때는 `npm test` 를 먼저 돌려 보세요.
+- **카드·모달의 모양을 손볼 때는 `npm run test:visual` 을 돌려 보세요.**
+  "글자가 칸을 넘는다", "버튼이 목록 옆에 붙어 2열로 보인다", "편집 상자가 쪼그라든다" 처럼
+  코드만 봐서는 멀쩡한데 화면에서만 틀어지는 문제를 잡습니다. 모바일·데스크톱 두 폭에서 확인합니다.
+- 처음 한 번은 브라우저를 받아야 합니다: `npx playwright install chromium`
+
+### 화면 조각 검수 페이지
+로그인·AI 호출 없이 결과 카드와 모달을 그대로 띄워 보는 개발 전용 페이지입니다.
+
+```bash
+npm run gallery    # http://localhost:5173/gallery.html
+```
+
+`?v=card-life`, `?v=paywall` 처럼 조각을 골라 봅니다. 표본은 `dev/gallery.jsx` 에 있고,
+`npm run test:visual` 도 이 페이지의 치수를 잽니다.
+**문서를 새로 추가하면 여기 표본과 `tests/visual/layout.spec.mjs` 의 `CARD_KINDS` 에도 넣어 주세요.**
+`vite build` 는 `index.html` 만 묶으므로 배포본에는 들어가지 않습니다.
 
 ## 요금제와 이용 한도
 
