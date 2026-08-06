@@ -60,10 +60,22 @@ select 7, '최근 저장 시각',
        coalesce((select max(created_at)::text from public.documents), '(없음)')
 
 union all
-select 8, 'RLS 정책',
-       coalesce((select string_agg(policyname, ', ' order by policyname) from pg_policies
-                 where schemaname = 'public' and tablename = 'documents'),
-                '(없음 ❌)')
+select 8, 'RLS 정책 수',
+       (select count(*)::text from pg_policies
+        where schemaname = 'public' and tablename = 'documents') || ' 개 (4개여야 정상)'
+
+-- 9~11: "앱이 실제로 쓰는 프로젝트가 여기인가" 를 가려냅니다.
+-- 프로젝트를 여러 개 갖고 있으면, SQL 은 A 에 실행하고 앱은 B 를 보고 있기 쉽습니다.
+-- 회원이 있는데 문서가 하나도 없다면, 저장이 거부되고 있거나 앱이 다른 프로젝트를 보는 것입니다.
+union all
+select 9, '가입 회원 수', (select count(*)::text from auth.users)
+
+union all
+select 10, '마지막 로그인', coalesce((select max(last_seen_at)::text from public.profiles), '(없음)')
+
+union all
+select 11, '이번 달 생성 기록', (select count(*)::text from public.usage_events
+                                 where created_at >= date_trunc('month', now()))
 order by 순번;
 
 -- ── 결과 읽는 법 ──────────────────────────────────────────────────
