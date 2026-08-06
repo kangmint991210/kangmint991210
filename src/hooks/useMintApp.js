@@ -33,9 +33,6 @@ export function useMintApp() {
   /* ── 화면 전환 ────────────────────────────────── */
   // 새로고침해도 하던 자리로 돌아옵니다 (규칙은 lib/storage.js 의 restoreView)
   const [view, setView] = useState(() => restoreView(storage.get(KEYS.lastView)));
-  // 이 브라우저에서 전에 보던 화면이 있었는지.
-  // ⚠ 아래 "돌아올 자리 기억" 효과가 마운트 직후 값을 덮어쓰므로, 그 전에 붙잡아 둡니다.
-  const hadSavedView = useRef(Boolean(storage.get(KEYS.lastView)));
                                                    // landing | auth | app | legal
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [legalTab, setLegalTab] = useState("terms");  // terms | privacy
@@ -77,7 +74,11 @@ export function useMintApp() {
       const want = storage.get(KEYS.pendingMode);
       storage.remove(KEYS.pendingMode);
       if (want && MODE_KEYS.includes(want)) setMode(want);
-      if (isFirstSignIn) setView("app");
+      // 로그인 직후에는 언제나 메인 화면(랜딩)으로 갑니다.
+      // 로그아웃 전에 보던 작업 화면으로 되돌리면, 로그인하자마자 문서 목록 한가운데에
+      // 떨어져 "지금 어디에 있는지" 알기 어렵습니다. 메인에서 이 달의 작업을 보고
+      // 무엇을 이어서 할지 고르는 편이 자연스럽습니다.
+      if (isFirstSignIn) setView("landing");
     },
   });
 
@@ -177,16 +178,11 @@ export function useMintApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // 이미 로그인한 분이 처음 들어오면 마케팅 화면 대신 작업 화면으로 보냅니다.
-  // ⚠ 무조건 보내면 안 됩니다 — 작업 화면 로고를 눌러 일부러 랜딩에 오는 길이 있고,
-  //    요금제·약관도 랜딩에 있습니다. 그런 경우엔 보던 화면 기록이 남아 있으므로 건드리지 않습니다.
-  const welcomed = useRef(false);
-  useEffect(() => {
-    if (welcomed.current || !user || !planReady) return;
-    welcomed.current = true;
-    if (!hadSavedView.current && view === "landing") setView("app");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, planReady]);
+  // ※ 예전에는 "로그인 상태로 처음 들어오면 작업 화면으로" 보냈습니다.
+  //    그때는 랜딩이 로그인 전과 똑같은 홍보 화면이라 보여 줄 이유가 없었기 때문입니다.
+  //    지금은 랜딩이 회원의 메인 화면(환영 인사 · 문서 고르기 · 이 달의 작업)이 되었으므로
+  //    그 규칙을 걷어냈습니다. 화면은 아래 세 가지로만 정해집니다.
+  //      새로고침 → 보던 화면 복원  |  로그인 직후 → 메인  |  기록 없음 → 메인
 
   // 로그인 후 첫 진입에서 잠긴 문서를 고른 상태라면 입력하기 "전에" 알려 줍니다.
   const greeted = useRef(false);
