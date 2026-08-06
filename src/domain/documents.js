@@ -11,6 +11,10 @@ export const MODES = [
   { key: "counsel", label: "학부모 상담일지", emoji: "🗣️" },
   { key: "life", label: "생활기록부", emoji: "📗" },
   { key: "assess", label: "발달평가 총평", emoji: "📊" },
+  { key: "monthly", label: "월간 평가", emoji: "🗓️" },
+  { key: "safety", label: "안전교육일지", emoji: "🛟" },
+  { key: "trip", label: "견학 계획안", emoji: "🚌" },
+  { key: "event", label: "행사 계획안", emoji: "🎪" },
 ];
 
 export const MODE_KEYS = MODES.map((m) => m.key);
@@ -56,7 +60,36 @@ export const EMPTY_COPY = {
   counsel: { title: "학부모 상담일지를 만들어 드려요", desc: "아이의 현재 모습을 적으면\n영역별 현행수준으로 정리해 드려요." },
   life: { title: "생활기록부를 만들어 드려요", desc: "연령과 아이의 특징만 적으면\n8개 항목을 상·중·하로 정리해 드려요." },
   assess: { title: "발달평가 총평을 만들어 드려요", desc: "영역별 관찰을 적으면\n표준보육과정·누리과정에 근거한 80줄 총평으로 정리해 드려요." },
+  monthly: { title: "월간 평가를 만들어 드려요", desc: "이번 달 주제와 놀이 흐름을 적으면\n놀이 중심 월간 평가서로 정리해 드려요." },
+  safety: { title: "안전교육일지를 만들어 드려요", desc: "주제와 활동만 적으면\n보육일지에 그대로 넣을 '안전교육 실행 및 평가'를 써 드려요." },
+  trip: { title: "견학 계획안을 만들어 드려요", desc: "장소와 견학 내용을 적으면\n목표부터 사후 활동·평가까지 한 장으로 만들어 드려요." },
+  event: { title: "행사 계획안을 만들어 드려요", desc: "행사 내용과 예산을 적으면\n진행 시나리오·역할 분담·안전 관리까지 짜 드려요." },
 };
+
+/** 어린이집에서 다루는 안전교육 주제 (직접 입력도 됩니다) */
+export const SAFETY_TOPICS = [
+  "교통안전", "실종·유괴 예방", "성폭력·아동학대 예방", "감염병 예방",
+  "약물 오·남용 예방", "재난대비(화재·지진)", "시설·놀이 안전", "응급처치",
+];
+
+/** 견학 계획안의 '견학 활동' 단계 — 프롬프트·카드·내보내기가 함께 봅니다 */
+export const TRIP_STEPS = [
+  { key: "check", label: "견학 전 준비 사항 확인", count: 3 },
+  { key: "move", label: "장소로 이동", count: 2 },
+  { key: "onsite", label: "현장 체험", count: 5 },
+  { key: "back", label: "복귀", count: 3 },
+];
+
+/** 행사 계획안의 항목과 순서 — 결과 표의 행이 됩니다 */
+export const EVENT_ROWS = [
+  ["name", "행사명"], ["date", "행사일시"], ["group", "연령 및 인원"], ["teachers", "교사 수"],
+  ["place", "장소"], ["goals", "행사 목표"], ["participants", "참여 인원"], ["materials", "준비물"],
+  ["budget", "소요비용"], ["prepare", "사전 준비(세부계획)"], ["preActivity", "사전 활동"],
+  ["order", "진행순서(조 편성)"], ["scenario", "행사 내용(상세 시나리오)"],
+  ["roles", "행사 활동 (교사 역할·시간·활동명·세부내용·준비물)"],
+  ["safety", "안전 관리"], ["parents", "부모 안내 및 연계"], ["duty", "역할분담"],
+  ["review", "활동 평가"], ["overall", "행사 전체 평가"], ["ideas", "추후 개선 및 확장 아이디어"],
+];
 
 /**
  * 생활기록부의 항목과 순서. 연령과 상관없이 8개 고정입니다.
@@ -109,6 +142,17 @@ export const REQUIRED_FIELDS = {
   // 여섯 영역을 모두 받는 이유 — 비워 두면 그 영역의 관찰을 AI 가 통째로 지어냅니다.
   // 원장님·부모님께 가는 문서라 지어낸 관찰이 섞이면 안 됩니다.
   assess: [["age", "연령"], ...ASSESS_AREAS.map((a) => [a.form, a.input])],
+  monthly: [
+    ["monTheme", "보육 주제"], ["age", "연령"], ["monPlay", "중심 놀이"],
+    ["monExpand", "자발적으로 확장된 놀이"], ["monSupport", "교사 지원 내용"],
+    ["monParent", "부모면담 내용"], ["monNext", "다음 달 확장 놀이"],
+  ],
+  safety: [["age", "연령"], ["safetyTopic", "안전교육 주제"], ["safetySub", "소주제 및 활동내용"]],
+  trip: [["tripPlace", "장소"], ["age", "연령"], ["tripCount", "아동 수"], ["tripContent", "견학 내용"]],
+  event: [
+    ["evName", "행사명"], ["evChildren", "연령 및 인원"], ["evTeachers", "교사 수"],
+    ["evContent", "행사 내용"], ["evBudget", "예산"],
+  ],
 };
 
 /** 아직 채워지지 않은 필수 입력의 "사람이 읽는 이름" 목록 */
@@ -131,6 +175,10 @@ export const createEmptyForm = () => ({
   lifeMemo: "", lifeDate: "",
   assessPeriod: "",
   ...Object.fromEntries(ASSESS_AREAS.map((a) => [a.form, ""])),
+  monTheme: "", monMonth: "", monPlay: "", monExpand: "", monSupport: "", monParent: "", monNext: "",
+  safetyTopic: "교통안전", safetySub: "",
+  tripPlace: "", tripCount: "", tripContent: "", tripTransport: "", tripDate: "",
+  evName: "", evChildren: "", evTeachers: "", evContent: "", evBudget: "", evParents: "참여", evDate: "",
 });
 
 /** 문서 종류별 빈 대화 목록 */

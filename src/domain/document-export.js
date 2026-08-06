@@ -11,6 +11,7 @@
 // buildDoc(kind, payload) 이 {title, plain, html} 을 만들고 위 두 함수가 이를 사용합니다.
 
 import { arr, stripLeadingNumber as stripNum } from "../lib/utils.js";
+import { TRIP_STEPS, EVENT_ROWS } from "./documents.js";
 
 const esc = (s) =>
   String(s ?? "")
@@ -274,6 +275,70 @@ function buildAssess(a) {
   return { title: `발달평가 총평 ${a.child || ""}`.trim(), plain, html };
 }
 
+// 월간 평가의 문단 — 화면(Card.jsx 의 MONTHLY_PARTS)과 같은 순서·이름.
+const MONTHLY_COLUMNS = [
+  ["flow", "이번 달 놀이 흐름"], ["expansion", "자발적으로 확장된 놀이"],
+  ["support", "환경 구성과 교사 지원"], ["expression", "놀이 속 표현과 상호작용"],
+  ["parentNote", "부모면담 반영"], ["nextMonth", "다음 달 계획"],
+];
+
+function buildMonthly(m) {
+  const rows = MONTHLY_COLUMNS.filter(([key]) => m[key]);
+  const plain =
+    `[월간 놀이 평가] ${m.month || ""}  ${m.age || ""}\n주제: ${m.theme || ""}\n\n` +
+    rows.map(([key, label]) => `■ ${label}\n${m[key]}`).join("\n\n");
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">월간 놀이 평가</h1>` +
+    kvTable([["평가 월", m.month], ["연령", m.age], ["보육 주제", m.theme]]) +
+    kvTable(rows.map(([key, label]) => [label, m[key]]));
+  return { title: `월간평가 ${m.month || ""}`.trim(), plain, html };
+}
+
+function buildSafety(s) {
+  const plain =
+    `[안전교육 실행 및 평가] ${s.topic || ""}${s.subtopic ? " - " + s.subtopic : ""}\n연령: ${s.age || ""}\n\n${s.record || ""}`;
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">안전교육 실행 및 평가</h1>` +
+    kvTable([["연령", s.age], ["안전교육 주제", s.topic], ["소주제 및 활동내용", s.subtopic], ["실행 및 평가", s.record]]);
+  return { title: `안전교육일지 ${s.topic || ""}`.trim(), plain, html };
+}
+
+// 목록을 "· 항목" 줄로 (플레인 텍스트용)
+const bullets = (list) => arr(list).filter(Boolean).map((v) => `· ${v}`).join("\n");
+
+function buildTrip(t) {
+  const steps = TRIP_STEPS.map(({ key, label }) => [label, bullets(t.activity?.[key])]).filter(([, v]) => v);
+  const plain =
+    `[견학 계획안] ${t.place || ""}\n연령 및 인원: ${t.age || ""} ${t.count || ""}` +
+    `${t.form ? "   형태: " + t.form : ""}${t.transport ? "   이동: " + t.transport : ""}${t.date ? "   견학일: " + t.date : ""}\n\n` +
+    `■ 견학 목표\n${bullets(t.goals)}\n\n■ 사전 준비\n${bullets(t.prepare)}\n\n■ 사전 활동\n${bullets(t.preActivity)}\n\n` +
+    `■ 견학 활동\n${steps.map(([label, v]) => `[${label}]\n${v}`).join("\n")}\n\n` +
+    `■ 사후 활동\n${bullets(t.postActivity)}\n\n■ 활동 평가\n${t.review || ""}`;
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">견학 계획안</h1>` +
+    kvTable([["장소", t.place], ["견학 형태", t.form], ["이동 수단", t.transport],
+             ["연령 및 인원", [t.age, t.count].filter(Boolean).join(" ")], ["견학일", t.date]]) +
+    h2("견학 목표") + kvTable(arr(t.goals).map((v, i) => [`목표 ${i + 1}`, v])) +
+    h2("사전 준비") + kvTable([["준비 사항", bullets(t.prepare)]]) +
+    h2("사전 활동") + kvTable([["활동", bullets(t.preActivity)]]) +
+    h2("견학 활동") + gridTable(["단계", "내용"], steps) +
+    h2("사후 활동") + kvTable([["활동", bullets(t.postActivity)]]) +
+    (t.review ? h2("활동 평가") + `<p style="font-size:10pt;line-height:1.7;">${rich(t.review)}</p>` : "");
+  return { title: `견학계획안 ${t.place || ""}`.trim(), plain, html };
+}
+
+function buildEvent(e) {
+  const rows = EVENT_ROWS.filter(([key]) => e[key]);
+  const plain =
+    `[행사 계획안] ${e.name || ""}\n\n` +
+    rows.map(([key, label]) => `■ ${label}\n${e[key]}`).join("\n\n");
+  // 실제 계획안이 "구분 | 내용" 2열 표라 그 형태 그대로 내보냅니다.
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">${esc(e.name || "행사")} 계획안</h1>` +
+    gridTable(["구분", "내용"], rows.map(([key, label]) => [label, e[key]]));
+  return { title: `행사계획안 ${e.name || ""}`.trim(), plain, html };
+}
+
 /** 문서 payload → {title, plain, html}. 알 수 없는 형식이면 null */
 export function buildDoc(kind, p) {
   if (!p) return null;
@@ -285,6 +350,10 @@ export function buildDoc(kind, p) {
   if (kind === "counsel" && p.counsel) return buildCounsel(p.counsel);
   if (kind === "life" && p.life) return buildLife(p.life);
   if (kind === "assess" && p.assess) return buildAssess(p.assess);
+  if (kind === "monthly" && p.monthly) return buildMonthly(p.monthly);
+  if (kind === "safety" && p.safety) return buildSafety(p.safety);
+  if (kind === "trip" && p.trip) return buildTrip(p.trip);
+  if (kind === "event" && p.event) return buildEvent(p.event);
   return null;
 }
 

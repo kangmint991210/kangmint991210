@@ -2,7 +2,7 @@
 // 공통 필드(ui/fields.jsx)를 조합만 하고, 무엇이 필수인지는 domain/documents.js 가 정합니다.
 
 import React from "react";
-import { AGES, PLACES, DURATIONS, COUNSEL_METHODS, ASSESS_AREAS } from "../../domain/documents.js";
+import { AGES, PLACES, DURATIONS, COUNSEL_METHODS, ASSESS_AREAS, SAFETY_TOPICS } from "../../domain/documents.js";
 import { Chips, DomainChips, DateField, Lbl } from "../../ui/fields.jsx";
 import { styles } from "../../ui/styles.js";
 
@@ -170,9 +170,109 @@ export function AssessPanel({ form, setF }) {
   );
 }
 
+
+// 여러 칸을 세로로 쌓는 폼에서 되풀이되는 조각 (발달평가·월간평가가 함께 씁니다)
+function Memo({ label, value, onChange, placeholder }) {
+  return (
+    <div style={styles.assessField}>
+      <span style={styles.assessLabel}>{label}</span>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} style={styles.assessArea} />
+    </div>
+  );
+}
+
+export function MonthlyPanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.rowSplit}>
+        <input value={form.monTheme} onChange={(e) => setF("monTheme", e.target.value)}
+          placeholder="🌱 이번 달 보육 주제 (예: 여름과 물놀이)" style={styles.field} />
+        <DateField type="month" value={form.monMonth} onChange={(v) => setF("monMonth", v)} label="평가 월 (선택)" />
+        <div style={styles.miniRow}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      </div>
+      <Memo label="🎨 중심 놀이" value={form.monPlay} onChange={(v) => setF("monPlay", v)}
+        placeholder="이번 달 중심적으로 이루어진 놀이 (예: 물감 물놀이, 물총 놀이, 바다생물 탐색)" />
+      <Memo label="✨ 자발적으로 확장된 놀이" value={form.monExpand} onChange={(v) => setF("monExpand", v)}
+        placeholder="아이들이 스스로 이어 간 놀이 (예: 바다생물 흉내 내기)" />
+      <Memo label="🤝 교사 지원 내용" value={form.monSupport} onChange={(v) => setF("monSupport", v)}
+        placeholder="어떤 환경과 재료를 제공했는지 (예: 다양한 물놀이 도구와 그림자료 제공)" />
+      <Memo label="👪 부모면담 내용" value={form.monParent} onChange={(v) => setF("monParent", v)}
+        placeholder="면담에서 나온 이야기 (예: 집에서도 바다생물 책을 자주 본다고 함)" />
+      <Memo label="🔜 다음 달 확장 놀이" value={form.monNext} onChange={(v) => setF("monNext", v)}
+        placeholder="다음 달에 이어 갈 놀이 흐름 (예: 다양한 감각을 활용한 여름 탐색 놀이)" />
+    </>
+  );
+}
+
+export function SafetyPanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.row}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      <div style={styles.row}><Lbl>🛟 주제</Lbl><Chips items={SAFETY_TOPICS} value={form.safetyTopic} onPick={(v) => setF("safetyTopic", v)} /></div>
+      <input value={form.safetyTopic} onChange={(e) => setF("safetyTopic", e.target.value)}
+        placeholder="🛟 주제를 직접 적어도 돼요" style={{ ...styles.field, width: "100%", marginBottom: 10 }} />
+      <textarea value={form.safetySub} onChange={(e) => setF("safetySub", e.target.value)}
+        placeholder="✍️ 소주제 및 활동내용 (예: 횡단보도 안전하게 건너기)" style={styles.textarea} />
+    </>
+  );
+}
+
+export function TripPanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.rowSplit}>
+        <input value={form.tripPlace} onChange={(e) => setF("tripPlace", e.target.value)}
+          placeholder="📍 장소 (예: 서울상상나라)" style={styles.field} />
+        <input value={form.tripCount} onChange={(e) => setF("tripCount", e.target.value)}
+          placeholder="👥 아동 수 (예: 20명)" style={styles.field} />
+        <div style={styles.miniRow}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      </div>
+      <textarea value={form.tripContent} onChange={(e) => setF("tripContent", e.target.value)}
+        placeholder="✍️ 견학 내용 — 무엇을 보고 체험할지 적어주세요 (예: 전시 체험, 신체놀이·역할놀이 공간 이용)" style={styles.textarea} />
+      <div style={styles.rowSplit}>
+        <input value={form.tripTransport} onChange={(e) => setF("tripTransport", e.target.value)}
+          placeholder="🚌 이동 수단 (선택 — 비우면 언급하지 않아요)" style={styles.field} />
+        <DateField text="견학일" value={form.tripDate} onChange={(v) => setF("tripDate", v)} label="견학일 (선택)" />
+      </div>
+      <div style={styles.needHint}>
+        🔎 <b>전시 이름은 지어내지 않아요.</b>
+        <span style={styles.needWhy}> 실제와 다를 수 있어 “신체놀이 공간”처럼 공간 유형으로만 씁니다.
+        정확한 전시명은 공식 홈페이지에서 확인해 주세요.</span>
+      </div>
+    </>
+  );
+}
+
+export function EventPanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.rowSplit}>
+        <input value={form.evName} onChange={(e) => setF("evName", e.target.value)}
+          placeholder="🎪 행사명 (예: 여름 물놀이 축제)" style={styles.field} />
+        <DateField text="행사일" value={form.evDate} onChange={(v) => setF("evDate", v)} label="행사일 (선택)" />
+      </div>
+      <div style={styles.rowSplit}>
+        <input value={form.evChildren} onChange={(e) => setF("evChildren", e.target.value)}
+          placeholder="👶 연령 및 인원 (예: 영아 18명, 유아 22명)" style={styles.field} />
+        <input value={form.evTeachers} onChange={(e) => setF("evTeachers", e.target.value)}
+          placeholder="🧑‍🏫 교사 수 (예: 8)" style={styles.field} />
+      </div>
+      <div style={styles.rowSplit}>
+        <input value={form.evBudget} onChange={(e) => setF("evBudget", e.target.value)}
+          placeholder="💰 예산 (예: 500,000원)" style={styles.field} />
+        <div style={styles.miniRow}><Lbl>👪 부모</Lbl><Chips items={["참여", "미참여"]} value={form.evParents} onPick={(v) => setF("evParents", v)} /></div>
+      </div>
+      <textarea value={form.evContent} onChange={(e) => setF("evContent", e.target.value)}
+        placeholder="✍️ 행사 내용 (예: 물놀이 체험 및 물총 놀이)" style={styles.textarea} />
+    </>
+  );
+}
+
 /** 문서 종류 → 입력 폼. 화면은 이 표만 보고 폼을 고릅니다. */
 export const PANELS = {
   play: PlayPanel, daily: DailyPanel, obs: ObsPanel,
   note: NotePanel, adapt: AdaptPanel, counsel: CounselPanel, life: LifePanel,
-  assess: AssessPanel,
+  assess: AssessPanel, monthly: MonthlyPanel, safety: SafetyPanel,
+  trip: TripPanel, event: EventPanel,
 };

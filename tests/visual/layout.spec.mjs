@@ -14,7 +14,10 @@ import { MODE_KEYS } from "../../src/domain/documents.js";
 const DOC_COUNT_LABEL = `문서 ${MODE_KEYS.length}종 전체`;
 
 /** 검수 페이지의 카드 종류 — 새 문서를 추가하면 여기에도 넣어 주세요. */
-const CARD_KINDS = ["play", "daily", "obs", "note", "adapt", "counsel", "life", "assess"];
+const CARD_KINDS = [
+  "play", "daily", "obs", "note", "adapt", "counsel",
+  "life", "assess", "monthly", "safety", "trip", "event",
+];
 
 /* ─────────────── 가로 넘침 ─────────────── */
 // 좁은 화면에서 칸을 넘치면 가로 스크롤이 생기고 글자가 잘립니다.

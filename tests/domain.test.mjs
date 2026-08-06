@@ -297,6 +297,12 @@ test("화면에 들어설 때가 아니라 방금 보냈을 때만 새 결과를
 
 test("문서 종류 모두 내보낼 수 있고, 양식 문서는 표를 갖는다", () => {
   const samples = {
+    monthly: { monthly: { month: "7월", theme: "여름", flow: "놀이가 이루어졌음.", nextMonth: "이어 갈 계획임." } },
+    safety: { safety: { topic: "교통안전", subtopic: "횡단보도", record: "알아보았음." } },
+    trip: { trip: { place: "○○관", goals: ["기른다."], prepare: ["안내"], preActivity: ["알아보기"],
+                    activity: { check: ["확인"], move: ["이동"], onsite: ["체험"], back: ["점검"] },
+                    postActivity: ["회상하기"], review: "나타났음." } },
+    event: { event: { name: "여름 축제", goals: "즐거움을 경험한다.", safety: "사전 점검", review: "참여했음." } },
     assess: { assess: { child: "○○", areas: [{ area: "의사소통", content: "표현이 늘었음." }], supportPlan: "지원할 계획임.", parentMeeting: "안내하고자 함." } },
     life: { life: { child: "○○", items: [{ area: "수면", high: "스스로 잠듦.", mid: "도움받아 잠듦.", low: "시도함." }] } },
     play: { activities: [{ title: "풍선놀이", steps: ["놓아요"], materials: ["풍선"] }] },

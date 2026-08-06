@@ -9,7 +9,7 @@ import {
   Target, Package, ListOrdered, ShieldCheck, Clock, MapPin, Copy, Check, Download, Lock,
 } from "lucide-react";
 import { arr, stripLeadingNumber as stripNum } from "../../lib/utils.js";
-import { DOMAIN_COLOR, domainEmoji as dEmoji, LIFE_LEVELS } from "../../domain/documents.js";
+import { DOMAIN_COLOR, domainEmoji as dEmoji, LIFE_LEVELS, TRIP_STEPS, EVENT_ROWS } from "../../domain/documents.js";
 import { copyDoc, downloadDoc } from "../../domain/document-export.js";
 import { Editable, Sec } from "../../ui/primitives.jsx";
 import { styles } from "../../ui/styles.js";
@@ -64,6 +64,10 @@ export function Card({ kind, p, guest, canExport, onEdit, onNeedSignup, onNeedPl
   if (kind === "counsel" && p.counsel) return <CounselCard c={p.counsel} base={["counsel"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "life" && p.life) return <LifeCard l={p.life} base={["life"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "assess" && p.assess) return <AssessCard a={p.assess} base={["assess"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "monthly" && p.monthly) return <MonthlyCard m={p.monthly} base={["monthly"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "safety" && p.safety) return <SafetyCard s={p.safety} base={["safety"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "trip" && p.trip) return <TripCard t={p.trip} base={["trip"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "event" && p.event) return <EventCard e={p.event} base={["event"]} onEdit={onEdit} ctx={ctx(p)} />;
   return null;
 }
 
@@ -342,6 +346,112 @@ export function AssessCard({ a, base = [], onEdit, ctx }) {
         <Editable value={a.supportPlan} path={at("supportPlan")} onEdit={onEdit} style={styles.bodyPara} /></Sec>}
       {a.parentMeeting && <Sec icon={<span style={{ fontSize: 14 }}>👪</span>} label="부모 면담 활용 내용" tint="#FFF6EA">
         <Editable value={a.parentMeeting} path={at("parentMeeting")} onEdit={onEdit} style={styles.obsHome} /></Sec>}
+    </CardShell>
+  );
+}
+
+/** 목록형 항목 — 한 줄씩 눌러 고칠 수 있게 그립니다 */
+function EditList({ items, path, onEdit, tint = "#F5FBF8" }) {
+  return (
+    <ul style={styles.lifeList}>
+      {arr(items).map((v, i) => (
+        <li key={i} style={{ ...styles.lifeItem, background: tint, borderRadius: 10, padding: "7px 10px" }}>
+          <span style={styles.tripDot}>•</span>
+          <Editable value={v} path={[...path, i]} onEdit={onEdit} style={styles.lifeText} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// 월간 평가 — 놀이 흐름을 여섯 문단으로. 소제목은 화면에서만 붙이고 글에는 넣지 않습니다.
+const MONTHLY_PARTS = [
+  { key: "flow", label: "이번 달 놀이 흐름", tint: "#E5F7F0" },
+  { key: "expansion", label: "자발적으로 확장된 놀이", tint: "#FFF3E0" },
+  { key: "support", label: "환경 구성과 교사 지원", tint: "#E7F2FB" },
+  { key: "expression", label: "놀이 속 표현과 상호작용", tint: "#EDE8FA" },
+  { key: "parentNote", label: "부모면담 반영", tint: "#FFF6EA" },
+  { key: "nextMonth", label: "다음 달 계획", tint: "#F1F9F5" },
+];
+
+export function MonthlyCard({ m, base = [], onEdit, ctx }) {
+  const meta = [m.age && `👶 ${m.age}`, m.month && `🗓️ ${m.month}`, m.theme && `🌱 ${m.theme}`].filter(Boolean);
+  return (
+    <CardShell stripe="#59C7B0" title={`${m.month || "이번 달"} 월간 평가`} badge="놀이 중심 월간 평가" ctx={ctx}
+      foot="제출 전 주제·놀이 이름과 내용을 확인·수정해 주세요.">
+      {meta.length > 0 && <div style={styles.meta}>{meta.map((x, i) => <span key={i} style={styles.metaItem}>{x}</span>)}</div>}
+      {MONTHLY_PARTS.map(({ key, label, tint }) =>
+        m[key] ? (
+          <Sec key={key} icon={<span style={{ fontSize: 14 }}>•</span>} label={label} tint={tint}>
+            <Editable value={m[key]} path={[...base, key]} onEdit={onEdit} style={styles.bodyPara} />
+          </Sec>
+        ) : null
+      )}
+    </CardShell>
+  );
+}
+
+// 안전교육일지 — 보육일지 한 칸에 붙일 문단 하나뿐입니다.
+export function SafetyCard({ s, base = [], onEdit, ctx }) {
+  const meta = [s.age && `👶 ${s.age}`, s.topic && `🛟 ${s.topic}`, s.subtopic && `📌 ${s.subtopic}`].filter(Boolean);
+  return (
+    <CardShell stripe="#FFB86B" title="안전교육 실행 및 평가" badge="보육일지용" ctx={ctx}
+      foot="보육일지의 '안전교육 실행 및 평가' 칸에 그대로 붙여 넣으시면 돼요.">
+      {meta.length > 0 && <div style={styles.meta}>{meta.map((x, i) => <span key={i} style={styles.metaItem}>{x}</span>)}</div>}
+      <Editable value={s.record} path={[...base, "record"]} onEdit={onEdit} style={styles.bodyPara} />
+    </CardShell>
+  );
+}
+
+export function TripCard({ t, base = [], onEdit, ctx }) {
+  const meta = [t.age && `👶 ${t.age}`, t.count && `👥 ${t.count}`, t.form && `🎫 ${t.form}`,
+                t.transport && `🚌 ${t.transport}`, t.date && `📅 ${t.date}`].filter(Boolean);
+  const at = (...k) => [...base, ...k];
+  return (
+    <CardShell stripe="#7FB3E8" title={`${t.place || "견학"} 계획안`} badge="원장님 제출용" ctx={ctx}
+      foot="전시명·운영 시간은 지어내지 않았어요. 방문 전 공식 홈페이지에서 확인해 주세요.">
+      {meta.length > 0 && <div style={styles.meta}>{meta.map((x, i) => <span key={i} style={styles.metaItem}>{x}</span>)}</div>}
+      <Sec icon={<span style={{ fontSize: 14 }}>🎯</span>} label="견학 목표" tint="#E5F7F0">
+        <EditList items={t.goals} path={at("goals")} onEdit={onEdit} />
+      </Sec>
+      <Sec icon={<span style={{ fontSize: 14 }}>📋</span>} label="사전 준비" tint="#FFF3E0">
+        <EditList items={t.prepare} path={at("prepare")} onEdit={onEdit} />
+      </Sec>
+      <Sec icon={<span style={{ fontSize: 14 }}>🎨</span>} label="사전 활동" tint="#EDE8FA">
+        <EditList items={t.preActivity} path={at("preActivity")} onEdit={onEdit} />
+      </Sec>
+      <Sec icon={<span style={{ fontSize: 14 }}>🚶</span>} label="견학 활동" tint="#E7F2FB">
+        {TRIP_STEPS.map(({ key, label }, i) => (
+          <div key={key} style={styles.tripStep}>
+            <div style={styles.tripStepHead}><span style={styles.tripStepNo}>{i + 1}</span> {label}</div>
+            <EditList items={t.activity?.[key]} path={at("activity", key)} onEdit={onEdit} tint="#F7FBFE" />
+          </div>
+        ))}
+      </Sec>
+      <Sec icon={<span style={{ fontSize: 14 }}>🏡</span>} label="사후 활동" tint="#FFF6EA">
+        <EditList items={t.postActivity} path={at("postActivity")} onEdit={onEdit} />
+      </Sec>
+      {t.review && <Sec icon={<span style={{ fontSize: 14 }}>📝</span>} label="활동 평가" tint="#F1F9F5">
+        <Editable value={t.review} path={at("review")} onEdit={onEdit} style={styles.bodyPara} /></Sec>}
+    </CardShell>
+  );
+}
+
+// 행사 계획안 — 항목이 스무 개라 표(구분 | 내용)로 그립니다.
+export function EventCard({ e, base = [], onEdit, ctx }) {
+  return (
+    <CardShell stripe="#F2A0C0" title={`${e.name || "행사"} 계획안`} badge="원장님 제출용" ctx={ctx}
+      foot="예산 합계와 교사 배치를 한 번 더 확인해 주세요.">
+      <div style={styles.evTable}>
+        {EVENT_ROWS.map(([key, label]) =>
+          e[key] ? (
+            <div key={key} style={styles.evRow}>
+              <div style={styles.evHead}>{label}</div>
+              <Editable value={e[key]} path={[...base, key]} onEdit={onEdit} style={styles.evCell} />
+            </div>
+          ) : null
+        )}
+      </div>
     </CardShell>
   );
 }

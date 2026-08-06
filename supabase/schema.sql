@@ -1,6 +1,7 @@
 -- 민트쌤 데이터베이스 스키마
 -- Supabase 대시보드 → SQL Editor 에 붙여넣고 실행하세요. 여러 번 실행해도 안전합니다.
--- 문서 8종(놀이활동/보육일지/관찰일지/알림장/적응일지/상담일지/생활기록부/발달평가총평)을 한 테이블에 저장하고,
+-- 문서 12종(놀이활동/보육일지/관찰일지/알림장/적응일지/상담일지/생활기록부/발달평가총평/
+--          월간평가/안전교육일지/견학계획안/행사계획안)을 한 테이블에 저장하고,
 -- kind 컬럼으로 종류를 구분합니다. RLS 로 "본인 데이터만" 접근하도록 보호합니다.
 -- profiles 테이블로 "회원 자체"(이름/이메일/가입경로/요금제/가입일/마지막 접속)를 추적합니다.
 -- 이메일 가입과 SNS 간편로그인(구글·카카오) 모두 같은 트리거로 기록됩니다.
@@ -160,7 +161,8 @@ alter table public.documents add column if not exists is_favorite boolean not nu
 alter table public.documents drop constraint if exists documents_kind_check;
 alter table public.documents
   add constraint documents_kind_check
-  check (kind in ('play','daily','obs','note','adapt','counsel','life','assess'));
+  check (kind in ('play','daily','obs','note','adapt','counsel','life','assess',
+                  'monthly','safety','trip','event'));
 
 -- 조회 성능용 인덱스 (사용자별 + 종류별 + 시간순)
 create index if not exists documents_user_kind_created_idx
@@ -248,10 +250,10 @@ select * from (values
                      where table_schema = 'public' and table_name = 'documents'
                        and column_name = 'is_favorite')
         then '있음 ✅' else '없음 ❌' end),
-  ('새 문서(assess) 허용',
+  ('새 문서(event) 허용',
    case when exists (select 1 from pg_constraint
                      where conrelid = 'public.documents'::regclass and contype = 'c'
-                       and pg_get_constraintdef(oid) like '%assess%')
+                       and pg_get_constraintdef(oid) like '%event%')
         then '허용됨 ✅' else '빠짐 ❌' end),
   ('documents RLS 정책',
    (select count(*)::text from pg_policies

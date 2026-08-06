@@ -9,8 +9,15 @@ import adapt from "./adapt.js";
 import counsel from "./counsel.js";
 import life from "./life.js";
 import assess from "./assess.js";
+import monthly from "./monthly.js";
+import safety from "./safety.js";
+import trip from "./trip.js";
+import event from "./event.js";
 
-export const PROMPTS = { play, daily, obs, note, adapt, counsel, life, assess };
+export const PROMPTS = {
+  play, daily, obs, note, adapt, counsel, life, assess,
+  monthly, safety, trip, event,
+};
 
 /** 문서 종류에 해당하는 프롬프트 설정 */
 export const promptFor = (mode) => PROMPTS[mode];

@@ -46,6 +46,10 @@ const DETAIL_OF = {
   counsel: (c) => [c.child, c.date].filter(Boolean).join(" · "),
   life: (l) => [l.child, l.date].filter(Boolean).join(" · "),
   assess: (a) => [a.child, a.period].filter(Boolean).join(" · "),
+  monthly: (m) => [m.month, m.theme].filter(Boolean).join(" · "),
+  safety: (s) => [s.topic, s.subtopic].filter(Boolean).join(" · "),
+  trip: (t) => [t.place, t.date].filter(Boolean).join(" · "),
+  event: (e) => [e.name, e.date].filter(Boolean).join(" · "),
   activities: (list) => arr(list)[0]?.title || "",
 };
 

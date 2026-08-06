@@ -152,6 +152,16 @@ export const styles = {
   // 발달평가 총평 결과 — 영역별 문단 (입력폼의 assessField 와 이름이 겹치지 않게 2 를 붙임)
   assessArea2: { marginTop: 12, background: "#F5F9FD", borderRadius: 14, padding: "12px 14px" },
   assessTag: { fontSize: 11.5, fontWeight: 800, color: "#2C6FA6", background: "#DCEBF8", padding: "3px 10px", borderRadius: 999 },
+  // 견학 계획안
+  tripDot: { flexShrink: 0, color: "#7FB3E8", fontWeight: 800, marginTop: 1 },
+  tripStep: { marginTop: 10 },
+  tripStepHead: { display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 800, color: "#2C6FA6", marginBottom: 6 },
+  tripStepNo: { width: 18, height: 18, borderRadius: 999, background: "#DCEBF8", display: "grid", placeItems: "center", fontSize: 11, fontWeight: 800 },
+  // 행사 계획안 — 구분 | 내용 두 칸짜리 표
+  evTable: { display: "flex", flexDirection: "column", gap: 1, background: "#E8F4EE", borderRadius: 12, overflow: "hidden", marginTop: 8 },
+  evRow: { display: "flex", gap: 1, background: "#E8F4EE", flexWrap: "wrap" },
+  evHead: { flex: "0 0 132px", minWidth: 110, background: "#F1F9F5", padding: "10px 12px", fontSize: 12, fontWeight: 800, color: "#1F6B5A" },
+  evCell: { flex: "1 1 200px", minWidth: 0, margin: 0, background: "#fff", padding: "10px 12px", fontSize: 13, lineHeight: 1.6, color: "#48564F", whiteSpace: "pre-wrap" },
   cnslArea: { marginTop: 12, background: "#FFFBF3", borderRadius: 14, padding: "12px 14px" },
   cnslTag: { fontSize: 11.5, fontWeight: 800, color: "#9A6B1F", background: "#FDECCB", padding: "3px 10px", borderRadius: 999 },
   levelTag: (lvl) => ({
