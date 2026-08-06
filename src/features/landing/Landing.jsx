@@ -8,7 +8,10 @@ import { Lock } from "lucide-react";
 import { brand, contact } from "../../config.js";
 import { MODES } from "../../domain/documents.js";
 import { planName } from "../../domain/plans.js";
-import { Brand, Mascot } from "../../ui/primitives.jsx";
+import { Brand } from "../../ui/primitives.jsx";
+import { TwinkleMascot, DropTitle } from "./HeroIntro.jsx";
+import { HeroDemo } from "./HeroDemo.jsx";
+import { Reveal } from "./Reveal.jsx";
 import { AccountChip } from "../account/AccountChip.jsx";
 import { WorkCalendar } from "../calendar/WorkCalendar.jsx";
 import { SocialLinks } from "../../ui/SiteFooter.jsx";
@@ -62,7 +65,7 @@ export function Landing({
       </nav>
 
       <section style={styles.hero}>
-        <div style={styles.heroMascot}><Mascot size={104} /></div>
+        <TwinkleMascot size={user ? 84 : 92} />
         {/* 이미 쓰고 계신 분께 "이 서비스가 무엇인지" 설득하는 문구를 다시 보여 줄 이유가 없습니다 */}
         {user ? (
           <>
@@ -71,8 +74,10 @@ export function Landing({
           </>
         ) : (
           <>
-            <h1 style={styles.heroTitle}>보육교사의 하루,<br />민트쌤이 함께해요</h1>
+            <DropTitle style={styles.heroTitle} lines={["보육교사의 하루,", "민트쌤이 함께해요"]} />
             <p style={styles.heroSub}>놀이 아이디어부터 관찰일지 · 알림장 · 상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
+            {/* 이 서비스가 파는 것은 기능 목록이 아니라 이 변환입니다. 눈앞에서 한 번 보여 줍니다. */}
+            <HeroDemo />
           </>
         )}
         <div style={styles.heroCtas}>
@@ -82,26 +87,28 @@ export function Landing({
           {!user && <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>}
         </div>
         {!user && (
-          <div style={styles.heroNote}>회원가입 없이 1건 바로 만들어 볼 수 있어요 · 신용카드 불필요</div>
+          <div style={styles.heroNote}>회원가입 없이 1건 바로 만들어 볼 수 있어요</div>
         )}
       </section>
 
       <section style={styles.featWrap}>
         <div style={styles.sectionTitle}>{user ? "어떤 걸 작업해볼까요" : "이런 걸 만들어 드려요"}</div>
         <div style={styles.featGrid}>
-          {MODES.map((m) => {
+          {MODES.map((m, i) => {
             // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다.
             // lockOf 는 "지금 이 사용자에게" 잠겼는지를 봅니다 — Pro 회원에게 자물쇠를 보여 주면 안 됩니다.
             const need = lockOf(m.key);
             return (
-              <button key={m.key} className="feat-card" style={styles.featCard}
-                onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
-                <span style={{ fontSize: 24 }}>{m.emoji}</span>
-                <span style={styles.featLabel}>{m.label}</span>
-                {need
-                  ? <span style={styles.featLock}><Lock size={9} /> {planName(need)}</span>
-                  : !user && <span style={styles.featFree}>무료 체험</span>}
-              </button>
+              <Reveal key={m.key} delay={i * 45}>
+                <button className="feat-card" style={styles.featCard}
+                  onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
+                  <span style={{ fontSize: 24 }}>{m.emoji}</span>
+                  <span style={styles.featLabel}>{m.label}</span>
+                  {need
+                    ? <span style={styles.featLock}><Lock size={9} /> {planName(need)}</span>
+                    : !user && <span style={styles.featFree}>무료 체험</span>}
+                </button>
+              </Reveal>
             );
           })}
         </div>

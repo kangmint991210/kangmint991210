@@ -40,7 +40,52 @@ export const css = `
   .editable:hover .pen { opacity: .55; }
   .dot { animation: blink 1.2s infinite; } .d2 { animation-delay: .2s; } .d3 { animation-delay: .4s; }
   @keyframes blink { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .spin,.dot { animation: none; } button { transition: none; } }
+
+  /* ── 랜딩 히어로 ─────────────────────────────────────────
+     첫인상을 살리는 자리. 제목은 한 번만 떨어지고 멈추고(계속 움직이면 읽기 힘듦),
+     별의 반짝임만 은은하게 이어집니다. */
+
+  /* 제목이 한 글자씩 똑똑 떨어짐 — 마지막에 살짝 튀어 "떨어진" 느낌을 냅니다 */
+  .drop-char { display: inline-block; opacity: 0; animation: drop-in .5s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes drop-in {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 마스코트 별의 반짝임 */
+  .twinkle-star { display: inline-block; animation: twinkle 3.2s ease-in-out infinite; }
+  @keyframes twinkle {
+    0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(127,216,196,0)); }
+    50%      { transform: scale(1.045) rotate(-1.5deg); filter: drop-shadow(0 0 12px rgba(127,216,196,.75)); }
+  }
+  .twinkle-spark { animation: spark 2.4s ease-in-out infinite; }
+  .twinkle-spark.s2 { animation-delay: .8s; }
+  .twinkle-spark.s3 { animation-delay: 1.6s; }
+  @keyframes spark {
+    0%, 100% { opacity: 0; transform: scale(.6); }
+    45%      { opacity: 1; transform: scale(1); }
+    70%      { opacity: 0; transform: scale(.7); }
+  }
+
+  /* 메모 → 문서 변환 */
+  .demo-caret { animation: caret 1s step-end infinite; }
+  @keyframes caret { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .demo-doc { opacity: 0; transform: translateY(12px) scale(.985);
+              transition: opacity .45s ease, transform .45s cubic-bezier(.2,.9,.3,1); }
+  .demo-doc.on { opacity: 1; transform: none; }
+
+  /* 문서 카드가 화면에 들어올 때 차례로 나타남 */
+  .reveal { opacity: 0; transform: translateY(12px); transition: opacity .5s ease, transform .5s ease; }
+  .reveal.on { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spin, .dot, .twinkle-star, .twinkle-spark { animation: none; }
+    .drop-char { animation: none; opacity: 1; }
+    .twinkle-spark { opacity: .8; }
+    .demo-caret { animation: none; }
+    .demo-doc, .reveal { opacity: 1; transform: none; transition: none; }
+    button { transition: none; }
+  }
 `;
 
 export const DISPLAY = `"Jua","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif`;

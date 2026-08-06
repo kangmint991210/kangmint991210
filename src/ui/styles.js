@@ -349,6 +349,37 @@ export const styles = {
   kakaoBtn: { width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#191600", background: "#FEE500", border: "none", borderRadius: 14, padding: "13px", marginBottom: 10 },
   googleBtn: { width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 14.5, fontWeight: 800, color: "#3C4043", background: "#fff", border: "1.5px solid #DADCE0", borderRadius: 14, padding: "13px" },
   hero: { textAlign: "center", padding: "22px 22px 8px" },
+
+  /* ── 히어로: 반짝이는 별 · 메모→문서 변환 ─────────────── */
+  twinkleWrap: { position: "relative", display: "inline-block" },
+  twinkleMain: { display: "inline-block" },
+  spark: { position: "absolute", color: "#7FD8C4", fontSize: 13, lineHeight: 1, pointerEvents: "none" },
+
+  demoStage: { maxWidth: 380, margin: "18px auto 0", textAlign: "left" },
+  // 교사가 휘갈긴 쪽지 — 살짝 기울여 "완성된 문서"와 한눈에 구분되게 합니다
+  demoMemo: { position: "relative", background: "#FFF6D8", borderRadius: 14, padding: "13px 15px 14px", transform: "rotate(-1.2deg)", boxShadow: "0 3px 0 #EBD9A0" },
+  demoMemoTape: { position: "absolute", top: -6, left: "50%", marginLeft: -18, width: 36, height: 12, borderRadius: 3, background: "#FFE9A8", boxShadow: "0 1px 0 #EBD9A0" },
+  demoMemoLabel: { fontSize: 10.5, fontWeight: 800, color: "#A98A2E", marginBottom: 4 },
+  demoMemoText: { margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "#6B5A24", minHeight: 38, letterSpacing: "-0.1px" },
+  demoCaret: { display: "inline-block", width: 2, height: 15, background: "#B08900", verticalAlign: "-2px", marginLeft: 1 },
+
+  demoArrow: { display: "flex", alignItems: "center", gap: 8, padding: "10px 4px 8px", opacity: 0.45, transition: "opacity .3s ease" },
+  demoArrowOn: { opacity: 1 },
+  demoArrowLine: { flex: 1, height: 2, background: "#CDEEDD", borderRadius: 999 },
+  demoArrowText: { fontSize: 11.5, fontWeight: 800, color: "#2E9E86", whiteSpace: "nowrap" },
+
+  demoDoc: { position: "relative", minHeight: 152, background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: `0 4px 0 ${SH}` },
+  demoDocStripe: { display: "block", height: 5, background: MINT },
+  demoDocBody: { padding: "12px 14px 14px" },
+  demoDocBadge: { display: "inline-block", fontSize: 10, fontWeight: 800, color: "#2E9E86", background: "#E5F7F0", padding: "3px 8px", borderRadius: 999 },
+  demoDocTitle: { fontFamily: DISPLAY, fontSize: 15, color: "#2E4A42", margin: "6px 0 2px" },
+  demoRow: { marginTop: 8 },
+  demoRowLabel: { display: "block", fontSize: 10.5, fontWeight: 800, color: "#1F6B5A", marginBottom: 3 },
+  demoRowText: { margin: 0, fontSize: 12.5, lineHeight: 1.6, color: "#48564F" },
+
+  demoDots: { display: "flex", justifyContent: "center", gap: 5, marginTop: 10 },
+  demoDot: { width: 6, height: 6, borderRadius: 999, background: "#CDEEDD", transition: "background .3s ease, width .3s ease" },
+  demoDotOn: { width: 16, background: MINT },
   heroMascot: { display: "flex", justifyContent: "center", marginBottom: 6 },
   heroTitle: { fontFamily: DISPLAY, color: "#2E4A42", fontSize: 29, lineHeight: 1.28, margin: "6px 0 0" },
   heroSub: { fontSize: 14, color: "#5E7168", lineHeight: 1.7, marginTop: 12 },
