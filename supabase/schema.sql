@@ -233,9 +233,16 @@ notify pgrst, 'reload schema';
 --    SQL Editor 는 마지막 문장의 결과만 보여 줍니다.
 --    아래 표가 전부 ✅ 여야 앱에서 저장·즐겨찾기가 동작합니다.
 -- ══════════════════════════════════════════════════════════════════
+--    ⚠ current_database() 는 Supabase 에서 어느 프로젝트든 'postgres' 라 구분에 쓸 수 없습니다.
+--       엉뚱한 프로젝트에 실행하지 않았는지는 브라우저 주소의
+--       supabase.com/dashboard/project/<여기> 와 .env 의 VITE_SUPABASE_URL 을 견줘 확인하세요.
+--       아래 '회원 수 / 저장된 문서' 도 프로젝트마다 달라 분간에 도움이 됩니다.
 select * from (values
-  ('이 프로젝트',
-   current_database()::text),
+  ('회원 수',
+   (select count(*)::text from auth.users)),
+  ('저장된 문서',
+   (select count(*)::text from public.documents) || '건, 마지막 ' ||
+   coalesce((select max(created_at)::text from public.documents), '없음')),
   ('documents.is_favorite',
    case when exists (select 1 from information_schema.columns
                      where table_schema = 'public' and table_name = 'documents'
