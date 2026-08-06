@@ -96,7 +96,7 @@ export function DocTurn({
           }} />
         </button>
         <FavoriteButton
-          on={Boolean(bot.favorite)} stored={Boolean(bot.docId)}
+          on={Boolean(bot.favorite)} stored={Boolean(bot.docId)} guest={guest}
           onToggle={onToggleFav} onNeedSignup={onNeedSignup} />
         <button style={styles.iconBtn} title="이 문서 삭제"
           onClick={() => { if (window.confirm("이 문서를 삭제할까요? 되돌릴 수 없어요.")) onDelete(); }}>
@@ -105,6 +105,13 @@ export function DocTurn({
       </div>
       {open && (
         <div style={styles.turnBody}>
+          {/* 로그인했는데도 저장이 안 된 문서 — 조용히 두면 새로고침 때 통째로 잃습니다 */}
+          {!guest && !bot.docId && (
+            <div style={styles.docWarn}>
+              ⚠ 이 문서가 계정에 저장되지 않았어요. 새로고침하면 사라집니다.
+              필요하시면 먼저 <b>표로 복사</b> 해 두시고, 잠시 뒤 다시 만들어 주세요.
+            </div>
+          )}
           {user && <div style={styles.userBubble}>{user.text}</div>}
           <div style={styles.botBlock}>
             <div style={styles.botRow}>

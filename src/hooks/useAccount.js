@@ -12,6 +12,9 @@ export function useAccount({ onSignedIn } = {}) {
   const [plan, setPlan] = useState(DEFAULT_PLAN);
   const [isAdmin, setIsAdmin] = useState(false);
   const [usage, setUsage] = useState(0);
+  // 저장된 세션을 확인하기 전까지는 "로그인 안 한 상태"와 구분되지 않습니다.
+  // 이 값을 보지 않으면, 새로고침 직후 잠깐 게스트로 취급돼 잠금 화면이 번쩍입니다.
+  const [authReady, setAuthReady] = useState(!supabase);
 
   /** 서버에 저장된 요금제와, 랜딩에서 고른 대기 플랜 중 상위 등급을 적용합니다. */
   const syncProfile = useCallback(async (sessionUser) => {
@@ -31,6 +34,7 @@ export function useAccount({ onSignedIn } = {}) {
   useEffect(() => {
     if (!supabase) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthReady(true);
       if (!session?.user) {
         setUser(null);
         setIsAdmin(false);
@@ -80,7 +84,7 @@ export function useAccount({ onSignedIn } = {}) {
 
   const quota = quotaOf(plan);
   return {
-    user, plan, isAdmin, usage, quota,
+    user, plan, isAdmin, usage, quota, authReady,
     isGuest: !user,
     quotaLeft: isAdmin ? Infinity : Math.max(0, quota - usage),
     changePlan, countUsage, logout, reloadUsage,

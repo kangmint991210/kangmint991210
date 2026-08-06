@@ -6,7 +6,19 @@ export const KEYS = {
   pendingMode: "mint_pending_mode", // OAuth 리다이렉트 뒤 되살릴 문서 종류
   guestUsed: "mint_guest_used",     // 비로그인 체험 사용 횟수
   guestDoc: "mint_guest_doc",       // 체험으로 만든 결과 (로그인하면 계정으로 이관)
+  lastView: "mint_last_view",       // 새로고침해도 보던 화면으로 돌아오기
+  lastMode: "mint_last_mode",       // 새로고침해도 보던 문서 종류로 돌아오기
 };
+
+/**
+ * 새로고침 뒤 되살릴 화면.
+ * 작업 화면(app)만 되살립니다 — 로그인·약관 화면을 되살리면
+ * 새로고침했더니 로그인 폼에 갇히는, 더 답답한 상황이 됩니다.
+ */
+export const restoreView = (saved) => (saved === "app" ? "app" : "landing");
+
+/** 되살릴 값으로 남겨 둘 화면인가 (auth·legal 은 지나가는 화면이라 남기지 않습니다) */
+export const isRestorableView = (view) => view === "app" || view === "landing";
 
 export const storage = {
   get(key, fallback = null) {

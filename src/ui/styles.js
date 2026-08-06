@@ -217,6 +217,8 @@ export const styles = {
   saveBtn: { display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, fontSize: 12.5, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 999, padding: "8px 15px", boxShadow: `0 2px 0 ${MINT_STRONG}` },
   saveBtnOff: { background: "#CFE6DD", boxShadow: "0 2px 0 #B6D7CC" },
   saveGhost: { display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7A6B3F", background: "#FFEFC0", border: "none", borderRadius: 999, padding: "8px 13px" },
+  // 저장에 실패한 문서 — 사용자가 잃기 전에 알아야 합니다
+  docWarn: { padding: "10px 13px", background: "#FFF1EE", borderRadius: 14, fontSize: 12.5, lineHeight: 1.6, color: "#A8462A", fontWeight: 600 },
 
   /* ── 실패 · 재시도 ──────────────────────────────────── */
   errorBlock: { alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 10, background: "#FFF6F5", borderRadius: 16, padding: "13px 14px", boxShadow: "0 3px 0 #F6DEDC" },
@@ -227,7 +229,10 @@ export const styles = {
   editHint: { fontSize: 11, color: "#A9C3B9", marginBottom: 10 },
   editable: { position: "relative", padding: "2px 3px", margin: "-2px -3px" },
   editPen: { display: "inline", verticalAlign: "middle", marginLeft: 5, opacity: 0, color: "#7A9A90", transition: "opacity .12s ease" },
-  editWrap: { display: "flex", flexDirection: "column", gap: 7 },
+  // 읽기 상태의 문장(stepText·lifeText 등)은 flex:1 을 갖는데 편집 상자에는 없어서,
+  // 가로로 늘어선 자리(놀이 진행단계·생활기록부 상중하·알림장 가정연계)에서 상자가
+  // 글자 너비만큼 쪼그라들었습니다. flex 로 남은 폭을 채우되 minWidth:0 으로 칸을 넘지 않게 합니다.
+  editWrap: { display: "flex", flexDirection: "column", gap: 7, flex: "1 1 0%", minWidth: 0, width: "100%" },
   editArea: { width: "100%", minHeight: 60, fontSize: 13.5, lineHeight: 1.6, padding: "10px 12px", borderRadius: 12, border: "1.5px solid #7FD8C4", background: "#fff", color: INK, outline: "none", resize: "vertical" },
   editBtns: { display: "flex", gap: 7, alignItems: "center" },
   editSave: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 999, padding: "7px 14px", boxShadow: `0 2px 0 ${MINT_STRONG}` },

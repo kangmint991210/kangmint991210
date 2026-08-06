@@ -14,6 +14,12 @@ export const MODES = [
 
 export const MODE_KEYS = MODES.map((m) => m.key);
 export const DEFAULT_MODE = MODES[0].key;
+
+/**
+ * 새로고침 뒤 되살릴 문서 종류.
+ * 저장소에는 옛 버전의 키나 손으로 고친 값이 들어 있을 수 있어, 아는 값일 때만 씁니다.
+ */
+export const restoreMode = (saved) => (MODE_KEYS.includes(saved) ? saved : DEFAULT_MODE);
 export const modeOf = (key) => MODES.find((m) => m.key === key);
 export const labelOf = (key) => modeOf(key)?.label || "문서";
 

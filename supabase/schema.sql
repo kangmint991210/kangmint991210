@@ -26,13 +26,14 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists provider   text;
 alter table public.profiles add column if not exists avatar_url text;
 
--- ── 요금제 개편 마이그레이션 (free/pro/max → free/basic/pro) ──────────
--- 문서 종류 수를 기준으로 대응시킵니다: 구 pro(3종)→basic, 구 max(6종)→pro.
--- 'pro' 라는 이름이 양쪽에 있으므로 반드시 이 순서로 실행해야 섞이지 않습니다.
+-- ── 요금제 값 정리 ────────────────────────────────────────────────
+-- ⚠ 이 파일은 문서 종류를 추가할 때마다 다시 실행합니다. 그러므로 여기에는
+--    "몇 번을 실행해도 결과가 같은" 문장만 둡니다.
+--    구 pro(3종) → basic 로 내리는 1회성 이관은 migrate-plan-names.sql 로 옮겼습니다.
+--    그 문장을 여기 두면 재실행할 때마다 진짜 Pro 회원이 Basic 으로 강등됩니다.
 alter table public.profiles drop constraint if exists profiles_plan_check;
-update public.profiles set plan = 'basic' where plan = 'pro';
-update public.profiles set plan = 'pro'   where plan = 'max';
-update public.profiles set plan = 'free'  where plan not in ('free','basic','pro');
+update public.profiles set plan = 'pro'  where plan = 'max';   -- 구 최상위 → 신 Pro (이미 이관됐으면 대상 없음)
+update public.profiles set plan = 'free' where plan is null or plan not in ('free','basic','pro');
 alter table public.profiles
   add constraint profiles_plan_check check (plan in ('free','basic','pro'));
 

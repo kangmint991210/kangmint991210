@@ -13,8 +13,10 @@ import {
   upgradeCopy, planBenefits,
 } from "../src/domain/plans.js";
 import {
-  MODE_KEYS, missingFields, createEmptyForm, labelOf, LIFE_AREAS, LIFE_LEVELS,
+  MODE_KEYS, DEFAULT_MODE, missingFields, createEmptyForm, labelOf,
+  LIFE_AREAS, LIFE_LEVELS, restoreMode,
 } from "../src/domain/documents.js";
+import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
 import { toTurns, filterTurns, docTitle } from "../src/domain/threads.js";
@@ -131,6 +133,32 @@ test("생활기록부는 항목 8개와 상·중·하 세 수준이 고정이다
   // 프롬프트의 JSON 스키마가 항목 8개를 그대로 담고 있어야 모델이 빠뜨리지 않습니다.
   const { system } = promptFor("life");
   for (const area of LIFE_AREAS) assert.ok(system.includes(`"area":"${area}"`), `${area} 가 스키마에 없음`);
+});
+
+/* ─────────────── 새로고침 복원 ─────────────── */
+// 새로고침하면 랜딩으로 튕기고, 돌아와 보면 고른 문서 종류도 초기화되던 문제의 회귀 테스트.
+
+test("새로고침하면 보던 작업 화면으로 돌아온다", () => {
+  assert.equal(restoreView("app"), "app");
+  assert.equal(restoreView("landing"), "landing");
+  // 로그인·약관 화면을 되살리면 새로고침했더니 로그인 폼에 갇힙니다.
+  assert.equal(restoreView("auth"), "landing");
+  assert.equal(restoreView("legal"), "landing");
+  assert.equal(restoreView(null), "landing");
+  assert.equal(restoreView("이상한값"), "landing");
+});
+
+test("되살릴 값으로 남기는 화면은 작업·랜딩뿐이다", () => {
+  assert.equal(isRestorableView("app"), true);
+  assert.equal(isRestorableView("landing"), true);
+  assert.equal(isRestorableView("auth"), false);
+  assert.equal(isRestorableView("legal"), false);
+});
+
+test("새로고침하면 보던 문서 종류로 돌아온다", () => {
+  for (const key of MODE_KEYS) assert.equal(restoreMode(key), key);
+  assert.equal(restoreMode("사라진문서"), DEFAULT_MODE); // 옛 버전 키가 남아 있어도 안전
+  assert.equal(restoreMode(null), DEFAULT_MODE);
 });
 
 /* ─────────────── 날짜 ─────────────── */

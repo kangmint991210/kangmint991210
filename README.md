@@ -44,8 +44,12 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 
 > ⚠ **생활기록부 · 즐겨찾기 추가에도 `schema.sql` 재실행이 필요합니다.**
 > `documents.kind` 허용값에 `life` 가 더해졌고, 즐겨찾기용 `documents.is_favorite` 컬럼이 생겼습니다.
-> 재실행하지 않으면 생활기록부 저장과 별표가 조용히 실패합니다(브라우저 콘솔에 경고가 찍힙니다).
+> 재실행하지 않으면 생활기록부 저장과 별표가 실패하고, 화면에는 남아 있다가 새로고침 때 사라집니다.
 > 기존 문서는 그대로 남고 별표만 꺼진 상태(`false`)로 시작합니다.
+>
+> 🚨 **반드시 `.env` 의 `VITE_SUPABASE_URL` 과 같은 프로젝트**의 SQL Editor 에서 실행하세요.
+> 프로젝트를 여러 개 갖고 있으면 엉뚱한 쪽에 실행하기 쉽고, 그러면 앱에서는 아무것도 바뀌지 않습니다.
+> 저장이 안 되는 것 같으면 [`supabase/diagnose-documents.sql`](supabase/diagnose-documents.sql) 로 확인하세요.
 
 ### 3-1. 관리자 권한 (선택)
 `admins` 테이블에 들어 있는 회원은 **요금제와 상관없이 문서 전체**를 이용할 수 있고, 헤더에 `👑 관리자` 배지가 표시됩니다.
@@ -114,10 +118,12 @@ api/
 tests/
   domain.test.mjs      규칙 회귀 테스트 — `npm test`
 supabase/
-  schema.sql               테이블·RLS·가입 트리거 (처음 한 번 + 개편 시 재실행)
+  schema.sql               테이블·RLS·가입 트리거 (문서를 추가할 때마다 재실행 — 몇 번 해도 안전)
   grant-admin-existing.sql 기존 회원 전원 관리자 부여 (1회성)
   set-all-pro.sql          현재 가입자 전원 Pro 전환 (1회성)
+  migrate-plan-names.sql   구 free/pro/max → 신 free/basic/pro (1회성, 두 번 실행 금지)
   diagnose-signup.sql      회원이 profiles 에 안 남을 때 원인 진단 + 복구
+  diagnose-documents.sql   문서가 저장되지 않을 때 원인 진단
 ```
 
 ### 고칠 때 어디를 보면 되는지

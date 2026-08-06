@@ -6,13 +6,13 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "../supabaseClient.js";
-import { storage, KEYS } from "../lib/storage.js";
+import { storage, KEYS, restoreView, isRestorableView } from "../lib/storage.js";
 import { readAuthRedirectError } from "../lib/auth-redirect.js";
 import { uid } from "../lib/utils.js";
 import { ai } from "../config.js";
 import {
   MODES, MODE_KEYS, DEFAULT_MODE, modeOf, labelOf,
-  createEmptyForm, missingFields,
+  createEmptyForm, missingFields, restoreMode,
 } from "../domain/documents.js";
 import {
   DEFAULT_PLAN, planIncludes, minPlanFor, canExportFiles, PLAN_KEYS,
@@ -30,7 +30,9 @@ const nextPlanAfter = (plan) => PLAN_KEYS[Math.min(PLAN_KEYS.indexOf(plan) + 1, 
 
 export function useMintApp() {
   /* ── 화면 전환 ────────────────────────────────── */
-  const [view, setView] = useState("landing");     // landing | auth | app | legal
+  // 새로고침해도 하던 자리로 돌아옵니다 (규칙은 lib/storage.js 의 restoreView)
+  const [view, setView] = useState(() => restoreView(storage.get(KEYS.lastView)));
+                                                   // landing | auth | app | legal
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [legalTab, setLegalTab] = useState("terms");  // terms | privacy
   // 소셜 로그인이 실패해 되돌아온 경우의 안내 (주소창에 실려 옵니다)
@@ -43,7 +45,7 @@ export function useMintApp() {
   const [signupWall, setSignupWall] = useState(null); // 게스트에게 보여 줄 벽
 
   /* ── 입력 ────────────────────────────────────── */
-  const [mode, setMode] = useState(DEFAULT_MODE);
+  const [mode, setMode] = useState(() => restoreMode(storage.get(KEYS.lastMode)));
   const [form, setForm] = useState(createEmptyForm);
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
@@ -66,7 +68,7 @@ export function useMintApp() {
     },
   });
 
-  const { user, plan, isAdmin, isGuest, quotaLeft } = account;
+  const { user, plan, isAdmin, isGuest, quotaLeft, authReady } = account;
 
   /* ── 파생 값 ─────────────────────────────────── */
   const messages = threads.messagesOf(mode);
@@ -84,9 +86,12 @@ export function useMintApp() {
 
   /** 게스트 체험은 첫 문서만, 회원은 요금제가 정한 문서만 열립니다. */
   const isLocked = useCallback((key) => {
+    // 저장된 세션을 아직 확인하지 못했다면 잠그지 않습니다 —
+    // 새로고침 직후 회원에게 "가입 후에 열려요" 가 잠깐 보이는 일을 막습니다.
+    if (!authReady) return false;
     if (isGuest) return key !== DEFAULT_MODE;
     return !isAdmin && !planIncludes(plan, key);
-  }, [isGuest, isAdmin, plan]);
+  }, [authReady, isGuest, isAdmin, plan]);
 
   /** 잠긴 문서를 만나면 상대에 맞는 안내를 띄웁니다. */
   const explainLock = useCallback((key) => {
@@ -113,6 +118,12 @@ export function useMintApp() {
     const t = setInterval(() => setElapsed((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, [loading]);
+
+  // 새로고침 뒤 돌아올 자리를 기억해 둡니다.
+  useEffect(() => { storage.set(KEYS.lastMode, mode); }, [mode]);
+  useEffect(() => {
+    if (isRestorableView(view)) storage.set(KEYS.lastView, view);
+  }, [view]);
 
   // 저장하지 않은 수정을 안고 창을 닫으면 그대로 사라집니다.
   // 브라우저에게 확인창을 맡깁니다(문구는 브라우저가 정하므로 우리가 바꿀 수 없습니다).
@@ -153,6 +164,8 @@ export function useMintApp() {
    */
   const send = useCallback(async (rawText, retryOf) => {
     if (loading) return;
+    // isLocked 가 세션 확인 전에는 잠그지 않으므로, 그 틈에 생성이 새지 않게 여기서 막습니다.
+    if (!authReady) return;
     if (isLocked(mode)) return explainLock(mode);
     if (isGuest && guest.isOver) return setSignupWall({ kind: "guestOver" });
     if (!isGuest && quotaLeft <= 0) {
@@ -186,9 +199,11 @@ export function useMintApp() {
         const docId = await documents.create({
           userId: user.id, kind: mode, userText: display, form, payload,
         });
-        if (docId) {
-          threads.setMessages(mode, (list) => list.map((m) => (m.uid === botUid ? { ...m, docId } : m)));
-        }
+        // 저장에 실패하면 화면에만 남습니다. 그 사실을 표시해 두지 않으면
+        // 사용자는 저장된 줄 알고 새로고침했다가 문서를 잃습니다.
+        threads.setMessages(mode, (list) =>
+          list.map((m) => (m.uid === botUid ? { ...m, docId, saveFailed: !docId } : m))
+        );
         await account.countUsage({ recordedByServer: usageCounted });
       } else {
         guest.consume({ kind: mode, userText: display, form, payload });
@@ -209,7 +224,7 @@ export function useMintApp() {
       setLoading(false);
       threads.resetOpen(mode);
     }
-  }, [loading, mode, form, input, messages, isGuest, plan, quotaLeft, user,
+  }, [loading, mode, form, input, messages, isGuest, plan, quotaLeft, user, authReady,
       isLocked, explainLock, prompt, threads, guest, account]);
 
   /* ── 보관함 ──────────────────────────────────── */

@@ -91,15 +91,28 @@ export const documents = {
     return data || [];
   },
 
-  /** 새 문서 저장 → 만들어진 행의 id (이후 수정/삭제에 필요) */
+  /**
+   * 새 문서 저장 → 만들어진 행의 id (이후 수정/삭제에 필요)
+   *
+   * ⚠ supabase-js 는 실패해도 예외를 던지지 않고 `{ error }` 를 돌려줍니다.
+   *    예전에는 `{ data }` 만 꺼내 써서 실패가 통째로 사라졌고,
+   *    "저장된 줄 알았는데 새로고침하면 없어지는" 증상의 원인을 찾을 수 없었습니다.
+   *    문서 종류를 새로 추가하고 schema.sql 을 실행하지 않으면 여기서 걸립니다.
+   */
   async create({ userId, kind, userText, form, payload }) {
     if (!supabase || !userId) return null;
-    try {
-      const { data } = await supabase.from("documents")
-        .insert({ user_id: userId, kind, user_text: userText, form, payload })
-        .select("id").single();
-      return data?.id || null;
-    } catch (e) { warn("문서 저장", e); return null; }
+    const { data, error } = await supabase.from("documents")
+      .insert({ user_id: userId, kind, user_text: userText, form, payload })
+      .select("id").single();
+    if (error) {
+      warn(
+        `문서 저장 (kind=${kind}) — supabase/schema.sql 을 최신 내용으로 실행했는지, ` +
+        `documents.kind 허용 목록에 '${kind}' 가 들어 있는지 확인하세요`,
+        error
+      );
+      return null;
+    }
+    return data?.id || null;
   },
 
   /**
@@ -127,14 +140,14 @@ export const documents = {
 
   async remove(docId) {
     if (!supabase || !docId) return;
-    try { await supabase.from("documents").delete().eq("id", docId); }
-    catch (e) { warn("문서 삭제", e); }
+    const { error } = await supabase.from("documents").delete().eq("id", docId);
+    if (error) warn("문서 삭제", error);
   },
 
   async removeMany(docIds) {
     if (!supabase || !docIds?.length) return;
-    try { await supabase.from("documents").delete().in("id", docIds); }
-    catch (e) { warn("문서 일괄 삭제", e); }
+    const { error } = await supabase.from("documents").delete().in("id", docIds);
+    if (error) warn("문서 일괄 삭제", error);
   },
 };
 
