@@ -41,7 +41,7 @@ export function DropTitle({ lines, style }) {
             <span
               key={ci}
               className="drop-char"
-              style={{ animationDelay: `${index++ * 45}ms` }}
+              style={{ animationDelay: `${index++ * 105}ms` }}
             >
               {ch === " " ? " " : ch}
             </span>

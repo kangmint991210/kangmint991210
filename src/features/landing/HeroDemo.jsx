@@ -4,7 +4,8 @@
 // 글로 설명하면 읽어야 하지만, 눈앞에서 한 번 일어나면 8초면 이해됩니다.
 // 그래서 히어로에서 실제로 보여 줍니다 — 교사 메모가 타이핑되고, 문서로 바뀝니다.
 //
-// 세 종류를 돌려 보여 주어 "여러 서류를 다 써 준다"는 것도 목록 없이 전달합니다.
+// 세 종류를 차례로 보여 주어 "여러 서류를 다 써 준다"는 것도 목록 없이 전달하고,
+// 마지막 장면에서 멈춥니다. 끝없이 되풀이하면 눈길을 계속 빼앗아 아래 내용을 읽기 어렵습니다.
 //
 // ⚠ 움직임을 싫어하거나 어지러움을 느끼는 분들이 있습니다.
 //    prefers-reduced-motion 이 켜져 있으면 타이핑·전환 없이 완성된 한 쌍을 그대로 보여 줍니다.
@@ -68,8 +69,10 @@ export function HeroDemo() {
         if (n >= memo.length) {
           clearInterval(typing);
           timers.push(setTimeout(() => setShowDoc(true), BEFORE_DOC));
-          timers.push(setTimeout(() => setScene((s) => (s + 1) % SCENES.length),
-            BEFORE_DOC + HOLD_DOC));
+          // 마지막 장면이면 그대로 둡니다 (되풀이하지 않음)
+          if (scene < SCENES.length - 1) {
+            timers.push(setTimeout(() => setScene((s) => s + 1), BEFORE_DOC + HOLD_DOC));
+          }
           return n;
         }
         return n + 1;
@@ -113,7 +116,7 @@ export function HeroDemo() {
         </div>
       </div>
 
-      {!still && (
+      {!still && scene < SCENES.length - 1 && (
         <div style={styles.demoDots} aria-hidden>
           {SCENES.map((_, i) => (
             <span key={i} style={{ ...styles.demoDot, ...(i === scene ? styles.demoDotOn : {}) }} />

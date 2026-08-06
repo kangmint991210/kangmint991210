@@ -3,18 +3,19 @@
 
 /** 문서 종류. 배열 순서 = 화면 메뉴 순서 (요금제와는 무관 — plans.js 가 따로 정합니다) */
 export const MODES = [
-  { key: "play", label: "놀이 활동", emoji: "🖍️" },
-  { key: "daily", label: "보육일지", emoji: "📔" },
-  { key: "obs", label: "관찰일지", emoji: "🔎" },
-  { key: "note", label: "알림장", emoji: "💌" },
-  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣" },
-  { key: "counsel", label: "학부모 상담일지", emoji: "🗣️" },
-  { key: "life", label: "생활기록부", emoji: "📗" },
-  { key: "assess", label: "발달평가 총평", emoji: "📊" },
-  { key: "monthly", label: "월간 평가", emoji: "🗓️" },
-  { key: "safety", label: "안전교육일지", emoji: "🛟" },
-  { key: "trip", label: "견학 계획안", emoji: "🚌" },
-  { key: "event", label: "행사 계획안", emoji: "🎪" },
+  // color 는 랜딩의 문서 타일 색입니다. 12개가 한눈에 구분되도록 색상환을 고루 씁니다.
+  { key: "play", label: "놀이 활동", emoji: "🖍️", color: "#7FD8C4" },
+  { key: "daily", label: "보육일지", emoji: "📔", color: "#4FC3A8" },
+  { key: "obs", label: "관찰일지", emoji: "🔎", color: "#8FCDF2" },
+  { key: "note", label: "알림장", emoji: "💌", color: "#FF9E7D" },
+  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣", color: "#C9A7E8" },
+  { key: "counsel", label: "학부모 상담일지", emoji: "🗣️", color: "#FFC074" },
+  { key: "life", label: "생활기록부", emoji: "📗", color: "#93D9B0" },
+  { key: "assess", label: "발달평가 총평", emoji: "📊", color: "#7FB3E8" },
+  { key: "monthly", label: "월간 평가", emoji: "🗓️", color: "#6BC9D9" },
+  { key: "safety", label: "안전교육일지", emoji: "🛟", color: "#FFB86B" },
+  { key: "trip", label: "견학 계획안", emoji: "🚌", color: "#A9A0F0" },
+  { key: "event", label: "행사 계획안", emoji: "🎪", color: "#F2A0C0" },
 ];
 
 export const MODE_KEYS = MODES.map((m) => m.key);

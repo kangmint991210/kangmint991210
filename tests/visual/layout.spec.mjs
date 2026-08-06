@@ -168,10 +168,11 @@ test("눈 아이콘이 입력 글자를 가리지 않는다", async ({ page }) =
 /* ─────────────── 랜딩의 로그인 상태 ─────────────── */
 // 로그인했는데도 비로그인 화면과 똑같아 보여, 내가 로그인한 상태인지 알 수 없던 문제.
 
-// ⚠ "무료로 시작"·"Basic" 은 아래쪽 요금제 카드에도 있습니다.
-//    상단 바와 문서 카드로 범위를 좁히지 않으면 엉뚱한 것을 잡습니다.
+// ⚠ "무료로 시작" 은 아래쪽 요금제 카드에도 있습니다.
+//    상단 바로 범위를 좁히지 않으면 엉뚱한 것을 잡습니다.
 const topBar = (page) => page.locator("nav");
-const lockedDocCards = (page) => page.locator(".feat-card").filter({ hasText: "Basic" });
+// 잠긴 문서 타일은 모서리 자물쇠 배지로만 표시되므로, 버튼 설명으로 가려냅니다.
+const lockedDocCards = (page) => page.locator('.feat-card[title*="플랜부터예요"]');
 
 test("로그인하면 랜딩 우측 상단에 계정과 요금제가 보인다", async ({ page }) => {
   await page.goto("/gallery.html?v=landing-user");

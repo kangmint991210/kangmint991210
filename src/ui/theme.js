@@ -31,9 +31,9 @@ export const css = `
   input[type="week"]::-webkit-datetime-edit,
   input[type="time"]::-webkit-datetime-edit,
   input[type="month"]::-webkit-datetime-edit { color: #2E4A42; }
-  .feat-card { transition: transform .12s ease, box-shadow .12s ease; }
-  .feat-card:hover { transform: translateY(-2px); box-shadow: 0 5px 0 ${MINT}; }
-  .feat-card:active { transform: scale(0.96); }
+  .feat-tile { transition: transform .14s ease, box-shadow .14s ease; }
+  .feat-card:hover .feat-tile { transform: translateY(-3px); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.5), 0 6px 0 rgba(46,74,66,.16); }
+  .feat-card:active { transform: scale(0.94); }
   /* 결과 안에서 고칠 수 있는 문장 — 눌러야 한다는 걸 은근히 알려줌 */
   .editable { cursor: text; border-radius: 8px; transition: background .12s ease; }
   .editable:hover { background: #F1F9F5; box-shadow: 0 0 0 4px #F1F9F5; }
@@ -46,25 +46,28 @@ export const css = `
      별의 반짝임만 은은하게 이어집니다. */
 
   /* 제목이 한 글자씩 똑똑 떨어짐 — 마지막에 살짝 튀어 "떨어진" 느낌을 냅니다 */
-  .drop-char { display: inline-block; opacity: 0; animation: drop-in .5s cubic-bezier(.2,1.5,.4,1) both; }
+  .drop-char { display: inline-block; opacity: 0; animation: drop-in .72s cubic-bezier(.2,1.5,.4,1) both; }
   @keyframes drop-in {
-    from { opacity: 0; transform: translateY(-16px); }
+    from { opacity: 0; transform: translateY(-22px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
   /* 마스코트 별의 반짝임 */
-  .twinkle-star { display: inline-block; animation: twinkle 3.2s ease-in-out infinite; }
+  /* 톡 하고 크게 부풀었다 가라앉습니다 — 은은하기만 하면 반짝이는지 알아채기 어렵습니다 */
+  .twinkle-star { display: inline-block; animation: twinkle 2.8s cubic-bezier(.3,1.4,.4,1) infinite; }
   @keyframes twinkle {
-    0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(127,216,196,0)); }
-    50%      { transform: scale(1.045) rotate(-1.5deg); filter: drop-shadow(0 0 12px rgba(127,216,196,.75)); }
+    0%, 62%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 0 rgba(127,216,196,0)); }
+    12%           { transform: scale(1.22) rotate(-5deg); filter: drop-shadow(0 0 20px rgba(127,216,196,.95)); }
+    26%           { transform: scale(.94) rotate(2deg);  filter: drop-shadow(0 0 8px rgba(127,216,196,.5)); }
+    40%           { transform: scale(1.08) rotate(-1deg); filter: drop-shadow(0 0 14px rgba(127,216,196,.7)); }
   }
   .twinkle-spark { animation: spark 2.4s ease-in-out infinite; }
   .twinkle-spark.s2 { animation-delay: .8s; }
   .twinkle-spark.s3 { animation-delay: 1.6s; }
   @keyframes spark {
-    0%, 100% { opacity: 0; transform: scale(.6); }
-    45%      { opacity: 1; transform: scale(1); }
-    70%      { opacity: 0; transform: scale(.7); }
+    0%, 100% { opacity: 0; transform: scale(.4) rotate(0deg); }
+    40%      { opacity: 1; transform: scale(1.35) rotate(25deg); }
+    68%      { opacity: 0; transform: scale(.5) rotate(45deg); }
   }
 
   /* 메모 → 문서 변환 */

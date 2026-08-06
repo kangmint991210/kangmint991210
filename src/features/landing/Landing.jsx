@@ -99,14 +99,17 @@ export function Landing({
             // lockOf 는 "지금 이 사용자에게" 잠겼는지를 봅니다 — Pro 회원에게 자물쇠를 보여 주면 안 됩니다.
             const need = lockOf(m.key);
             return (
-              <Reveal key={m.key} delay={i * 45}>
+              <Reveal key={m.key} delay={i * 40}>
                 <button className="feat-card" style={styles.featCard}
-                  onClick={() => onPickDoc(m.key)} title={`${m.label} 만들러 가기`}>
-                  <span style={{ fontSize: 24 }}>{m.emoji}</span>
+                  onClick={() => onPickDoc(m.key)}
+                  title={need ? `${m.label} — ${planName(need)} 플랜부터예요` : `${m.label} 만들러 가기`}>
+                  <span className="feat-tile" style={styles.featTile(m.color, Boolean(need))}>
+                    {m.emoji}
+                    {need
+                      ? <span style={{ ...styles.featBadge, ...styles.featBadgeLock }} aria-hidden><Lock size={10} /></span>
+                      : !user && <span style={{ ...styles.featBadge, ...styles.featBadgeFree }}>무료</span>}
+                  </span>
                   <span style={styles.featLabel}>{m.label}</span>
-                  {need
-                    ? <span style={styles.featLock}><Lock size={9} /> {planName(need)}</span>
-                    : !user && <span style={styles.featFree}>무료 체험</span>}
                 </button>
               </Reveal>
             );

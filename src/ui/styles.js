@@ -392,9 +392,27 @@ export const styles = {
   heroNote: { fontSize: 12, color: "#8AA79D", marginTop: 14 },
   featWrap: { padding: "24px 20px 6px" },
   sectionTitle: { fontFamily: DISPLAY, color: "#2E9E86", fontSize: 19, textAlign: "center", marginBottom: 16 },
-  featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 },
-  featCard: { background: "#fff", border: "none", borderRadius: 16, padding: "16px 12px", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, boxShadow: `0 3px 0 ${SH}` },
-  featLabel: { fontSize: 13, fontWeight: 700, color: "#4A5B54", textAlign: "center" },
+  // 아이폰 홈 화면처럼 — 색 타일 + 그 아래 작은 이름. 큰 흰 카드는 자리를 너무 많이 먹었습니다.
+  featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(74px, 1fr))", gap: "16px 10px", maxWidth: 480, margin: "0 auto" },
+  featCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 7, width: "100%", padding: 0, border: "none", background: "transparent" },
+  featTile: (color, locked) => ({
+    position: "relative", width: "100%", maxWidth: 62, aspectRatio: "1 / 1",
+    borderRadius: 18, display: "grid", placeItems: "center", fontSize: 26,
+    background: color,
+    // 위쪽 하이라이트 + 아래쪽 두툼한 그림자 — 이 앱의 납작한 손맛을 유지합니다
+    boxShadow: "inset 0 1.5px 0 rgba(255,255,255,.5), 0 3px 0 rgba(46,74,66,.14)",
+    // ⚠ 잠긴 타일의 채도를 낮추지 않습니다. 대부분이 잠긴 상태라 그러면 화면 전체가 칙칙해집니다.
+    //    잠금은 모서리의 작은 자물쇠 배지만으로 충분히 알아볼 수 있습니다.
+    ...(locked ? { opacity: 0.94 } : {}),
+  }),
+  featBadge: {
+    position: "absolute", top: -5, right: -5, minWidth: 18, height: 18, padding: "0 5px",
+    display: "grid", placeItems: "center", borderRadius: 999, fontSize: 9.5, fontWeight: 800,
+    boxShadow: "0 1px 3px rgba(46,74,66,.25)",
+  },
+  featBadgeLock: { background: "#5E7168", color: "#fff" },
+  featBadgeFree: { background: "#2E9E86", color: "#fff" },
+  featLabel: { fontSize: 11.5, fontWeight: 700, color: "#4A5B54", textAlign: "center", lineHeight: 1.3, letterSpacing: "-0.2px" },
   priceWrap: { padding: "26px 20px 10px" },
   demoNote: { fontSize: 11.5, color: "#8AA79D", textAlign: "center", marginTop: 14, lineHeight: 1.5 },
   landFoot: { textAlign: "center", fontSize: 12, color: "#8AA79D", padding: "22px 20px 30px" },
