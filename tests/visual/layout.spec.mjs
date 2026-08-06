@@ -245,11 +245,24 @@ test("로그인 전에는 결과 샘플과 요금제가 그대로 나온다", as
   await expect(page.getByText("이 달의 작업")).toHaveCount(0);
 });
 
-test("소셜 채널 아이콘이 하단에 보인다", async ({ page }) => {
+test("소셜 채널 아이콘이 공식 브랜드 색으로 하단에 보인다", async ({ page }) => {
   await page.goto("/gallery.html?v=calendar");
   for (const name of ["카카오톡 채널", "인스타그램", "페이스북", "X"]) {
     await expect(page.getByTitle(new RegExp(`^${name}`))).toBeVisible();
   }
+
+  // 단색 아이콘으로 되돌아가면 무슨 채널인지 알아보기 어려워집니다.
+  // 각 마크가 자기 배경색을 직접 그리고 있는지 확인합니다.
+  const fills = await page.evaluate(() =>
+    [...document.querySelectorAll("footer svg")].map((svg) => {
+      const bg = svg.querySelector("rect");
+      return bg?.getAttribute("fill") || null;
+    })
+  );
+  expect(fills[0], "카카오톡 노란 바탕").toBe("#FEE500");
+  expect(fills[1], "인스타그램 그라디언트 바탕").toMatch(/^url\(#ig-/);
+  expect(fills[2], "페이스북 파란 바탕").toBe("#1877F2");
+  expect(fills[3], "X 검은 바탕").toBe("#000");
 });
 
 /* ─────────────── 저장 바 ─────────────── */

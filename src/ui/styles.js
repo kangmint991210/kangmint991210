@@ -227,8 +227,9 @@ export const styles = {
 
   /* ── 소셜 채널 ──────────────────────────────────────── */
   socialRow: { display: "flex", justifyContent: "center", alignItems: "center", gap: 10, padding: "14px 0 4px", flexWrap: "wrap" },
-  socialBtn: { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 999, background: "#fff", color: "#7A9A90", border: "none", boxShadow: `0 2px 0 ${SH}` },
-  socialOff: { opacity: 0.45 },
+  // 아이콘이 자기 배경색(공식 브랜드 색)을 직접 그리므로 여기서는 색을 입히지 않습니다.
+  // 색을 덧씌우면 무슨 채널인지 알아보기 어려워집니다.
+  socialBtn: { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 12, border: "none", background: "transparent", padding: 0, lineHeight: 0 },
   siteFoot: { padding: "8px 16px 24px" },
 
   /* ── 보관함 검색 ────────────────────────────────────── */
