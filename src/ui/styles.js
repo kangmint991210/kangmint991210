@@ -295,6 +295,10 @@ export const styles = {
   authField: { display: "flex", flexDirection: "column", gap: 6 },
   authLabel: { fontSize: 12.5, fontWeight: 700, color: "#5E7168", paddingLeft: 4 },
   authInput: { fontSize: 14.5, padding: "13px 15px", borderRadius: 14, border: "1.5px solid #DCEEE7", background: "#F7FCFA", color: INK, outline: "none" },
+  // 비밀번호 칸 — 눈 아이콘이 글자를 가리지 않도록 오른쪽 여백을 비워 둡니다
+  pwWrap: { position: "relative", display: "flex" },
+  pwInput: { flex: 1, minWidth: 0, paddingRight: 46 },
+  pwToggle: { position: "absolute", top: 0, bottom: 0, right: 4, width: 40, display: "grid", placeItems: "center", background: "transparent", border: "none", borderRadius: 12, color: "#8AA79D", padding: 0 },
   authError: { fontSize: 13, fontWeight: 700, color: "#D9645C", background: "#FCEEED", borderRadius: 12, padding: "10px 12px", textAlign: "center" },
   authSubmit: { marginTop: 4, fontSize: 15, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "14px", boxShadow: `0 4px 0 ${MINT_STRONG}` },
   authDivider: { fontSize: 13, color: "#7A9A90", marginTop: 20, marginBottom: 10 },

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase, supabaseReady } from "../../supabaseClient.js";
 import { Brand, Mascot } from "../../ui/primitives.jsx";
+import { PasswordField } from "../../ui/fields.jsx";
 import { styles } from "../../ui/styles.js";
 import { css } from "../../ui/theme.js";
 
@@ -117,17 +118,14 @@ export function AuthPage({ mode, setMode, onHome, onLegal, initialError }) {
               <input style={styles.authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="teacher@example.com" autoComplete="email" />
             </div>
-            <div style={styles.authField}>
-              <label style={styles.authLabel}>비밀번호</label>
-              <input style={styles.authInput} type="password" value={pw} onChange={(e) => setPw(e.target.value)}
-                placeholder="6자 이상" autoComplete={isSignup ? "new-password" : "current-password"} />
-            </div>
+            <PasswordField
+              label="비밀번호" value={pw} onChange={setPw}
+              placeholder="6자 이상"
+              autoComplete={isSignup ? "new-password" : "current-password"} />
             {isSignup && (
-              <div style={styles.authField}>
-                <label style={styles.authLabel}>비밀번호 확인</label>
-                <input style={styles.authInput} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)}
-                  placeholder="한 번 더 입력" autoComplete="new-password" />
-              </div>
+              <PasswordField
+                label="비밀번호 확인" value={pw2} onChange={setPw2}
+                placeholder="한 번 더 입력" autoComplete="new-password" />
             )}
 
             {err && <div style={styles.authError}>{err}</div>}

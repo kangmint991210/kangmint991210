@@ -15,6 +15,7 @@ import { setPath } from "../src/lib/utils.js";
 import { Card } from "../src/features/results/Card.jsx";
 import { SaveBar } from "../src/features/results/SaveBar.jsx";
 import { PaywallModal, SignupWallModal, PricingModal } from "../src/features/pricing/index.jsx";
+import { PasswordField } from "../src/ui/fields.jsx";
 import { styles } from "../src/ui/styles.js";
 import { css } from "../src/ui/theme.js";
 
@@ -145,6 +146,21 @@ function SaveBarView() {
   );
 }
 
+function PasswordView() {
+  const [pw, setPw] = useState("mint1234");
+  const [pw2, setPw2] = useState("");
+  return (
+    <div style={{ ...styles.authWrap }}>
+      <div style={{ ...styles.authCard, textAlign: "left" }}>
+        <div style={styles.authForm}>
+          <PasswordField label="비밀번호" value={pw} onChange={setPw} placeholder="6자 이상" autoComplete="new-password" />
+          <PasswordField label="비밀번호 확인" value={pw2} onChange={setPw2} placeholder="한 번 더 입력" autoComplete="new-password" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const noop = () => {};
 
 const VIEWS = {
@@ -156,6 +172,7 @@ const VIEWS = {
     onSignup={noop} onLogin={noop} onClose={noop} onFallback={noop} />,
   pricing: () => <PricingModal plan="free" onChoose={noop} onClose={noop} />,
   savebar: () => <SaveBarView />,
+  password: () => <PasswordView />,
   ...Object.fromEntries(Object.keys(SAMPLES).map((k) => [`card-${k}`, () => <CardView kind={k} />])),
 };
 

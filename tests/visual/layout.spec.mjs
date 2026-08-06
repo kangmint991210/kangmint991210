@@ -116,6 +116,52 @@ for (const view of ["paywall", "paywall-quota", "signup", "pricing"]) {
   });
 }
 
+/* ─────────────── 비밀번호 보기 ─────────────── */
+// 가려진 글자만 보이면 오타를 확인할 방법이 없어 눈 아이콘을 붙였습니다.
+// 눈 버튼이 폼 안에서 submit 으로 동작하면 누를 때마다 로그인이 시도되므로 그것도 함께 봅니다.
+
+test("비밀번호는 눈 아이콘으로 보였다 숨겼다 할 수 있다", async ({ page }) => {
+  await page.goto("/gallery.html?v=password");
+
+  const input = page.locator("input").first();
+  const eye = page.getByRole("button", { name: "비밀번호 보기", exact: true });
+  await expect(input).toHaveAttribute("type", "password");
+
+  await eye.click();
+  await expect(input).toHaveAttribute("type", "text");
+  await expect(page.getByRole("button", { name: "비밀번호 숨기기", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "비밀번호 숨기기", exact: true }).click();
+  await expect(input).toHaveAttribute("type", "password");
+});
+
+test("눈 버튼은 폼을 전송하지 않는다", async ({ page }) => {
+  await page.goto("/gallery.html?v=password");
+  // type="button" 이 아니면 폼 안에서 기본값이 submit 이라, 눈을 누를 때마다 로그인이 시도됩니다.
+  const type = await page.getByRole("button", { name: "비밀번호 보기", exact: true }).getAttribute("type");
+  expect(type, "눈 버튼에 type=\"button\" 이 없음").toBe("button");
+});
+
+test("두 비밀번호 칸은 서로 독립적으로 보인다", async ({ page }) => {
+  await page.goto("/gallery.html?v=password");
+  const inputs = page.locator("input");
+
+  await page.getByRole("button", { name: "비밀번호 보기", exact: true }).click();
+  await expect(inputs.nth(0)).toHaveAttribute("type", "text");
+  await expect(inputs.nth(1)).toHaveAttribute("type", "password");
+});
+
+test("눈 아이콘이 입력 글자를 가리지 않는다", async ({ page }) => {
+  await page.goto("/gallery.html?v=password");
+  const input = page.locator("input").first();
+  const eye = page.getByRole("button", { name: "비밀번호 보기", exact: true });
+
+  const [i, e] = [await input.boundingBox(), await eye.boundingBox()];
+  // 눈 버튼은 입력칸 안 오른쪽에 있어야 하고, 글자 영역(오른쪽 여백 46px)을 침범하면 안 됩니다.
+  expect(e.x + e.width).toBeLessThanOrEqual(i.x + i.width + 1);
+  expect(e.x).toBeGreaterThan(i.x + i.width - 50);
+});
+
 /* ─────────────── 저장 바 ─────────────── */
 
 test("저장 바는 상태마다 버튼이 한 줄에 들어간다", async ({ page }) => {

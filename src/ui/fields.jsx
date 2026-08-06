@@ -2,7 +2,7 @@
 // 어떤 문서의 폼이든 이 조각들을 조합해 만듭니다.
 
 import React, { useState, useRef, useEffect } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { DOMAINS, DOMAIN_COLOR, domainEmoji as dEmoji } from "../domain/documents.js";
 import { styles } from "./styles.js";
 
@@ -92,6 +92,37 @@ export function DateField({ value, onChange, label, type = "date", text }) {
       {text && <span style={styles.dateText}>{text}</span>}
       <input type={type} aria-label={label} value={value || ""}
         onChange={(e) => onChange(e.target.value)} style={styles.dateInput} />
+    </div>
+  );
+}
+
+/* ---------- 비밀번호 ---------- */
+// 가려진 글자만 보이면 오타를 확인할 방법이 없어, 눈 아이콘으로 잠시 드러냅니다.
+// ⚠ type="button" 이어야 합니다 — 폼 안에서 기본값(submit)이면 눈을 누를 때 로그인이 시도됩니다.
+
+export function PasswordField({ label, value, onChange, placeholder, autoComplete }) {
+  const [show, setShow] = useState(false);
+  // 칸이 둘(비밀번호·비밀번호 확인)이라 이름에 칸 이름을 넣습니다 —
+  // 그러지 않으면 화면을 못 보는 사용자가 어느 칸의 눈인지 구분할 수 없습니다.
+  const title = `${label} ${show ? "숨기기" : "보기"}`;
+
+  return (
+    <div style={styles.authField}>
+      <label style={styles.authLabel}>{label}</label>
+      <div style={styles.pwWrap}>
+        <input
+          style={{ ...styles.authInput, ...styles.pwInput }}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+        />
+        <button type="button" style={styles.pwToggle} onClick={() => setShow((s) => !s)}
+          title={title} aria-label={title} aria-pressed={show}>
+          {show ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
     </div>
   );
 }
