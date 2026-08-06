@@ -7,7 +7,7 @@
 
 import React from "react";
 import { Check } from "lucide-react";
-import { PLANS, planName, quotaOf, newDocsIn } from "../../domain/plans.js";
+import { PLANS, planName, upgradeCopy, planBenefits } from "../../domain/plans.js";
 import { MODES } from "../../domain/documents.js";
 import { Mascot, ModalShell } from "../../ui/primitives.jsx";
 import { styles } from "../../ui/styles.js";
@@ -56,7 +56,6 @@ export function PricingModal({ plan, onChoose, onClose }) {
 
 export function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
   const need = info.need || "basic";
-  const opened = newDocsIn(need);
   const quotaOver = info.reason === "quota";
   const exportWall = info.reason === "export";
 
@@ -70,27 +69,17 @@ export function PaywallModal({ info, onOpenPricing, onClose, onFallback }) {
       <div style={styles.modalTitle}>{title}</div>
       <div style={styles.modalSub}>
         {quotaOver
-          ? (info.msg || `요금제를 올리면 바로 이어서 만들 수 있어요.\nBasic 은 월 500회, Pro 는 월 2,000회예요.`)
+          ? (info.msg || `요금제를 올리면 바로 이어서 만들 수 있어요.\n${planName(need)} 는 ${upgradeCopy(need)}`)
           : exportWall
             ? "표 복사는 무료 플랜에서도 쓸 수 있어요.\n워드·한글 파일 내려받기는 Basic 부터 열려요."
-            : `${planName(need)} 플랜을 쓰면 아래 문서가 함께 열려요.`}
+            : `${planName(need)} 플랜을 쓰면 ${upgradeCopy(need)}`}
       </div>
       <div style={styles.paywallFeats}>
-        {!quotaOver && !exportWall && opened.map((label) => (
+        {planBenefits(need).map((label) => (
           <div key={label} style={styles.planFeat}>
             <Check size={14} style={styles.planFeatIcon} /> {label}
           </div>
         ))}
-        <div style={styles.planFeat}>
-          <Check size={14} style={styles.planFeatIcon} />
-          월 {quotaOf(need).toLocaleString()}회 생성
-        </div>
-        <div style={styles.planFeat}>
-          <Check size={14} style={styles.planFeatIcon} /> 워드·한글 파일 내려받기
-        </div>
-        <div style={styles.planFeat}>
-          <Check size={14} style={styles.planFeatIcon} /> 문서 보관함 · 결과 직접 수정
-        </div>
       </div>
       <button style={styles.ctaPrimary} onClick={onOpenPricing}>요금제 보기</button>
       {!quotaOver && !exportWall && (
@@ -130,7 +119,7 @@ export function SignupWallModal({ info, onSignup, onLogin, onClose, onFallback }
       <div style={styles.modalSub}>{copy.d}</div>
       <div style={styles.paywallFeats}>
         <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 만든 문서 자동 저장 · 다시 불러오기</div>
-        <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 결과를 직접 고쳐서 보관</div>
+        <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 결과를 직접 고쳐 저장 · 즐겨찾기</div>
         <div style={styles.planFeat}><Check size={14} style={styles.planFeatIcon} /> 무료로 월 3회 생성</div>
       </div>
       <button style={styles.ctaPrimary} onClick={onSignup}>30초 만에 가입하기</button>

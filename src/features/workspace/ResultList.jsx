@@ -1,14 +1,14 @@
 // 만들어진 문서 목록(= 보관함)과 생성 중 표시.
 
 import React from "react";
-import { Search, RotateCcw, Send, Loader2 } from "lucide-react";
+import { Search, RotateCcw, Send, Loader2, Star } from "lucide-react";
 import { minPlanFor } from "../../domain/plans.js";
 import { DocTurn, Generating, EmptyState } from "../results/DocList.jsx";
 import { styles } from "../../ui/styles.js";
 
 /** 검색창은 문서가 쌓이기 시작할 때만 (한두 건일 땐 방해가 됩니다) */
 function ArchiveTools({ app }) {
-  const { query, docCount } = app;
+  const { query, docCount, favOnly, favCount } = app;
   return (
     <div style={styles.searchRow}>
       {docCount >= 3 ? (
@@ -21,6 +21,13 @@ function ArchiveTools({ app }) {
       ) : (
         <span style={styles.searchCount}>📄 {docCount}건</span>
       )}
+      <button
+        style={{ ...styles.searchClear, ...(favOnly ? styles.searchClearOn : {}) }}
+        onClick={() => app.setFavOnly(!favOnly)}
+        aria-pressed={favOnly}
+        title={favOnly ? "전체 문서 보기" : "즐겨찾기한 문서만 보기"}>
+        <Star size={13} fill={favOnly ? "currentColor" : "none"} /> 즐겨찾기{favCount > 0 ? ` ${favCount}` : ""}
+      </button>
       <button style={styles.searchClear} onClick={app.clearCurrentMode} title="이 메뉴의 문서 모두 삭제">
         <RotateCcw size={13} /> 비우기
       </button>
@@ -29,7 +36,8 @@ function ArchiveTools({ app }) {
 }
 
 export function ResultList({ app }) {
-  const { mode, messages, allTurns, turns, query, openIdx, loading } = app;
+  const { mode, messages, allTurns, turns, query, favOnly, openIdx, loading, threads } = app;
+  const noResult = turns.length === 0 && allTurns.some((t) => t.bot);
 
   return (
     <main ref={app.scroller} style={styles.thread}>
@@ -38,8 +46,14 @@ export function ResultList({ app }) {
       )}
 
       {allTurns.some((t) => t.bot) && <ArchiveTools app={app} />}
-      {query && turns.length === 0 && (
-        <div style={styles.emptySearch}>‘{query}’ 와 맞는 문서가 없어요.</div>
+      {noResult && (
+        <div style={styles.emptySearch}>
+          {favOnly && !query
+            ? "아직 즐겨찾기한 문서가 없어요. 목록의 ☆ 를 눌러 담아 두면 여기 모입니다."
+            : favOnly
+              ? `즐겨찾기 중에는 ‘${query}’ 와 맞는 문서가 없어요.`
+              : `‘${query}’ 와 맞는 문서가 없어요.`}
+        </div>
       )}
 
       {turns.map((t) =>
@@ -54,9 +68,18 @@ export function ResultList({ app }) {
             open={openIdx === t.no}
             guest={app.isGuest}
             canExport={app.canExport}
-            onToggle={() => app.threads.toggleOpen(mode, t.no, openIdx)}
-            onEdit={(path, value) => app.threads.editField(mode, t.bot.uid, t.bot.docId, path, value)}
-            onDelete={() => app.threads.removeTurn(mode, t)}
+            payload={threads.payloadOf(t.bot)}
+            dirty={threads.isDirty(t.bot.uid)}
+            saving={threads.savingUid === t.bot.uid}
+            saved={threads.savedUid === t.bot.uid}
+            failed={threads.failedUid === t.bot.uid}
+            // 접어도 초안은 그대로 남습니다(머리줄의 점이 알려 줍니다). 확인창을 띄우지 않는 이유입니다.
+            onToggle={() => threads.toggleOpen(mode, t.no, openIdx)}
+            onEdit={(path, value) => threads.editField(t.bot.uid, threads.payloadOf(t.bot), path, value)}
+            onSave={() => threads.saveDoc(mode, t.bot.uid, t.bot.docId)}
+            onRevert={() => threads.dropDraft(t.bot.uid)}
+            onToggleFav={() => threads.toggleFavorite(mode, t.bot.uid, t.bot.docId)}
+            onDelete={() => threads.removeTurn(mode, t)}
             onRetry={() => app.send("", t.bot.uid)}
             onNeedSignup={(kind) => app.setSignupWall({ kind })}
             onNeedPlan={() => app.setPaywall({ need: minPlanFor("daily"), reason: "export" })}

@@ -46,7 +46,7 @@ const gridTable = (heads, rows) => {
   return `<table ${TABLE}><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 };
 
-/* ---------- 문서 6종 → {title, plain, html} ---------- */
+/* ---------- 문서 종류별 → {title, plain, html} ---------- */
 
 function buildPlay(p) {
   const list = arr(p.activities);
@@ -227,6 +227,30 @@ function buildCounsel(c) {
   return { title: `상담일지 ${c.child || ""}`.trim(), plain, html };
 }
 
+// 생활기록부의 수준 — 화면(domain/documents.js 의 LIFE_LEVELS)과 같은 순서·이름.
+const LIFE_ROWS = [["high", "상"], ["mid", "중"], ["low", "하"]];
+
+function buildLife(l) {
+  const items = arr(l.items);
+  const rows = items.map((it) => [it.area || "", it.high || "", it.mid || "", it.low || ""]);
+
+  const plain =
+    `[생활기록부 — 기본생활습관 및 활동발달상황] ${l.child || ""}${l.klass ? "  " + l.klass : ""}\n연령: ${l.age || ""}   기록일: ${l.date || ""}\n\n` +
+    items.map((it) =>
+      `■ ${it.area || ""}\n` +
+      LIFE_ROWS.filter(([key]) => it[key]).map(([key, label]) => `  · ${label}: ${it[key]}`).join("\n")
+    ).join("\n\n");
+
+  // 한 칸이 25~60자로 짧아, 다른 문서와 달리 가로 표가 눌리지 않습니다.
+  // 실제 생활기록부 양식도 「영역 | 상 | 중 | 하」 4열이라 그대로 붙습니다.
+  const html =
+    `<h1 style="font-size:14pt;margin:0 0 8px;">생활기록부 — 기본생활습관 및 활동발달상황</h1>` +
+    kvTable([["원아", l.child], ["반", l.klass], ["연령", l.age], ["기록일", l.date]]) +
+    gridTable(["영역", "상", "중", "하"], rows);
+
+  return { title: `생활기록부 ${l.child || ""}`.trim(), plain, html };
+}
+
 /** 문서 payload → {title, plain, html}. 알 수 없는 형식이면 null */
 export function buildDoc(kind, p) {
   if (!p) return null;
@@ -236,6 +260,7 @@ export function buildDoc(kind, p) {
   if (kind === "note" && p.note) return buildNote(p.note);
   if (kind === "adapt" && p.adapt) return buildAdapt(p.adapt);
   if (kind === "counsel" && p.counsel) return buildCounsel(p.counsel);
+  if (kind === "life" && p.life) return buildLife(p.life);
   return null;
 }
 

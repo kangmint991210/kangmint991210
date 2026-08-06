@@ -127,8 +127,25 @@ export function CounselPanel({ form, setF }) {
   );
 }
 
+// 생활기록부는 필수 입력이 연령·특징 둘뿐입니다.
+// 아동명·반·기록일은 나중에 보관함에서 찾을 때만 쓰이므로 비워 둬도 만들어집니다.
+export function LifePanel({ form, setF }) {
+  return (
+    <>
+      <div style={styles.row}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      <textarea value={form.lifeMemo} onChange={(e) => setF("lifeMemo", e.target.value)}
+        placeholder="✍️ 아이의 특징 — 관찰한 내용을 자유롭게 적어주세요. (예: “물”, “안아” 같은 한 단어로 요구를 표현함 / 낮잠은 교사가 등을 토닥여 주면 잠듦)" style={styles.textarea} />
+      <div style={styles.rowSplit}>
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 아동 (이니셜·별명, 선택)" style={styles.field} />
+        <input value={form.klass} onChange={(e) => setF("klass", e.target.value)} placeholder="🏫 반 (선택)" style={styles.field} />
+        <DateField text="기록일" value={form.lifeDate} onChange={(v) => setF("lifeDate", v)} label="기록일 (선택)" />
+      </div>
+    </>
+  );
+}
+
 /** 문서 종류 → 입력 폼. 화면은 이 표만 보고 폼을 고릅니다. */
 export const PANELS = {
   play: PlayPanel, daily: DailyPanel, obs: ObsPanel,
-  note: NotePanel, adapt: AdaptPanel, counsel: CounselPanel,
+  note: NotePanel, adapt: AdaptPanel, counsel: CounselPanel, life: LifePanel,
 };

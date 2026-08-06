@@ -10,8 +10,11 @@ import assert from "node:assert/strict";
 import {
   PLANS, PLAN_KEYS, DEFAULT_PLAN, planName, quotaOf, docsOf,
   planIncludes, minPlanFor, newDocsIn, higherPlan, normalizePlan, canExportFiles,
+  upgradeCopy, planBenefits,
 } from "../src/domain/plans.js";
-import { MODE_KEYS, missingFields, createEmptyForm, labelOf } from "../src/domain/documents.js";
+import {
+  MODE_KEYS, missingFields, createEmptyForm, labelOf, LIFE_AREAS, LIFE_LEVELS,
+} from "../src/domain/documents.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
 import { toTurns, filterTurns, docTitle } from "../src/domain/threads.js";
@@ -30,9 +33,9 @@ test("요금제는 무료 → Basic → Pro 순서이고 상위가 하위를 포
   }
 });
 
-test("문서 개방 범위와 월 한도", () => {
+test("유료 플랜은 문서 전체가 열리고, 둘의 차이는 월 한도뿐이다", () => {
   assert.deepEqual(docsOf("free"), ["play"]);
-  assert.deepEqual(docsOf("basic"), ["play", "daily", "obs"]);
+  assert.deepEqual(docsOf("basic"), MODE_KEYS);
   assert.deepEqual(docsOf("pro"), MODE_KEYS);
   assert.equal(quotaOf("free"), 3);
   assert.equal(quotaOf("basic"), 500);
@@ -41,15 +44,32 @@ test("문서 개방 범위와 월 한도", () => {
 
 test("문서마다 필요한 최소 플랜", () => {
   assert.equal(minPlanFor("play"), "free");
-  assert.equal(minPlanFor("daily"), "basic");
-  assert.equal(minPlanFor("obs"), "basic");
-  assert.equal(minPlanFor("note"), "pro");
-  assert.equal(minPlanFor("counsel"), "pro");
+  // 놀이 활동 외에는 모두 유료지만, Basic 이면 충분합니다.
+  for (const key of MODE_KEYS.filter((k) => k !== "play")) {
+    assert.equal(minPlanFor(key), "basic", `${key} 는 Basic 부터 열려야 함`);
+  }
 });
 
 test("플랜을 올리면 새로 열리는 문서만 안내한다", () => {
-  assert.deepEqual(newDocsIn("basic"), [labelOf("daily"), labelOf("obs")]);
-  assert.deepEqual(newDocsIn("pro"), [labelOf("note"), labelOf("adapt"), labelOf("counsel")]);
+  assert.deepEqual(newDocsIn("basic"), MODE_KEYS.filter((k) => k !== "play").map(labelOf));
+  assert.deepEqual(newDocsIn("pro"), [], "Pro 에서 새로 열리는 문서는 없다 — 한도만 늘어남");
+});
+
+test("업그레이드 안내는 어느 플랜에서도 빈 문장이 되지 않는다", () => {
+  // newDocsIn("pro") 가 비어 있어서, 문서 이름만 늘어놓으면 Pro 안내가 빈 문장이 됩니다.
+  for (const key of PLAN_KEYS.slice(1)) {
+    const copy = upgradeCopy(key);
+    assert.ok(copy.trim().length > 5, `${key} 안내가 비었음`);
+    assert.ok(copy.includes(quotaOf(key).toLocaleString()), `${key} 안내에 실제 한도가 없음`);
+  }
+  assert.ok(upgradeCopy("basic").includes("전체"), "무료 → Basic 은 문서가 열린다는 걸 알려야 함");
+  assert.ok(!upgradeCopy("pro").includes("전체가 열리고"), "Pro 는 이미 전체라 다시 안내하지 않음");
+});
+
+test("페이월 혜택 목록의 숫자는 실제 한도·문서 수에서 나온다", () => {
+  const feats = planBenefits("basic");
+  assert.ok(feats.some((f) => f.includes(`${MODE_KEYS.length}종`)));
+  assert.ok(feats.some((f) => f.includes(quotaOf("basic").toLocaleString())));
 });
 
 test("무료 플랜은 파일 내려받기가 잠겨 있다", () => {
@@ -91,6 +111,26 @@ test("빈 폼에서 문서별로 무엇이 부족한지 알려준다", () => {
 test("공백만 넣은 값은 채운 것으로 보지 않는다", () => {
   const form = { ...createEmptyForm(), child: "   ", counselMemo: "메모" };
   assert.deepEqual(missingFields("counsel", form), ["원아명"]);
+});
+
+test("생활기록부는 아이의 특징만 채우면 만들 수 있다", () => {
+  const empty = createEmptyForm();
+  // 연령은 기본값이 들어 있으므로, 빈 폼에서 부족한 것은 특징뿐입니다.
+  assert.deepEqual(missingFields("life", empty), ["아이의 특징"]);
+  assert.deepEqual(missingFields("life", { ...empty, lifeMemo: "“물”, “안아” 라고 표현함" }), []);
+  // 아동명·반·기록일은 선택이라 비어 있어도 막지 않습니다.
+  assert.deepEqual(missingFields("life", { ...empty, lifeMemo: "메모", child: "", lifeDate: "" }), []);
+  // 연령을 지우면 다시 막힙니다.
+  assert.deepEqual(missingFields("life", { ...empty, lifeMemo: "메모", age: "" }), ["연령"]);
+});
+
+test("생활기록부는 항목 8개와 상·중·하 세 수준이 고정이다", () => {
+  assert.deepEqual(LIFE_AREAS, ["수면", "배변", "식사", "신체운동", "사회관계", "의사소통", "자연탐구", "예술경험"]);
+  assert.deepEqual(LIFE_LEVELS.map((l) => l.key), ["high", "mid", "low"]);
+  assert.deepEqual(LIFE_LEVELS.map((l) => l.label), ["상", "중", "하"]);
+  // 프롬프트의 JSON 스키마가 항목 8개를 그대로 담고 있어야 모델이 빠뜨리지 않습니다.
+  const { system } = promptFor("life");
+  for (const area of LIFE_AREAS) assert.ok(system.includes(`"area":"${area}"`), `${area} 가 스키마에 없음`);
 });
 
 /* ─────────────── 날짜 ─────────────── */
@@ -162,6 +202,18 @@ test("검색은 결과가 있는 묶음만, 본문까지 훑는다", () => {
   assert.equal(filterTurns(turns, "없는말").length, 0);
 });
 
+test("즐겨찾기 거르기는 검색과 함께 걸린다", () => {
+  const withFav = [
+    { role: "bot", uid: "b1", kind: "obs", favorite: true, payload: { observation: { child: "가온" } } },
+    { role: "bot", uid: "b2", kind: "obs", favorite: false, payload: { observation: { child: "나온" } } },
+  ];
+  const turns = toTurns(withFav);
+  assert.equal(filterTurns(turns, "", false).length, 2);
+  assert.equal(filterTurns(turns, "", true).length, 1, "별표한 것만 남아야 함");
+  assert.equal(filterTurns(turns, "가온", true).length, 1);
+  assert.equal(filterTurns(turns, "나온", true).length, 0, "별표 안 한 문서는 검색어가 맞아도 빠짐");
+});
+
 test("접힌 목록의 한 줄 요약", () => {
   assert.equal(docTitle(toTurns(msgs)[0].bot), "관찰일지 · ○○ · 3월");
   assert.equal(docTitle({ kind: "note", payload: null }), "알림장");
@@ -169,8 +221,9 @@ test("접힌 목록의 한 줄 요약", () => {
 
 /* ─────────────── 내보내기 ─────────────── */
 
-test("문서 6종 모두 내보낼 수 있고, 양식 문서는 표를 갖는다", () => {
+test("문서 종류 모두 내보낼 수 있고, 양식 문서는 표를 갖는다", () => {
   const samples = {
+    life: { life: { child: "○○", items: [{ area: "수면", high: "스스로 잠듦.", mid: "도움받아 잠듦.", low: "시도함." }] } },
     play: { activities: [{ title: "풍선놀이", steps: ["놓아요"], materials: ["풍선"] }] },
     daily: { daily: { week: "3월 2주", schedule: [{ time: "09:00", name: "등원", content: "인사함" }], days: [] } },
     obs: { observation: { child: "○○", areas: [{ area: "사회관계", record: "관찰" }] } },
@@ -188,8 +241,27 @@ test("문서 6종 모두 내보낼 수 있고, 양식 문서는 표를 갖는다
       assert.ok(doc.html.includes("<table"), `${kind} 표 없음 — 한글·워드에 붙일 때 서식이 깨짐`);
     }
   }
+  // 어느 문서도 빠뜨리지 않도록, 표본이 문서 종류 전체를 덮는지 확인합니다.
+  assert.deepEqual(Object.keys(samples).sort(), [...MODE_KEYS].sort());
   assert.equal(buildDoc("play", null), null);
   assert.equal(buildDoc("모르는종류", {}), null);
+});
+
+test("생활기록부는 「영역 | 상 | 중 | 하」 4열 표로 나간다", () => {
+  const doc = buildDoc("life", {
+    life: {
+      child: "○○", age: "만 0세",
+      items: [
+        { area: "수면", high: "스스로 잠듦.", mid: "도움받아 잠듦.", low: "수면을 시도함." },
+        { area: "배변", high: "신호를 표현함.", mid: "도움받아 참여함.", low: "익숙해져 감." },
+      ],
+    },
+  });
+  for (const head of ["영역", "상", "중", "하"]) {
+    assert.ok(doc.html.includes(`>${head}<`), `${head} 열이 없음`);
+  }
+  assert.ok(doc.plain.includes("· 상: 스스로 잠듦."), "개조식 줄이 그대로 나가야 함");
+  assert.ok(doc.title.includes("○○"));
 });
 
 test("내보내기 HTML 은 사용자 입력을 이스케이프한다", () => {
@@ -200,7 +272,7 @@ test("내보내기 HTML 은 사용자 입력을 이스케이프한다", () => {
 
 /* ─────────────── 프롬프트 ─────────────── */
 
-test("문서 6종의 프롬프트가 모두 갖춰져 있다", () => {
+test("문서 종류마다 프롬프트가 갖춰져 있다", () => {
   for (const key of MODE_KEYS) {
     const p = promptFor(key);
     assert.ok(p, `${key} 프롬프트 없음`);

@@ -1,6 +1,6 @@
 # 민트쌤 🌿
 
-유치원 교사 보조 웹앱 (놀이안 · 일일계획 · 관찰기록 · 알림장 · 적응일지 · 상담) — React + Vite.
+유치원 교사 보조 웹앱 (놀이활동 · 보육일지 · 관찰일지 · 알림장 · 적응일지 · 상담일지 · 생활기록부) — React + Vite.
 
 ## 실행 방법
 
@@ -33,16 +33,22 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 > `documents` 테이블만 보인다면 `schema.sql` 을 아직 실행하지 않은 것이니 전체를 실행해 주세요.
 > 실행하면 트리거가 없던 시절에 가입한 기존 회원(SNS 포함)도 소급 등록됩니다. 저장 실패 시 브라우저 콘솔에 경고가 찍힙니다.
 >
-> 데이터 저장: 로그인한 사용자가 6종 문서(놀이활동·보육일지·관찰일지·알림장·적응일지·상담일지)를 생성하면
+> 데이터 저장: 로그인한 사용자가 7종 문서(놀이활동·보육일지·관찰일지·알림장·적응일지·상담일지·생활기록부)를 생성하면
 > 자동으로 `documents` 테이블에 저장되고, 다음 로그인 시 다시 불러옵니다. 각자 본인 데이터만 접근 가능(RLS).
+> 결과를 고친 뒤 **[저장]** 을 누르면 `documents.payload` 가 갱신되고, 별표(즐겨찾기)는 `documents.is_favorite` 에 남습니다.
 
 > ⚠ **요금제 개편(무료 / Basic / Pro) 반영에는 `schema.sql` 재실행이 필요합니다.**
 > `profiles.plan` 의 허용값이 `free/pro/max` → `free/basic/pro` 로 바뀌었고,
 > 기존 회원은 문서 종류 수 기준으로 자동 이관됩니다(구 pro→basic, 구 max→pro).
 > 재실행하지 않으면 유료 플랜 저장이 실패합니다. 같은 파일에 월 사용량 원장(`usage_events`)도 함께 들어 있습니다.
 
+> ⚠ **생활기록부 · 즐겨찾기 추가에도 `schema.sql` 재실행이 필요합니다.**
+> `documents.kind` 허용값에 `life` 가 더해졌고, 즐겨찾기용 `documents.is_favorite` 컬럼이 생겼습니다.
+> 재실행하지 않으면 생활기록부 저장과 별표가 조용히 실패합니다(브라우저 콘솔에 경고가 찍힙니다).
+> 기존 문서는 그대로 남고 별표만 꺼진 상태(`false`)로 시작합니다.
+
 ### 3-1. 관리자 권한 (선택)
-`admins` 테이블에 들어 있는 회원은 **요금제와 상관없이 문서 6종 전체**를 이용할 수 있고, 헤더에 `👑 관리자` 배지가 표시됩니다.
+`admins` 테이블에 들어 있는 회원은 **요금제와 상관없이 문서 전체**를 이용할 수 있고, 헤더에 `👑 관리자` 배지가 표시됩니다.
 
 기존 회원 전원에게 한 번에 부여하려면 SQL Editor 에서 [`supabase/grant-admin-existing.sql`](supabase/grant-admin-existing.sql) 실행:
 ```sql
@@ -77,7 +83,7 @@ npm run preview    # 빌드 결과 미리보기
 src/
   config.js            브랜드·모델·체험 한도 등 설정값 (하드코딩을 모으는 자리)
   domain/              화면을 모르는 순수 규칙 — 테스트하기 쉬운 곳
-    documents.js         문서 6종 정의, 필수 입력, 폼 초기값
+    documents.js         문서 종류 정의, 필수 입력, 폼 초기값, 생활기록부 항목·수준
     plans.js             요금제·문서 개방 범위·월 한도  ※ 서버도 이 파일을 씁니다
     threads.js           생성 기록 묶기·검색·요약
     document-export.js   표 HTML 생성, 클립보드 복사, 워드/한글 파일 저장
@@ -88,7 +94,7 @@ src/
   hooks/               React 상태
     useAccount.js        세션·요금제·관리자·사용량
     useGuestTrial.js     가입 없는 체험
-    useThreads.js        생성 기록 CRUD
+    useThreads.js        생성 기록 CRUD · 수정 초안 · 저장 · 즐겨찾기
     useMintApp.js        위를 화면의 흐름으로 엮음
   ui/                  도메인을 모르는 표현 요소
     theme.js             색·폰트·전역 CSS
@@ -96,7 +102,9 @@ src/
     primitives.jsx       Mascot · Brand · Editable · ModalShell · Sec
     fields.jsx           드롭다운·날짜·라벨 등 입력 필드
   features/            화면 단위
-    landing/ auth/ legal/ pricing/ editor/ results/ workspace/
+    landing/ auth/ legal/ pricing/ editor/ workspace/
+    results/             Card.jsx(문서별 결과 카드) · DocList.jsx(목록)
+                         SaveBar.jsx · FavoriteButton.jsx — 문서 종류를 모르는 공통 조각
 api/
   gemini.js            Vercel 서버리스 진입점 (HTTP 어댑터)
   _gemini-proxy.js     실제 처리 — 개발 서버(vite.config.js)와 공유
@@ -116,7 +124,8 @@ supabase/
 | 하고 싶은 일 | 고칠 파일 |
 |---|---|
 | 요금제·가격·월 한도 변경 | `src/domain/plans.js` (화면과 서버가 함께 참조) |
-| 문서 종류 추가 | `src/domain/documents.js` + `src/prompts/<새문서>.js` + `prompts/index.js` |
+| 문서 종류 추가 | `src/domain/documents.js` + `src/prompts/<새문서>.js` + `prompts/index.js` + `features/editor/Panels.jsx` + `features/results/Card.jsx` + `domain/document-export.js` + `supabase/schema.sql` 의 `kind` 목록 |
+| 즐겨찾기·저장 동작 | `src/hooks/useThreads.js` (초안·저장·별표를 한 곳에서 관리) |
 | 프롬프트·분량 규정 손보기 | `src/prompts/<문서>.js` |
 | 색·폰트 | `src/ui/theme.js` |
 | 브랜드 문구·문의처·모델명 | `src/config.js` |
@@ -131,16 +140,19 @@ npm test      # 요금제·필수입력·날짜·내보내기 규칙 회귀 테�
 
 ## 요금제와 이용 한도
 
-| 플랜 | 가격 | 문서 종류 | 월 생성 |
-|---|---|---|---|
-| 무료 | ₩0 | 1종 (놀이 활동) | 3회 |
-| Basic | ₩9,900/월 | 3종 (＋보육일지·관찰일지) | 500회 |
-| Pro | ₩19,900/월 | 6종 전체 (＋알림장·적응일지·상담일지) | 2,000회 |
+| 플랜 | 가격 | 문서 종류 | 월 생성 | 파일 저장 |
+|---|---|---|---|---|
+| 무료 | ₩0 | 1종 (놀이 활동) | 3회 | ✕ |
+| Basic | ₩9,900/월 | **7종 전체** | 500회 | ✓ |
+| Pro | ₩19,900/월 | **7종 전체** | 2,000회 | ✓ |
 
+- **유료 플랜은 문서를 나누지 않습니다.** Basic 과 Pro 의 차이는 월 생성 횟수뿐입니다.
+  무료만 놀이 활동 1종으로 제한됩니다.
 - **가입 없는 체험**: 로그인하지 않아도 놀이 활동 **1건**을 만들어 볼 수 있습니다. 결과는 브라우저에
   임시 보관되었다가, 가입하면 계정으로 자동 이관됩니다. 복사·파일 저장·다른 문서는 가입 후에 열립니다.
-- 값은 `민트쌤.jsx` 의 `PLAN_DOCS` / `PLAN_QUOTA` 와 `api/_guard.js` 의 `PLAN_QUOTA` **두 곳**에 있습니다.
-  바꿀 때는 반드시 함께 수정하세요(화면 안내용 / 실제 차단용).
+- 값은 `src/domain/plans.js` **한 곳**에 있고, 화면과 서버(`api/_guard.js`)가 같은 파일을 참조합니다.
+- 유료 플랜이 전체 개방이라 "이 플랜이면 어떤 문서가 새로 열리는가" 안내가 Pro 에서는 빈 문장이 됩니다.
+  화면에서는 문서 이름을 늘어놓지 말고 `upgradeCopy()` / `planBenefits()` 를 쓰세요.
 - 사용량은 `usage_events` 테이블에 append-only 로 쌓입니다. 문서를 지워도 사용량은 줄지 않습니다
   (documents 를 세면 삭제로 한도를 무한 우회할 수 있기 때문).
 
@@ -166,7 +178,9 @@ npm test      # 요금제·필수입력·날짜·내보내기 규칙 회귀 테�
 
 ## 참고
 - API 호출 모델: `gemini-3.1-flash-lite` (`민트쌤.jsx` 상단 `GEMINI_MODEL` 에서 교체 가능)
-- 결과 카드의 문장은 눌러서 바로 수정할 수 있고, 수정 내용은 `documents.payload` 에 반영됩니다.
+- 결과 카드의 문장은 눌러서 고칠 수 있습니다. 고친 내용은 **화면에만 임시 반영**되고,
+  카드 아래 **[저장]** 을 눌러야 `documents.payload` 에 들어갑니다(되돌리기 가능).
+  저장하지 않은 수정이 있으면 목록에 노란 점이 뜨고, 창을 닫을 때 브라우저가 확인창을 띄웁니다.
 - **이용약관·개인정보처리방침**은 `민트쌤.jsx` 의 `LegalPage` 안에 있습니다.
   정식 공개 전 사업자 정보·개인정보 보호책임자·문의 이메일(`help@mintssaem.kr` 자리)을 채워야 합니다.
 

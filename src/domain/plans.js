@@ -9,10 +9,14 @@ import { MODE_KEYS, labelOf } from "./documents.js";
 /** 월 생성 한도 */
 const QUOTA = { free: 3, basic: 500, pro: 2000 };
 
-/** 플랜별로 열리는 문서 키 */
+/**
+ * 플랜별로 열리는 문서 키.
+ * 유료(Basic·Pro)는 문서를 나누지 않고 "전체 개방"이며, 둘의 차이는 월 생성 횟수뿐입니다.
+ * 무료는 맛보기라 놀이 활동 하나만 엽니다.
+ */
 const DOCS = {
   free: ["play"],
-  basic: ["play", "daily", "obs"],
+  basic: MODE_KEYS,
   pro: MODE_KEYS,
 };
 
@@ -28,21 +32,22 @@ export const PLANS = [
     key: "basic", name: "Basic", price: "₩9,900", period: "/월", highlight: true,
     tagline: "매주 서류를 쓰는 선생님께",
     features: [
-      `문서 ${DOCS.basic.length}종 (놀이활동 · 보육일지 · 관찰일지)`,
+      `문서 ${DOCS.basic.length}종 전체`,
       `월 ${QUOTA.basic.toLocaleString()}회 생성`,
       "워드·한글 파일 내려받기",
-      "문서 보관함 · 결과 직접 수정",
+      "문서 보관함 · 수정 · 즐겨찾기",
     ],
     cta: "Basic 시작하기",
   },
   {
     key: "pro", name: "Pro", price: "₩19,900", period: "/월",
-    tagline: "모든 서류를 한 번에",
+    tagline: "매일 여러 반을 맡는 선생님께",
     features: [
-      `문서 ${DOCS.pro.length}종 전체 (알림장 · 적응일지 · 상담일지 포함)`,
+      `문서 ${DOCS.pro.length}종 전체`,
       `월 ${QUOTA.pro.toLocaleString()}회 생성`,
       "워드·한글 파일 내려받기",
-      "문서 보관함 · 우선 처리",
+      "문서 보관함 · 수정 · 즐겨찾기",
+      "우선 처리",
     ],
     cta: "Pro 시작하기",
   },
@@ -65,11 +70,41 @@ export const planIncludes = (planKey, modeKey) => docsOf(planKey).includes(modeK
 export const minPlanFor = (modeKey) =>
   PLAN_KEYS.find((k) => planIncludes(k, modeKey)) || PLAN_KEYS[PLAN_KEYS.length - 1];
 
-/** 그 플랜으로 "새로" 열리는 문서 이름들 — 페이월에서 무엇을 얻는지 보여줄 때 씁니다. */
+/**
+ * 그 플랜으로 "새로" 열리는 문서 이름들.
+ * ⚠ Basic·Pro 가 모두 전체 개방이라 Pro 에서는 빈 배열입니다.
+ *    화면에서 "무엇이 열리는지" 안내할 때는 이 배열을 직접 늘어놓지 말고
+ *    아래 upgradeCopy() 를 쓰세요 — 빈 문장이 생기지 않습니다.
+ */
 export function newDocsIn(planKey) {
   const i = RANK[planKey] ?? 0;
   const previous = i > 0 ? docsOf(PLAN_KEYS[i - 1]) : [];
   return docsOf(planKey).filter((k) => !previous.includes(k)).map(labelOf);
+}
+
+/**
+ * "이 플랜으로 올리면 무엇이 좋아지는가" 한 문장.
+ *
+ * 예전에는 새로 열리는 문서 이름을 늘어놨지만, 유료 플랜이 모두 전체 개방이 되면서
+ * Pro 를 권할 때 빈 문장이 나왔습니다. 그래서 "무엇이 열리는가"와 "얼마나 만들 수 있는가"를
+ * 상황에 맞게 고릅니다.
+ */
+export function upgradeCopy(toPlan) {
+  const quota = quotaOf(toPlan).toLocaleString();
+  const opened = newDocsIn(toPlan);
+  return opened.length
+    ? `문서 ${docsOf(toPlan).length}종 전체가 열리고, 월 ${quota}회까지 만들 수 있어요.`
+    : `월 ${quota}회까지 만들 수 있어요.`;
+}
+
+/** 페이월·잠금 안내에 늘어놓을 혜택 목록 (문서 이름을 다 적으면 길어져서 한 줄로 묶습니다) */
+export function planBenefits(planKey) {
+  return [
+    `문서 ${docsOf(planKey).length}종 전체`,
+    `월 ${quotaOf(planKey).toLocaleString()}회 생성`,
+    "워드·한글 파일 내려받기",
+    "문서 보관함 · 수정 · 즐겨찾기",
+  ];
 }
 
 /** 두 플랜 중 상위 등급 */

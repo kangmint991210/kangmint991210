@@ -19,12 +19,17 @@ export function toTurns(messages) {
   return turns;
 }
 
-/** 보관함 검색 — 제목뿐 아니라 본문까지 훑습니다(아이 이름·주차로 찾는 경우가 대부분). */
-export function filterTurns(turns, query) {
+/**
+ * 보관함 거르기 — 검색어와 즐겨찾기를 함께 겁니다.
+ * 검색은 제목뿐 아니라 본문까지 훑습니다(아이 이름·주차로 찾는 경우가 대부분).
+ */
+export function filterTurns(turns, query, favOnly = false) {
   const q = String(query || "").trim().toLowerCase();
-  if (!q) return turns;
+  if (!q && !favOnly) return turns;
   return turns.filter((t) => {
     if (!t.bot) return false;
+    if (favOnly && !t.bot.favorite) return false;
+    if (!q) return true;
     const hay = `${docTitle(t.bot)} ${t.user?.text || ""} ${JSON.stringify(t.bot.payload || "")}`.toLowerCase();
     return hay.includes(q);
   });
@@ -39,6 +44,7 @@ const DETAIL_OF = {
   observation: (o) => [o.child, o.period].filter(Boolean).join(" · "),
   adapt: (a) => [a.child, a.period].filter(Boolean).join(" · "),
   counsel: (c) => [c.child, c.date].filter(Boolean).join(" · "),
+  life: (l) => [l.child, l.date].filter(Boolean).join(" · "),
   activities: (list) => arr(list)[0]?.title || "",
 };
 

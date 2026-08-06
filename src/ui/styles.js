@@ -136,6 +136,15 @@ export const styles = {
   adaptFieldLabel: { display: "block", fontSize: 11, fontWeight: 800, color: "#7B4F9E", marginBottom: 4 },
   adaptTime: { fontSize: 12, color: "#8AA79D", fontWeight: 600, marginBottom: 6 },
   adaptNote: { fontSize: 11, fontWeight: 700, color: "#7A6B62", background: "#F1ECE6", padding: "3px 9px", borderRadius: 999 },
+  lifeArea: { marginTop: 12, background: "#F5FBF8", borderRadius: 14, padding: "12px 14px" },
+  lifeTag: { fontSize: 11.5, fontWeight: 800, color: "#1F6B5A", background: "#CDEEDD", padding: "3px 10px", borderRadius: 999 },
+  lifeList: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 7 },
+  lifeItem: { display: "flex", gap: 8, alignItems: "flex-start" },
+  lifeLevel: (color, tint) => ({
+    flexShrink: 0, minWidth: 22, marginTop: 1, textAlign: "center",
+    fontSize: 11, fontWeight: 800, color, background: tint, padding: "3px 7px", borderRadius: 999,
+  }),
+  lifeText: { margin: 0, flex: 1, fontSize: 13, lineHeight: 1.6, color: "#48564F" },
   cnslArea: { marginTop: 12, background: "#FFFBF3", borderRadius: 14, padding: "12px 14px" },
   cnslTag: { fontSize: 11.5, fontWeight: 800, color: "#9A6B1F", background: "#FDECCB", padding: "3px 10px", borderRadius: 999 },
   levelTag: (lvl) => ({
@@ -183,7 +192,8 @@ export const styles = {
   searchInput: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 13, color: INK, fontFamily: "inherit" },
   searchClear: { display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 11.5, fontWeight: 700, color: "#7A9A90", background: "#EEF7F3", border: "none", borderRadius: 999, padding: "5px 10px" },
   searchCount: { flex: 1, fontSize: 12, fontWeight: 700, color: "#7A9A90" },
-  emptySearch: { textAlign: "center", fontSize: 13, color: "#8AA79D", padding: "18px 0" },
+  searchClearOn: { background: "#FFF0C4", color: "#9A6B1F" },
+  emptySearch: { textAlign: "center", fontSize: 13, color: "#8AA79D", padding: "18px 0", lineHeight: 1.7 },
 
   /* ── 생성 중 진행 표시 ──────────────────────────────── */
   genWrap: { display: "flex", flexDirection: "column", gap: 8 },
@@ -191,9 +201,22 @@ export const styles = {
   genTrack: { height: 5, background: "#DCEEE7", borderRadius: 999, overflow: "hidden", marginLeft: 46 },
   genFill: { height: "100%", background: MINT, borderRadius: 999, transition: "width 1s linear" },
 
-  /* ── 결과 목록 헤더 · 삭제 ──────────────────────────── */
+  /* ── 결과 목록 헤더 · 즐겨찾기 · 삭제 ───────────────── */
   turnHeadMain: { flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 9, background: "transparent", border: "none", padding: "13px 4px 13px 14px", textAlign: "left" },
-  iconBtn: { flexShrink: 0, display: "grid", placeItems: "center", width: 34, height: 34, marginRight: 8, color: "#B7CFC6", background: "transparent", border: "none", borderRadius: 10 },
+  iconBtn: { flexShrink: 0, display: "grid", placeItems: "center", width: 32, height: 34, marginRight: 6, color: "#B7CFC6", background: "transparent", border: "none", borderRadius: 10 },
+  iconBtnStar: { color: "#EFB100" },
+  iconBtnOff: { color: "#DCE9E4" },
+  // 접혀 있어도 "저장 안 한 수정이 있다"를 알리는 점
+  dirtyDot: { flexShrink: 0, width: 7, height: 7, borderRadius: 999, background: "#EFB100" },
+
+  /* ── 고친 내용 저장 ─────────────────────────────────── */
+  saveBar: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 2, padding: "10px 13px", background: "#FFF8E1", borderRadius: 14, fontSize: 12.5, color: "#8A6D1F", fontWeight: 600 },
+  saveBarDone: { background: "#E5F7F0", color: "#1F6B5A" },
+  saveBarFail: { background: "#FFF1EE", color: "#A8462A" },
+  saveMsg: { flex: "1 1 150px", minWidth: 0, lineHeight: 1.5 },
+  saveBtn: { display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, fontSize: 12.5, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 999, padding: "8px 15px", boxShadow: `0 2px 0 ${MINT_STRONG}` },
+  saveBtnOff: { background: "#CFE6DD", boxShadow: "0 2px 0 #B6D7CC" },
+  saveGhost: { display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7A6B3F", background: "#FFEFC0", border: "none", borderRadius: 999, padding: "8px 13px" },
 
   /* ── 실패 · 재시도 ──────────────────────────────────── */
   errorBlock: { alignSelf: "stretch", display: "flex", flexDirection: "column", gap: 10, background: "#FFF6F5", borderRadius: 16, padding: "13px 14px", boxShadow: "0 3px 0 #F6DEDC" },

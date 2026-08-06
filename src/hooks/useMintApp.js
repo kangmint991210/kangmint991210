@@ -47,6 +47,7 @@ export function useMintApp() {
   const [form, setForm] = useState(createEmptyForm);
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
+  const [favOnly, setFavOnly] = useState(false);   // 보관함에서 즐겨찾기만 보기
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
@@ -70,8 +71,9 @@ export function useMintApp() {
   /* ── 파생 값 ─────────────────────────────────── */
   const messages = threads.messagesOf(mode);
   const allTurns = useMemo(() => toTurns(messages), [messages]);
-  const turns = useMemo(() => filterTurns(allTurns, query), [allTurns, query]);
+  const turns = useMemo(() => filterTurns(allTurns, query, favOnly), [allTurns, query, favOnly]);
   const docCount = allTurns.filter((t) => t.bot && !t.bot.error).length;
+  const favCount = allTurns.filter((t) => t.bot?.favorite).length;
   const lastDocIdx = allTurns.reduce((acc, t, i) => (t.bot ? i : acc), -1);
   const openIdx = threads.openDoc[mode] === undefined ? lastDocIdx : threads.openDoc[mode];
 
@@ -111,6 +113,15 @@ export function useMintApp() {
     const t = setInterval(() => setElapsed((n) => n + 1), 1000);
     return () => clearInterval(t);
   }, [loading]);
+
+  // 저장하지 않은 수정을 안고 창을 닫으면 그대로 사라집니다.
+  // 브라우저에게 확인창을 맡깁니다(문구는 브라우저가 정하므로 우리가 바꿀 수 없습니다).
+  useEffect(() => {
+    if (!threads.draftCount) return;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [threads.draftCount]);
 
   // 체험 결과는 새로고침해도 남아 있어야 합니다(로그인 전에는 DB 에 못 넣으므로)
   useEffect(() => {
@@ -215,6 +226,7 @@ export function useMintApp() {
     );
     if (!ok) return;
     setQuery("");
+    setFavOnly(false);
     await threads.clearMode(mode, messages);
   }, [messages, mode, threads]);
 
@@ -250,6 +262,7 @@ export function useMintApp() {
   // 랜딩의 문서 카드 → 그 문서를 고른 채로 앱으로.
   const pickDoc = useCallback((key) => {
     setMode(key);
+    setFavOnly(false); // 거르기는 메뉴마다 새로 (ModeSelect 와 같은 규칙)
     storage.set(KEYS.pendingMode, key);
     setShowPricing(false);
     setView("app");
@@ -264,8 +277,14 @@ export function useMintApp() {
   }, [account]);
 
   const logout = useCallback(async () => {
+    // 저장하지 않은 수정은 화면에만 있어서, 로그아웃하면 그대로 사라집니다.
+    if (threads.draftCount &&
+        !window.confirm(`저장하지 않은 수정이 ${threads.draftCount}건 있어요. 로그아웃하면 사라집니다. 계속할까요?`)) {
+      return;
+    }
     await account.logout();
     threads.clearAll();
+    setFavOnly(false);
     setView("landing");
   }, [account, threads]);
 
@@ -280,10 +299,10 @@ export function useMintApp() {
     canExport: isAdmin || canExportFiles(plan),
     // 입력
     mode, setMode, form, setField, toggleDomain, input, setInput,
-    query, setQuery, loading, elapsed, scroller,
+    query, setQuery, favOnly, setFavOnly, loading, elapsed, scroller,
     // 파생
     current, prompt, missing, canGenerate, isLocked, explainLock,
-    messages, allTurns, turns, docCount, openIdx, eta: prompt?.eta || ai.defaultEta,
+    messages, allTurns, turns, docCount, favCount, openIdx, eta: prompt?.eta || ai.defaultEta,
     // 동작
     send, threads, clearCurrentMode,
     openLegal, closeLegal, goAuth, startTrial, pickDoc, choosePlan, logout, openAuth,

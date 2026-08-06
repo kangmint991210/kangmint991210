@@ -102,11 +102,27 @@ export const documents = {
     } catch (e) { warn("문서 저장", e); return null; }
   },
 
-  /** 결과를 직접 고친 내용 반영 */
+  /**
+   * 결과를 직접 고친 내용 반영.
+   * ⚠ 다른 함수들과 달리 실패를 삼키지 않고 false 를 돌려줍니다 —
+   *   사용자가 "저장" 을 눌러 놓고 저장되지 않은 줄 모르면 고친 내용을 잃기 때문입니다.
+   */
   async updatePayload(docId, payload) {
-    if (!supabase || !docId) return;
-    try { await supabase.from("documents").update({ payload }).eq("id", docId); }
-    catch (e) { warn("문서 수정", e); }
+    if (!supabase || !docId) return false;
+    const { error } = await supabase.from("documents").update({ payload }).eq("id", docId);
+    if (error) { warn("문서 수정", error); return false; }
+    return true;
+  },
+
+  /** 즐겨찾기 표시/해제 → 성공 여부 (실패하면 화면을 되돌립니다) */
+  async setFavorite(docId, value) {
+    if (!supabase || !docId) return false;
+    const { error } = await supabase.from("documents").update({ is_favorite: value }).eq("id", docId);
+    if (error) {
+      warn("즐겨찾기 저장 — schema.sql 의 is_favorite 컬럼을 추가했는지 확인하세요", error);
+      return false;
+    }
+    return true;
   },
 
   async remove(docId) {

@@ -1,10 +1,20 @@
-// 문서 종류별 생성 기록(threads)과 그 편집·삭제.
+// 문서 종류별 생성 기록(threads)과 그 수정·저장·즐겨찾기·삭제.
 // 화면 상태와 DB 를 함께 움직여, 화면에서 지운 것이 다음 로그인에 되살아나지 않게 합니다.
+//
+// ── 수정은 "초안" 방식입니다 ────────────────────────────────
+// 문장을 고치면 drafts 에만 쌓이고 DB 는 건드리지 않습니다.
+// 사용자가 [저장] 을 눌러야 documents.payload 에 반영됩니다.
+// 예전에는 고치는 즉시 DB 에 썼는데, 저장 여부를 알 수 없고 되돌릴 수도 없었습니다.
+//
+// 이 파일은 문서 종류를 모릅니다 — 문서를 새로 추가해도 여기는 손대지 않습니다.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { uid, setPath } from "../lib/utils.js";
 import { createEmptyThreads, MODE_KEYS } from "../domain/documents.js";
 import { documents } from "../services/repository.js";
+
+/** 저장했다는 표시를 남겨 두는 시간 */
+const SAVED_FLASH_MS = 2600;
 
 /** DB 행 → 화면 메시지 두 개(요청, 결과) */
 const rowToMessages = (row) => {
@@ -13,8 +23,17 @@ const rowToMessages = (row) => {
   out.push({
     role: "bot", uid: uid(), docId: row.id, kind: row.kind,
     text: row.payload?.reply || "완성했어요!", payload: row.payload,
+    favorite: Boolean(row.is_favorite),
   });
   return out;
+};
+
+/** 객체에서 키 하나를 뺀 새 객체 (없으면 원본 그대로 — 헛돌지 않게) */
+const without = (obj, key) => {
+  if (!(key in obj)) return obj;
+  const next = { ...obj };
+  delete next[key];
+  return next;
 };
 
 export function useThreads() {
@@ -22,7 +41,26 @@ export function useThreads() {
   // 문서 종류별로 "펼쳐 둔" 항목. undefined 면 가장 최근 것을 펼칩니다.
   const [openDoc, setOpenDoc] = useState({});
 
+  // 저장하지 않은 수정 — { [메시지 uid]: payload }
+  const [drafts, setDrafts] = useState({});
+  const [savingUid, setSavingUid] = useState(null);
+  const [savedUid, setSavedUid] = useState(null);   // 방금 저장했다는 표시
+  const [failedUid, setFailedUid] = useState(null); // 저장에 실패한 문서
+  const flashTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+
   const messagesOf = useCallback((mode) => threads[mode] || [], [threads]);
+
+  /** 화면에 그릴 내용 — 고치는 중이면 초안이 우선입니다 */
+  const payloadOf = useCallback((msg) => (msg ? drafts[msg.uid] ?? msg.payload : null), [drafts]);
+  const isDirty = useCallback((msgUid) => msgUid in drafts, [drafts]);
+  const draftCount = useMemo(() => Object.keys(drafts).length, [drafts]);
+
+  const dropDraft = useCallback((msgUid) => {
+    setDrafts((d) => without(d, msgUid));
+    setFailedUid((f) => (f === msgUid ? null : f));
+  }, []);
 
   /** 저장된 문서를 모두 불러와 화면에 복원 */
   const loadAll = useCallback(async (userId) => {
@@ -34,11 +72,13 @@ export function useThreads() {
     }
     setThreads(next);
     setOpenDoc({});
+    setDrafts({});
   }, []);
 
   const clearAll = useCallback(() => {
     setThreads(createEmptyThreads());
     setOpenDoc({});
+    setDrafts({});
   }, []);
 
   /** 아직 로그인 전이라 DB 에 없는 체험 결과를 화면에만 올려 둡니다. */
@@ -66,24 +106,77 @@ export function useThreads() {
     setOpenDoc((o) => ({ ...o, [mode]: currentOpen === index ? null : index }));
   }, []);
 
-  /** 결과 문장을 직접 고친 내용 반영 (화면 + DB) */
-  const editField = useCallback(async (mode, msgUid, docId, path, value) => {
-    let updated = null;
+  /* ── 수정 · 저장 ─────────────────────────────── */
+
+  /**
+   * 문장 하나를 고칩니다 — 초안에만 반영하고 DB 는 건드리지 않습니다.
+   * @param {string} msgUid  고치는 결과 메시지
+   * @param {object} shown   지금 화면에 그려진 내용 (초안이 있으면 초안)
+   */
+  const editField = useCallback((msgUid, shown, path, value) => {
+    setDrafts((d) => ({ ...d, [msgUid]: setPath(shown, path, value) }));
+    setFailedUid((f) => (f === msgUid ? null : f));
+    setSavedUid((s) => (s === msgUid ? null : s));
+  }, []);
+
+  /**
+   * 초안을 DB 에 반영합니다.
+   * @returns {Promise<boolean>} 저장 성공 여부. 실패하면 초안을 그대로 두어 고친 내용을 잃지 않습니다.
+   */
+  const saveDoc = useCallback(async (mode, msgUid, docId) => {
+    const draft = drafts[msgUid];
+    if (!draft) return true;              // 고친 게 없으면 저장할 것도 없음
+    if (!docId) { setFailedUid(msgUid); return false; } // 아직 계정에 없는 문서(체험)
+
+    setSavingUid(msgUid);
+    const ok = await documents.updatePayload(docId, draft);
+    setSavingUid(null);
+
+    if (!ok) { setFailedUid(msgUid); return false; }
+
+    setThreads((t) => ({
+      ...t,
+      [mode]: t[mode].map((m) => (m.uid === msgUid ? { ...m, payload: draft } : m)),
+    }));
+    setDrafts((d) => without(d, msgUid));
+    setFailedUid((f) => (f === msgUid ? null : f));
+    setSavedUid(msgUid);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setSavedUid(null), SAVED_FLASH_MS);
+    return true;
+  }, [drafts]);
+
+  /* ── 즐겨찾기 ────────────────────────────────── */
+
+  /** 화면을 먼저 바꾸고 DB 에 반영합니다. 실패하면 되돌려 거짓말을 남기지 않습니다. */
+  const toggleFavorite = useCallback(async (mode, msgUid, docId) => {
+    if (!docId) return false;
+    let next = false;
     setThreads((t) => ({
       ...t,
       [mode]: t[mode].map((m) => {
         if (m.uid !== msgUid) return m;
-        updated = setPath(m.payload, path, value);
-        return { ...m, payload: updated };
+        next = !m.favorite;
+        return { ...m, favorite: next };
       }),
     }));
-    if (docId && updated) await documents.updatePayload(docId, updated);
+    const ok = await documents.setFavorite(docId, next);
+    if (!ok) {
+      setThreads((t) => ({
+        ...t,
+        [mode]: t[mode].map((m) => (m.uid === msgUid ? { ...m, favorite: !next } : m)),
+      }));
+    }
+    return ok;
   }, []);
+
+  /* ── 삭제 ────────────────────────────────────── */
 
   /** 문서 한 건 삭제 */
   const removeTurn = useCallback(async (mode, turn) => {
     const uids = [turn.user?.uid, turn.bot?.uid].filter(Boolean);
     setThreads((t) => ({ ...t, [mode]: t[mode].filter((m) => !uids.includes(m.uid)) }));
+    setDrafts((d) => uids.reduce((acc, u) => without(acc, u), d));
     resetOpen(mode);
     await documents.remove(turn.bot?.docId);
   }, [resetOpen]);
@@ -92,6 +185,7 @@ export function useThreads() {
   const clearMode = useCallback(async (mode, messages) => {
     const ids = messages.map((m) => m.docId).filter(Boolean);
     setThreads((t) => ({ ...t, [mode]: [] }));
+    setDrafts((d) => messages.reduce((acc, m) => without(acc, m.uid), d));
     resetOpen(mode);
     await documents.removeMany(ids);
   }, [resetOpen]);
@@ -100,6 +194,10 @@ export function useThreads() {
     threads, messagesOf, openDoc,
     loadAll, clearAll, restoreGuestDoc,
     setMessages, resetOpen, toggleOpen,
-    editField, removeTurn, clearMode,
+    // 수정·저장
+    payloadOf, isDirty, draftCount, editField, saveDoc, dropDraft,
+    savingUid, savedUid, failedUid,
+    // 즐겨찾기·삭제
+    toggleFavorite, removeTurn, clearMode,
   };
 }

@@ -4,10 +4,12 @@ import React from "react";
 import { ChevronDown, Trash2, RefreshCw, Lock } from "lucide-react";
 import { EMPTY_COPY, STARTERS, MODES } from "../../domain/documents.js";
 import { docTitle } from "../../domain/threads.js";
-import { planName, newDocsIn } from "../../domain/plans.js";
+import { planName, upgradeCopy } from "../../domain/plans.js";
 import { Mascot } from "../../ui/primitives.jsx";
 import { styles } from "../../ui/styles.js";
 import { Card } from "./Card.jsx";
+import { SaveBar } from "./SaveBar.jsx";
+import { FavoriteButton } from "./FavoriteButton.jsx";
 
 /* ---------- 잠긴 문서 안내 ---------- */
 // 폼 대신 이 화면을 보여줘서, 다 적고 나서 막히는 일이 아예 생기지 않게 합니다.
@@ -22,7 +24,7 @@ export function LockedPanel({ label, guest, need, onOpen, onFallback }) {
       <div style={styles.lockDesc}>
         {guest
           ? "지금은 놀이 활동을 가입 없이 만들어 보실 수 있어요."
-          : `${planName(need)} 플랜을 쓰면 ${newDocsIn(need).join(" · ")}가 함께 열려요.`}
+          : `${planName(need)} 플랜을 쓰면 ${upgradeCopy(need)}`}
       </div>
       <button style={styles.lockCta} onClick={onOpen}>
         {guest ? "가입하고 열기" : "요금제 보기"}
@@ -53,7 +55,17 @@ export function Generating({ eta, elapsed }) {
   );
 }
 
-export function DocTurn({ turn, no, open, guest, canExport, onToggle, onEdit, onDelete, onRetry, onNeedSignup, onNeedPlan }) {
+/**
+ * 문서 한 건. 결과 카드에 더해 즐겨찾기·저장 줄을 함께 붙입니다.
+ * 문서 종류를 모르므로, 문서가 새로 추가돼도 이 컴포넌트는 손대지 않습니다.
+ *
+ * @param {object} payload 화면에 그릴 내용 — 고치는 중이면 저장 전 초안
+ */
+export function DocTurn({
+  turn, no, open, guest, canExport, payload,
+  dirty, saving, saved, failed,
+  onToggle, onEdit, onSave, onRevert, onToggleFav, onDelete, onRetry, onNeedSignup, onNeedPlan,
+}) {
   const { user, bot } = turn;
 
   // 생성이 실패한 자리 — 결과 대신 재시도 버튼을 둡니다(입력값은 폼에 그대로 남아 있음)
@@ -77,11 +89,15 @@ export function DocTurn({ turn, no, open, guest, canExport, onToggle, onEdit, on
         <button style={styles.turnHeadMain} onClick={onToggle} aria-expanded={open}>
           <span style={styles.turnNo}>{no}</span>
           <span style={styles.turnTitle}>{docTitle(bot)}</span>
+          {dirty && <span style={styles.dirtyDot} title="저장하지 않은 수정이 있어요" />}
           <ChevronDown size={17} style={{
             marginLeft: "auto", flexShrink: 0, color: "#7A9A90",
             transition: "transform .15s", transform: open ? "rotate(180deg)" : "none",
           }} />
         </button>
+        <FavoriteButton
+          on={Boolean(bot.favorite)} stored={Boolean(bot.docId)}
+          onToggle={onToggleFav} onNeedSignup={onNeedSignup} />
         <button style={styles.iconBtn} title="이 문서 삭제"
           onClick={() => { if (window.confirm("이 문서를 삭제할까요? 되돌릴 수 없어요.")) onDelete(); }}>
           <Trash2 size={14} />
@@ -95,11 +111,15 @@ export function DocTurn({ turn, no, open, guest, canExport, onToggle, onEdit, on
               <span style={styles.botFace}><Mascot size={30} /></span>
               <div style={styles.botText}>{bot.text}</div>
             </div>
-            {bot.payload && (
-              <Card kind={bot.kind} p={bot.payload}
+            {payload && (
+              <Card kind={bot.kind} p={payload}
                 guest={guest} canExport={canExport} onEdit={onEdit}
                 onNeedSignup={onNeedSignup} onNeedPlan={onNeedPlan} />
             )}
+            <SaveBar
+              dirty={dirty} saving={saving} saved={saved} failed={failed}
+              guest={guest} stored={Boolean(bot.docId)}
+              onSave={onSave} onRevert={onRevert} onNeedSignup={onNeedSignup} />
           </div>
         </div>
       )}

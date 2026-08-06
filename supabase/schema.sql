@@ -1,10 +1,10 @@
 -- 민트쌤 데이터베이스 스키마
--- Supabase 대시보드 → SQL Editor 에 붙여넣고 실행하세요.
--- 6종 문서(놀이활동/보육일지/관찰일지/알림장/적응일지/상담일지)를 한 테이블에 저장하고,
+-- Supabase 대시보드 → SQL Editor 에 붙여넣고 실행하세요. 여러 번 실행해도 안전합니다.
+-- 문서 7종(놀이활동/보육일지/관찰일지/알림장/적응일지/상담일지/생활기록부)을 한 테이블에 저장하고,
 -- kind 컬럼으로 종류를 구분합니다. RLS 로 "본인 데이터만" 접근하도록 보호합니다.
 -- profiles 테이블로 "회원 자체"(이름/이메일/가입경로/요금제/가입일/마지막 접속)를 추적합니다.
 -- 이메일 가입과 SNS 간편로그인(구글·카카오) 모두 같은 트리거로 기록됩니다.
--- admins 테이블에 등록된 회원은 요금제와 무관하게 문서 6종 전체를 이용합니다.
+-- admins 테이블에 등록된 회원은 요금제와 무관하게 문서 전체를 이용합니다.
 
 -- ══════════════════════════════════════════════════════════════════
 -- 1) profiles — 회원 등록/추적 테이블
@@ -137,21 +137,37 @@ create policy "admins_select_own" on public.admins
   for select using (auth.uid() = id);
 
 -- ══════════════════════════════════════════════════════════════════
--- 3) documents — 회원이 생성한 6종 문서(결과물) 저장
+-- 3) documents — 회원이 생성한 문서(결과물) 저장
+--    kind 로 종류를 구분하고, is_favorite 로 선생님이 표시해 둔 문서를 가려냅니다.
 -- ══════════════════════════════════════════════════════════════════
 create table if not exists public.documents (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users (id) on delete cascade,
-  kind        text not null check (kind in ('play','daily','obs','note','adapt','counsel')),
+  kind        text not null,
   user_text   text,          -- 사용자가 입력/요청한 내용(말풍선)
   form        jsonb,         -- 입력 폼 값 전체
   payload     jsonb,         -- AI 가 생성한 문서 결과
+  is_favorite boolean not null default false,  -- 선생님이 별표해 둔 문서
   created_at  timestamptz not null default now()
 );
+
+-- 이전 버전으로 이미 만들어 둔 경우를 위한 컬럼 보강 (신규 설치에는 영향 없음)
+alter table public.documents add column if not exists is_favorite boolean not null default false;
+
+-- 문서 종류 제약. 종류를 추가할 때마다 아래 목록에 넣고 이 파일을 다시 실행하세요.
+-- (제약을 지웠다 다시 만드는 이유 — 이미 만들어진 제약에는 새 종류가 빠져 있어 저장이 거부됩니다)
+alter table public.documents drop constraint if exists documents_kind_check;
+alter table public.documents
+  add constraint documents_kind_check
+  check (kind in ('play','daily','obs','note','adapt','counsel','life'));
 
 -- 조회 성능용 인덱스 (사용자별 + 종류별 + 시간순)
 create index if not exists documents_user_kind_created_idx
   on public.documents (user_id, kind, created_at);
+
+-- 즐겨찾기만 골라 볼 때 쓰는 부분 인덱스 (별표한 문서는 전체의 일부라 부분 인덱스가 알맞습니다)
+create index if not exists documents_user_favorite_idx
+  on public.documents (user_id, kind, created_at) where is_favorite;
 
 -- Row Level Security 활성화
 alter table public.documents enable row level security;

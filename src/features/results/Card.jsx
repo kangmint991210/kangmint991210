@@ -9,7 +9,7 @@ import {
   Target, Package, ListOrdered, ShieldCheck, Clock, MapPin, Copy, Check, Download, Lock,
 } from "lucide-react";
 import { arr, stripLeadingNumber as stripNum } from "../../lib/utils.js";
-import { DOMAIN_COLOR, domainEmoji as dEmoji } from "../../domain/documents.js";
+import { DOMAIN_COLOR, domainEmoji as dEmoji, LIFE_LEVELS } from "../../domain/documents.js";
 import { copyDoc, downloadDoc } from "../../domain/document-export.js";
 import { Editable, Sec } from "../../ui/primitives.jsx";
 import { styles } from "../../ui/styles.js";
@@ -62,6 +62,7 @@ export function Card({ kind, p, guest, canExport, onEdit, onNeedSignup, onNeedPl
   if (kind === "note" && p.note) return <NoteCard n={p.note} base={["note"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "adapt" && p.adapt) return <AdaptCard a={p.adapt} base={["adapt"]} onEdit={onEdit} ctx={ctx(p)} />;
   if (kind === "counsel" && p.counsel) return <CounselCard c={p.counsel} base={["counsel"]} onEdit={onEdit} ctx={ctx(p)} />;
+  if (kind === "life" && p.life) return <LifeCard l={p.life} base={["life"]} onEdit={onEdit} ctx={ctx(p)} />;
   return null;
 }
 
@@ -314,6 +315,35 @@ export function AdaptCard({ a, base = [], onEdit, ctx }) {
       ))}
       {a.summary && <Sec icon={<span style={{ fontSize: 14 }}>🌱</span>} label="종합 의견 및 적응 계획" tint="#EDE8FA">
         <Editable value={a.summary} path={at("summary")} onEdit={onEdit} style={styles.body} /></Sec>}
+    </CardShell>
+  );
+}
+
+// 생활기록부. 항목 8개 × 상·중·하 3줄을 개조식 블릿으로 보여 줍니다.
+// 수준을 배열이 아닌 고정 키(high/mid/low)로 받으므로, 한 줄이 비어도 나머지가 밀리지 않습니다.
+export function LifeCard({ l, base = [], onEdit, ctx }) {
+  const meta = [l.age && `👶 ${l.age}`, l.klass && `🏫 ${l.klass}`, l.date && `📅 ${l.date}`].filter(Boolean);
+  const items = arr(l.items);
+  const at = (...k) => [...base, ...k];
+  return (
+    <CardShell stripe="#93D9B0" title={`${l.child || "영유아"} 생활기록부`} badge="기본생활습관 및 활동발달상황" ctx={ctx}
+      foot="제출 전 원아 정보와 항목별 내용을 확인·수정해 주세요.">
+      {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
+      {items.map((it, i) => (
+        <div key={i} style={styles.lifeArea}>
+          <div style={styles.obsAreaHead}><span style={styles.lifeTag}>{it.area}</span></div>
+          <ul style={styles.lifeList}>
+            {LIFE_LEVELS.map(({ key, label, color, tint }) =>
+              it[key] ? (
+                <li key={key} style={styles.lifeItem}>
+                  <span style={styles.lifeLevel(color, tint)}>{label}</span>
+                  <Editable value={it[key]} path={at("items", i, key)} onEdit={onEdit} style={styles.lifeText} />
+                </li>
+              ) : null
+            )}
+          </ul>
+        </div>
+      ))}
     </CardShell>
   );
 }

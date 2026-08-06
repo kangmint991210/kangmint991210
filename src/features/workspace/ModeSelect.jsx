@@ -16,6 +16,7 @@ export function ModeSelect({ app }) {
     if (isLocked(key)) return explainLock(key);
     app.setMode(key);
     app.setQuery("");
+    app.setFavOnly(false); // 거르기는 메뉴마다 새로 — 빈 목록을 보고 문서가 없다고 오해하지 않게
   };
 
   return (

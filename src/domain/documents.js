@@ -9,6 +9,7 @@ export const MODES = [
   { key: "note", label: "알림장", emoji: "💌" },
   { key: "adapt", label: "신입원아 적응일지", emoji: "🐣" },
   { key: "counsel", label: "학부모 상담일지", emoji: "🗣️" },
+  { key: "life", label: "생활기록부", emoji: "📗" },
 ];
 
 export const MODE_KEYS = MODES.map((m) => m.key);
@@ -46,7 +47,23 @@ export const EMPTY_COPY = {
   note: { title: "알림장을 만들어 드려요", desc: "오늘 있었던 일만 적으면\n학부모님께 보낼 따뜻한 글로 바꿔드려요." },
   adapt: { title: "신입원아 적응일지를 만들어 드려요", desc: "적응 시작일과 일차별 모습을 적으면\n원장님 제출용으로 정리해 드려요." },
   counsel: { title: "학부모 상담일지를 만들어 드려요", desc: "아이의 현재 모습을 적으면\n영역별 현행수준으로 정리해 드려요." },
+  life: { title: "생활기록부를 만들어 드려요", desc: "연령과 아이의 특징만 적으면\n8개 항목을 상·중·하로 정리해 드려요." },
 };
+
+/**
+ * 생활기록부의 항목과 순서. 연령과 상관없이 8개 고정입니다.
+ * (프롬프트의 JSON · 결과 카드 · 내보내기가 모두 이 목록을 씁니다)
+ */
+export const LIFE_AREAS = [
+  "수면", "배변", "식사", "신체운동", "사회관계", "의사소통", "자연탐구", "예술경험",
+];
+
+/** 생활기록부의 수준 — 키 · 화면 표시 · 결과 카드의 색 */
+export const LIFE_LEVELS = [
+  { key: "high", label: "상", color: "#2E9E86", tint: "#E5F7F0" },
+  { key: "mid", label: "중", color: "#C97B2C", tint: "#FFF3E0" },
+  { key: "low", label: "하", color: "#5B7FB0", tint: "#EAF2FB" },
+];
 
 /**
  * 생성 전에 반드시 채워야 하는 입력.
@@ -59,6 +76,7 @@ export const REQUIRED_FIELDS = {
   note: [["child", "아동(이니셜)"], ["todayHi", "오늘 활동·하이라이트"]],
   adapt: [["child", "아동(이니셜)"], ["adaptStart", "적응 시작일"], ["adaptMemo", "적응 모습 메모"]],
   counsel: [["child", "원아명"], ["counselMemo", "상담 메모"]],
+  life: [["age", "연령"], ["lifeMemo", "아이의 특징"]],
 };
 
 /** 아직 채워지지 않은 필수 입력의 "사람이 읽는 이름" 목록 */
@@ -78,6 +96,7 @@ export const createEmptyForm = () => ({
   adaptStart: "", arriveTime: "", leaveTime: "", adaptBirth: "",
   counselMethod: "방문", counselMemo: "", guardian: "", teacher: "", counselBirth: "",
   gender: "여", birth: "", recorder: "", obsPeriod: "",
+  lifeMemo: "", lifeDate: "",
 });
 
 /** 문서 종류별 빈 대화 목록 */
