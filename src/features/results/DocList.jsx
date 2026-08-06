@@ -105,11 +105,11 @@ export function DocTurn({
       </div>
       {open && (
         <div style={styles.turnBody}>
-          {/* 로그인했는데도 저장이 안 된 문서 — 조용히 두면 새로고침 때 통째로 잃습니다 */}
+          {/* 계정에 못 넣은 문서 — 브라우저에 보관해 두고 다음 접속에 다시 시도합니다 */}
           {!guest && !bot.docId && (
             <div style={styles.docWarn}>
-              ⚠ 이 문서가 계정에 저장되지 않았어요. 새로고침하면 사라집니다.
-              필요하시면 먼저 <b>표로 복사</b> 해 두시고, 잠시 뒤 다시 만들어 주세요.
+              ⏳ 아직 계정에 저장되지 않았어요. <b>브라우저에 보관해 두었으니 새로고침해도 사라지지 않고</b>,
+              다음에 들어오실 때 자동으로 다시 저장을 시도해요.
             </div>
           )}
           {user && <div style={styles.userBubble}>{user.text}</div>}

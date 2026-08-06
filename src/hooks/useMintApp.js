@@ -21,6 +21,7 @@ import { toTurns, filterTurns, toHistory, shouldFollowNewest } from "../domain/t
 import { promptFor } from "../prompts/index.js";
 import { generateDocument, QuotaExceededError } from "../services/gemini.js";
 import { documents } from "../services/repository.js";
+import { rememberFailedDoc, flushPendingDocs } from "../services/pending-docs.js";
 import { useAccount } from "./useAccount.js";
 import { useGuestTrial } from "./useGuestTrial.js";
 import { useThreads } from "./useThreads.js";
@@ -57,8 +58,17 @@ export function useMintApp() {
   const guest = useGuestTrial();
   const account = useAccount({
     onSignedIn: (sessionUser, { isFirstSignIn }) => {
-      // 체험 결과를 먼저 계정으로 옮긴 뒤 목록을 불러와야 방금 만든 문서가 보입니다
-      guest.claimTo(sessionUser.id).finally(() => threads.loadAll(sessionUser.id));
+      // 순서가 중요합니다.
+      //  ① 체험 결과를 계정으로 옮기고
+      //  ② 지난번에 못 넣은 문서를 다시 저장해 본 뒤
+      //  ③ 목록을 불러오고
+      //  ④ 그래도 못 넣은 것은 화면에 되살립니다 (새로고침해도 사라지지 않게)
+      (async () => {
+        try { await guest.claimTo(sessionUser.id); } catch { /* 체험 이관 실패가 진입을 막지 않게 */ }
+        const left = await flushPendingDocs(sessionUser.id);
+        await threads.loadAll(sessionUser.id);
+        threads.restorePending(left);
+      })();
       // OAuth 는 페이지를 떠났다 돌아오므로 state 가 초기화됩니다.
       // 로그인 전에 고른 문서를 여기서 되살려, 엉뚱한 화면으로 떨어지지 않게 합니다.
       const want = storage.get(KEYS.pendingMode);
@@ -211,10 +221,13 @@ export function useMintApp() {
         const docId = await documents.create({
           userId: user.id, kind: mode, userText: display, form, payload,
         });
-        // 저장에 실패하면 화면에만 남습니다. 그 사실을 표시해 두지 않으면
-        // 사용자는 저장된 줄 알고 새로고침했다가 문서를 잃습니다.
+        // 저장에 실패하면 브라우저에 보관해 둡니다.
+        // 그래야 새로고침해도 사라지지 않고, 다음 접속 때 자동으로 다시 시도합니다.
+        const pendingId = docId
+          ? null
+          : rememberFailedDoc({ userId: user.id, kind: mode, userText: display, form, payload });
         threads.setMessages(mode, (list) =>
-          list.map((m) => (m.uid === botUid ? { ...m, docId, saveFailed: !docId } : m))
+          list.map((m) => (m.uid === botUid ? { ...m, docId, pendingId } : m))
         );
         await account.countUsage({ recordedByServer: usageCounted });
       } else {

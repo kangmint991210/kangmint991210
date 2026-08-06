@@ -24,17 +24,15 @@ export function SaveBar({ dirty, saving, saved, failed, guest, stored, onSave, o
     );
   }
 
-  const message = !stored
-    ? (guest
-        ? "가입하시면 고친 내용을 저장할 수 있어요."
-        : "이 문서는 계정에 저장되지 않았어요. 고친 내용을 복사해 두고 다시 만들어 주세요.")
-    : failed
-      ? "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."
+  const message = failed
+    ? "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."
+    : !stored && guest
+      ? "가입하시면 고친 내용을 저장할 수 있어요."
       : "저장하지 않은 수정이 있어요.";
 
   return (
-    <div style={{ ...styles.saveBar, ...(failed || !stored ? styles.saveBarFail : {}) }}>
-      {failed || !stored
+    <div style={{ ...styles.saveBar, ...(failed ? styles.saveBarFail : {}) }}>
+      {failed
         ? <AlertCircle size={14} style={{ flexShrink: 0 }} />
         : <span style={{ flexShrink: 0 }}>✏️</span>}
       <span style={styles.saveMsg}>{message}</span>
@@ -42,18 +40,20 @@ export function SaveBar({ dirty, saving, saved, failed, guest, stored, onSave, o
         <Undo2 size={13} /> 되돌리기
       </button>
       {/* 담을 곳이 없는 문서에 저장 버튼을 두면 눌러도 계속 실패합니다 — 게스트는 가입으로 안내합니다. */}
-      {stored ? (
+      {guest && !stored ? (
+        <button style={styles.saveBtn} onClick={() => onNeedSignup?.("save")}>
+          <Save size={13} /> 가입하고 저장
+        </button>
+      ) : (
+        // 계정에 아직 못 넣은 문서도 저장할 수 있습니다 — 브라우저 보관분에 반영되고,
+        // 다음 접속 때 고친 내용 그대로 계정에 올라갑니다.
         <button
           style={{ ...styles.saveBtn, ...(saving ? styles.saveBtnOff : {}) }}
           onClick={onSave}
           disabled={saving}>
           {saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />} 저장
         </button>
-      ) : guest ? (
-        <button style={styles.saveBtn} onClick={() => onNeedSignup?.("save")}>
-          <Save size={13} /> 가입하고 저장
-        </button>
-      ) : null}
+      )}
     </div>
   );
 }

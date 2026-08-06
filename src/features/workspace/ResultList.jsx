@@ -76,7 +76,7 @@ export function ResultList({ app }) {
             // 접어도 초안은 그대로 남습니다(머리줄의 점이 알려 줍니다). 확인창을 띄우지 않는 이유입니다.
             onToggle={() => threads.toggleOpen(mode, t.no, openIdx)}
             onEdit={(path, value) => threads.editField(t.bot.uid, threads.payloadOf(t.bot), path, value)}
-            onSave={() => threads.saveDoc(mode, t.bot.uid, t.bot.docId)}
+            onSave={() => threads.saveDoc(mode, t.bot)}
             onRevert={() => threads.dropDraft(t.bot.uid)}
             onToggleFav={() => threads.toggleFavorite(mode, t.bot.uid, t.bot.docId)}
             onDelete={() => threads.removeTurn(mode, t)}

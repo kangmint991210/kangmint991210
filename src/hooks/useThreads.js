@@ -12,6 +12,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { uid, setPath } from "../lib/utils.js";
 import { createEmptyThreads, MODE_KEYS } from "../domain/documents.js";
 import { documents } from "../services/repository.js";
+import { forgetPendingDoc, updatePendingDoc } from "../services/pending-docs.js";
 
 /** 저장했다는 표시를 남겨 두는 시간 */
 const SAVED_FLASH_MS = 2600;
@@ -81,6 +82,27 @@ export function useThreads() {
     setDrafts({});
   }, []);
 
+  /**
+   * 계정에 넣지 못해 브라우저에 보관해 둔 문서를 화면에 되살립니다.
+   * loadAll 뒤에 부릅니다 — 그래야 저장된 문서 아래에 이어 붙습니다.
+   */
+  const restorePending = useCallback((docs) => {
+    if (!docs?.length) return;
+    setThreads((t) => {
+      const next = { ...t };
+      for (const d of docs) {
+        if (!MODE_KEYS.includes(d.kind)) continue;
+        next[d.kind] = [
+          ...(next[d.kind] || []),
+          ...(d.userText ? [{ role: "user", uid: uid(), text: d.userText }] : []),
+          { role: "bot", uid: uid(), kind: d.kind, pendingId: d.id,
+            text: d.payload?.reply || "완성했어요!", payload: d.payload },
+        ];
+      }
+      return next;
+    });
+  }, []);
+
   /** 아직 로그인 전이라 DB 에 없는 체험 결과를 화면에만 올려 둡니다. */
   const restoreGuestDoc = useCallback((doc) => {
     if (!doc || !MODE_KEYS.includes(doc.kind)) return;
@@ -123,13 +145,28 @@ export function useThreads() {
    * 초안을 DB 에 반영합니다.
    * @returns {Promise<boolean>} 저장 성공 여부. 실패하면 초안을 그대로 두어 고친 내용을 잃지 않습니다.
    */
-  const saveDoc = useCallback(async (mode, msgUid, docId) => {
+  const saveDoc = useCallback(async (mode, msg) => {
+    const msgUid = msg?.uid;
     const draft = drafts[msgUid];
     if (!draft) return true;              // 고친 게 없으면 저장할 것도 없음
-    if (!docId) { setFailedUid(msgUid); return false; } // 아직 계정에 없는 문서(체험)
+
+    // 아직 계정에 못 넣은 문서라면, 브라우저 보관분의 내용을 고쳐 둡니다.
+    // 이걸 하지 않으면 다음 접속에 고치기 전 내용이 되살아납니다.
+    if (!msg.docId) {
+      if (!updatePendingDoc(msg.pendingId, draft)) { setFailedUid(msgUid); return false; }
+      setThreads((t) => ({
+        ...t,
+        [mode]: t[mode].map((m) => (m.uid === msgUid ? { ...m, payload: draft } : m)),
+      }));
+      setDrafts((d) => without(d, msgUid));
+      setSavedUid(msgUid);
+      clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setSavedUid(null), SAVED_FLASH_MS);
+      return true;
+    }
 
     setSavingUid(msgUid);
-    const ok = await documents.updatePayload(docId, draft);
+    const ok = await documents.updatePayload(msg.docId, draft);
     setSavingUid(null);
 
     if (!ok) { setFailedUid(msgUid); return false; }
@@ -178,12 +215,15 @@ export function useThreads() {
     setThreads((t) => ({ ...t, [mode]: t[mode].filter((m) => !uids.includes(m.uid)) }));
     setDrafts((d) => uids.reduce((acc, u) => without(acc, u), d));
     resetOpen(mode);
+    // 아직 계정에 못 넣은 문서라면 보관분도 함께 버립니다 — 아니면 다음 접속에 되살아납니다.
+    forgetPendingDoc(turn.bot?.pendingId);
     await documents.remove(turn.bot?.docId);
   }, [resetOpen]);
 
   /** 이 종류의 문서를 전부 비웁니다 (저장본까지) */
   const clearMode = useCallback(async (mode, messages) => {
     const ids = messages.map((m) => m.docId).filter(Boolean);
+    messages.forEach((m) => forgetPendingDoc(m.pendingId));
     setThreads((t) => ({ ...t, [mode]: [] }));
     setDrafts((d) => messages.reduce((acc, m) => without(acc, m.uid), d));
     resetOpen(mode);
@@ -193,7 +233,7 @@ export function useThreads() {
   return {
     threads, messagesOf, openDoc,
     loadAll, clearAll, restoreGuestDoc,
-    setMessages, resetOpen, toggleOpen,
+    setMessages, resetOpen, toggleOpen, restorePending,
     // 수정·저장
     payloadOf, isDirty, draftCount, editField, saveDoc, dropDraft,
     savingUid, savedUid, failedUid,

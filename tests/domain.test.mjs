@@ -17,6 +17,9 @@ import {
   LIFE_AREAS, LIFE_LEVELS, ASSESS_AREAS, restoreMode,
 } from "../src/domain/documents.js";
 import { restoreView, isRestorableView } from "../src/lib/storage.js";
+import {
+  MAX_PENDING, addPending, removePending, pendingFor, withoutUser,
+} from "../src/domain/pending-docs.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
 import { toTurns, filterTurns, docTitle, shouldFollowNewest } from "../src/domain/threads.js";
@@ -193,6 +196,49 @@ test("새로고침하면 보던 문서 종류로 돌아온다", () => {
   for (const key of MODE_KEYS) assert.equal(restoreMode(key), key);
   assert.equal(restoreMode("사라진문서"), DEFAULT_MODE); // 옛 버전 키가 남아 있어도 안전
   assert.equal(restoreMode(null), DEFAULT_MODE);
+});
+
+/* ─────────────── 못 넣은 문서 대기줄 ─────────────── */
+// 서버나 설정이 어긋나 저장이 거부되면, 만든 문서가 조용히 사라지던 문제를 막는 장치.
+
+const doc = (id, userId, kind = "play") => ({ id, userId, kind, payload: {} });
+
+test("대기줄은 같은 문서를 두 번 담지 않는다", () => {
+  const one = addPending([], doc("a", "u1"));
+  const again = addPending(one, { ...doc("a", "u1"), payload: { v: 2 } });
+  assert.equal(again.length, 1);
+  assert.deepEqual(again[0].payload, { v: 2 }, "나중 것으로 갈아 끼워야 함");
+});
+
+test("대기줄은 무한정 쌓이지 않고 오래된 것부터 버린다", () => {
+  // 저장소가 가득 차면 체험 기록·로그인 정보 저장까지 함께 실패합니다.
+  let list = [];
+  for (let i = 0; i < MAX_PENDING + 5; i++) list = addPending(list, doc(`d${i}`, "u1"));
+  assert.equal(list.length, MAX_PENDING);
+  assert.equal(list[0].id, "d5", "가장 오래된 것부터 밀려나야 함");
+  assert.equal(list.at(-1).id, `d${MAX_PENDING + 4}`, "가장 최근 것은 남아 있어야 함");
+});
+
+test("남의 계정 문서를 내 계정에 넣지 않는다", () => {
+  // 한 브라우저를 여러 계정이 나눠 쓰는 경우가 있습니다.
+  const list = [doc("a", "u1"), doc("b", "u2"), doc("c", "u1")];
+  assert.deepEqual(pendingFor(list, "u1").map((d) => d.id), ["a", "c"]);
+  assert.deepEqual(withoutUser(list, "u1").map((d) => d.id), ["b"], "남의 것은 남겨 둬야 함");
+  assert.deepEqual(pendingFor(list, "없는사람"), []);
+});
+
+test("저장에 성공한 문서는 대기줄에서 빠진다", () => {
+  const list = [doc("a", "u1"), doc("b", "u1")];
+  assert.deepEqual(removePending(list, "a").map((d) => d.id), ["b"]);
+  assert.deepEqual(removePending(list, "없음").map((d) => d.id), ["a", "b"]);
+});
+
+test("망가진 값이 섞여 있어도 죽지 않는다", () => {
+  // localStorage 는 사용자가 손으로 고칠 수 있고, 옛 버전의 값이 남기도 합니다.
+  const list = [null, doc("a", "u1"), { id: "b" }];
+  assert.deepEqual(pendingFor(list, "u1").map((d) => d.id), ["a"]);
+  assert.deepEqual(removePending(list, "a").length, 2);
+  assert.deepEqual(pendingFor(null, "u1"), []);
 });
 
 /* ─────────────── 날짜 ─────────────── */
