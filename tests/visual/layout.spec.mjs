@@ -212,6 +212,37 @@ for (const view of ["landing-guest", "landing-user"]) {
   });
 }
 
+/* ─────────────── 관찰기록의 줄 나눔 ─────────────── */
+// 관찰내용·해석은 한 줄에 한 장면씩 "· " 로 나옵니다.
+// pre-wrap 이 빠지면 줄바꿈이 뭉개져 한 덩어리 글로 붙어 버립니다 — 조용히 일어나는 일이라 못 박아 둡니다.
+
+test("관찰기록의 줄 나눔이 화면에서 살아 있다", async ({ page }) => {
+  await page.goto("/gallery.html?v=card-obs");
+
+  const shape = await page.evaluate(() => {
+    const label = [...document.querySelectorAll("span")].find((el) => el.textContent === "관찰내용");
+    const body = label?.parentElement?.querySelector("p");
+    return {
+      text: body?.textContent || "",
+      whiteSpace: body ? getComputedStyle(body).whiteSpace : null,
+      // 실제로 여러 줄로 그려지는지 (줄 높이로 가늠)
+      lines: body ? Math.round(body.getBoundingClientRect().height / parseFloat(getComputedStyle(body).lineHeight)) : 0,
+    };
+  });
+
+  expect(shape.text.split("·").length - 1, "항목이 여러 개여야 함").toBeGreaterThanOrEqual(3);
+  expect(shape.whiteSpace, "줄바꿈이 살아 있어야 함").toMatch(/pre-wrap|pre-line/);
+  expect(shape.lines, "여러 줄로 그려져야 함").toBeGreaterThanOrEqual(3);
+});
+
+test("랜딩 예시는 햇님이 관찰기록으로 나온다", async ({ page }) => {
+  await page.goto("/gallery.html?v=landing-guest");
+  await expect(page.getByText("햇님이 관찰기록")).toBeVisible();
+  // 해석 및 평가가 잘려 안 보이던 문제 — 제목과 첫 항목이 모두 보여야 합니다
+  await expect(page.getByText("해석 및 평가")).toBeVisible();
+  await expect(page.getByText("탐구과정 즐기기", { exact: false }).first()).toBeVisible();
+});
+
 /* ─────────────── 작업 달력 ─────────────── */
 
 test("작업한 날에 건수가 표시되고, 누르면 그날 문서가 나온다", async ({ page }) => {

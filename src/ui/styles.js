@@ -129,11 +129,14 @@ export const styles = {
   obsDate: { fontSize: 11.5, color: "#8AA79D", fontWeight: 700 },
   obsField: { marginTop: 9 },
   obsFieldLabel: { display: "block", fontSize: 11, fontWeight: 800, color: "#2C6FA6", marginBottom: 4 },
-  obsFieldVal: { margin: 0, fontSize: 13, lineHeight: 1.55, color: "#48564F" },
+  // 줄바꿈을 살립니다.
+  // ⚠ text-indent 로 내어쓰기를 주면 안 됩니다 — 그 값은 "블록의 첫 줄"에만 걸려서,
+  //    첫 항목만 왼쪽으로 튀어나오고 나머지는 들여쓰인 채 어긋납니다. 실제로 그렇게 보였습니다.
+  obsFieldVal: { margin: 0, fontSize: 13, lineHeight: 1.7, color: "#48564F", whiteSpace: "pre-wrap" },
   // 배움읽기·가정연계는 해석과 구분되도록 다른 색을 씁니다
   obsLearning: { fontSize: 13, color: "#1F6B5A", background: "#E5F7F0", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
   obsHome: { fontSize: 13, color: "#8A5A2B", background: "#FFF6EA", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
-  obsInterp: { fontSize: 13, color: "#2C5A8C", background: "#EAF2FB", borderRadius: 10, padding: "9px 12px", lineHeight: 1.55, fontWeight: 500 },
+  obsInterp: { fontSize: 13, color: "#2C5A8C", background: "#EAF2FB", borderRadius: 10, padding: "10px 12px", lineHeight: 1.7, fontWeight: 500, whiteSpace: "pre-wrap" },
   adaptDay: { marginTop: 12, background: "#FBF7FE", borderRadius: 14, padding: "12px 14px" },
   adaptDayHead: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" },
   adaptTag: { fontSize: 11.5, fontWeight: 800, color: "#7B4F9E", background: "#EADDF7", padding: "3px 10px", borderRadius: 999 },
@@ -292,7 +295,7 @@ export const styles = {
   featFree: { fontSize: 10, fontWeight: 800, color: "#1F6B5A", background: "#CDEEDD", padding: "2px 8px", borderRadius: 999 },
   sampleWrap: { padding: "26px 20px 6px" },
   sampleSub: { fontSize: 12.5, color: "#7A9A90", textAlign: "center", marginTop: -8, marginBottom: 16, lineHeight: 1.6 },
-  sampleCard: { position: "relative", maxHeight: 430, overflow: "hidden", borderRadius: 22, WebkitMaskImage: "linear-gradient(#000 74%, transparent 100%)", maskImage: "linear-gradient(#000 74%, transparent 100%)" },
+  sampleCard: { position: "relative", maxHeight: 870, overflow: "hidden", borderRadius: 22, WebkitMaskImage: "linear-gradient(#000 93%, transparent 100%)", maskImage: "linear-gradient(#000 93%, transparent 100%)" },
   sampleCta: { display: "block", width: "100%", maxWidth: 300, margin: "-6px auto 0", fontSize: 14.5, fontWeight: 800, color: "#1F6B5A", background: "#E5F7F0", border: "none", borderRadius: 16, padding: "13px", boxShadow: "0 3px 0 #CDEEDD" },
   footLinks: { display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" },
   footLink: { fontSize: 12, color: "#7A9A90", background: "transparent", border: "none", padding: 0, textDecoration: "underline", fontFamily: "inherit" },
