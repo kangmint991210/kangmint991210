@@ -101,9 +101,15 @@ export const documents = {
    */
   async create({ userId, kind, userText, form, payload }) {
     if (!supabase || !userId) return null;
-    const { data, error } = await supabase.from("documents")
-      .insert({ user_id: userId, kind, user_text: userText, form, payload })
-      .select("id").single();
+    const row = { user_id: userId, kind, user_text: userText, form, payload };
+
+    // 생성 직후에는 토큰 갱신과 겹쳐 한 번 실패할 수 있어(profiles.upsert 와 같은 이유)
+    // 잠깐 쉬고 한 번 더 시도합니다. 만든 문서를 잃는 것보다 몇백 ms 기다리는 편이 낫습니다.
+    let { data, error } = await supabase.from("documents").insert(row).select("id").single();
+    if (error) {
+      await new Promise((r) => setTimeout(r, 600));
+      ({ data, error } = await supabase.from("documents").insert(row).select("id").single());
+    }
     if (error) {
       warn(
         `문서 저장 (kind=${kind}) — supabase/schema.sql 을 최신 내용으로 실행했는지, ` +
