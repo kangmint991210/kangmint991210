@@ -294,6 +294,7 @@ export const styles = {
   landing: { fontFamily: BODY, color: INK, background: PAPER, minHeight: "100dvh", maxWidth: 760, margin: "0 auto", backgroundImage: "radial-gradient(#CDEBDF 1.2px, transparent 1.2px)", backgroundSize: "22px 22px" },
   landNav: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, rowGap: 10, flexWrap: "wrap", padding: "13px 18px", position: "sticky", top: 0, background: "rgba(234,247,241,0.92)", backdropFilter: "blur(6px)", zIndex: 5 },
   logoMarkSm: { width: 44, height: 44, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 3px 0 #CDEBDF" },
+  landNavRight: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
   navGhost: { fontSize: 13, fontWeight: 700, color: "#2E9E86", background: "transparent", border: "none", padding: "9px 12px", borderRadius: 999 },
   navCta: { fontSize: 13, fontWeight: 800, color: "#fff", background: MINT, border: "none", padding: "9px 16px", borderRadius: 999, boxShadow: `0 3px 0 ${MINT_STRONG}` },
 

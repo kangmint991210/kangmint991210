@@ -165,6 +165,53 @@ test("눈 아이콘이 입력 글자를 가리지 않는다", async ({ page }) =
   expect(e.x).toBeGreaterThan(i.x + i.width - 50);
 });
 
+/* ─────────────── 랜딩의 로그인 상태 ─────────────── */
+// 로그인했는데도 비로그인 화면과 똑같아 보여, 내가 로그인한 상태인지 알 수 없던 문제.
+
+// ⚠ "무료로 시작"·"Basic" 은 아래쪽 요금제 카드에도 있습니다.
+//    상단 바와 문서 카드로 범위를 좁히지 않으면 엉뚱한 것을 잡습니다.
+const topBar = (page) => page.locator("nav");
+const lockedDocCards = (page) => page.locator(".feat-card").filter({ hasText: "Basic" });
+
+test("로그인하면 랜딩 우측 상단에 계정과 요금제가 보인다", async ({ page }) => {
+  await page.goto("/gallery.html?v=landing-user");
+
+  await expect(topBar(page).getByText("✨ Pro")).toBeVisible();
+  await expect(topBar(page).getByRole("button", { name: /김민트/ })).toBeVisible();
+  // 이미 로그인했으므로 로그인 버튼은 없어야 합니다.
+  await expect(topBar(page).getByRole("button", { name: "로그인", exact: true })).toHaveCount(0);
+});
+
+test("로그인 전에는 로그인·무료로 시작 버튼이 보인다", async ({ page }) => {
+  await page.goto("/gallery.html?v=landing-guest");
+
+  await expect(topBar(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
+  await expect(topBar(page).getByRole("button", { name: "무료로 시작" })).toBeVisible();
+  await expect(topBar(page).getByText("✨ Pro")).toHaveCount(0);
+});
+
+test("유료 회원에게는 문서 카드에 자물쇠가 붙지 않는다", async ({ page }) => {
+  // 예전에는 요금제와 무관하게 최소 플랜만 표시해, Pro 회원에게도 🔒 Basic 이 붙었습니다.
+  await page.goto("/gallery.html?v=landing-user");
+  await expect(page.getByText("이런 걸 만들어 드려요")).toBeVisible();
+  await expect(lockedDocCards(page)).toHaveCount(0);
+
+  await page.goto("/gallery.html?v=landing-guest");
+  await expect(lockedDocCards(page).first()).toBeVisible();
+});
+
+for (const view of ["landing-guest", "landing-user"]) {
+  test(`${view} 는 화면 밖으로 넘치지 않는다`, async ({ page }) => {
+    await page.goto(`/gallery.html?v=${view}`);
+    await expect(page.getByText("이런 걸 만들어 드려요")).toBeVisible();
+    const overflow = await page.evaluate(() => {
+      const el = document.scrollingElement;
+      return el.scrollWidth - el.clientWidth;
+    });
+    expect(overflow, `${view} 가 가로로 넘침`).toBeLessThanOrEqual(1);
+  });
+}
+
 /* ─────────────── 저장 바 ─────────────── */
 
 test("저장 바는 상태마다 버튼이 한 줄에 들어간다", async ({ page }) => {

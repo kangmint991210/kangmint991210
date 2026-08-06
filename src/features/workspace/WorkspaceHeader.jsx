@@ -2,40 +2,15 @@
 // 한도가 있다는 사실은 소진 직전이 아니라 미리 알려야 놀라지 않습니다.
 
 import React from "react";
-import { LogOut } from "lucide-react";
-import { planName } from "../../domain/plans.js";
 import { Brand } from "../../ui/primitives.jsx";
+import { AccountChip } from "../account/AccountChip.jsx";
 import { styles } from "../../ui/styles.js";
 
-function PlanBadge({ app }) {
-  const { isGuest, isAdmin, plan, usage, quota } = app;
-  if (isGuest) {
-    return (
-      <button style={styles.planFree} onClick={() => app.openAuth("signup")}>
-        체험 중 · 가입하기
-      </button>
-    );
-  }
-  if (isAdmin) return <span style={styles.planPro} title="관리자 — 문서 6종 전체 이용">👑 관리자</span>;
-  // 최상위 플랜은 더 권할 것이 없으므로 배지만
-  if (plan === "pro") {
-    return <span style={styles.planPro} title={`이번 달 ${usage}/${quota}회 사용`}>✨ Pro</span>;
-  }
+/** 체험 중인 손님에게만 보여 주는 자리 — 회원의 상태는 AccountChip 이 그립니다 */
+function GuestBadge({ onSignup }) {
   return (
-    <button style={styles.planFree} onClick={() => app.setShowPricing(true)}>
-      {planName(plan)} · 업그레이드
-    </button>
-  );
-}
-
-function UserChip({ user, onLogout }) {
-  return (
-    <button style={styles.userChip} onClick={onLogout} title={`${user.email || user.name} · 눌러서 로그아웃`}>
-      {user.avatar
-        ? <img src={user.avatar} alt="" style={styles.avatar} referrerPolicy="no-referrer" />
-        : <span style={styles.avatarFallback}>{(user.name || "쌤").slice(0, 1)}</span>}
-      <span style={styles.userName}>{user.name}</span>
-      <LogOut size={13} style={{ color: "#A9C3B9", flexShrink: 0 }} />
+    <button style={styles.planFree} onClick={onSignup}>
+      체험 중 · 가입하기
     </button>
   );
 }
@@ -72,8 +47,12 @@ export function WorkspaceHeader({ app }) {
       <header style={styles.header}>
         <Brand onClick={() => app.setView("landing")} title="홈으로 이동" />
         <div style={styles.headRight}>
-          <PlanBadge app={app} />
-          {app.user && <UserChip user={app.user} onLogout={app.logout} />}
+          {app.isGuest
+            ? <GuestBadge onSignup={() => app.openAuth("signup")} />
+            : <AccountChip
+                user={app.user} plan={app.plan} isAdmin={app.isAdmin}
+                usage={app.usage} quota={app.quota}
+                onLogout={app.logout} onOpenPricing={() => app.setShowPricing(true)} />}
         </div>
       </header>
       <QuotaBar app={app} />

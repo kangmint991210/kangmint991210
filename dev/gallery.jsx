@@ -16,6 +16,8 @@ import { Card } from "../src/features/results/Card.jsx";
 import { SaveBar } from "../src/features/results/SaveBar.jsx";
 import { PaywallModal, SignupWallModal, PricingModal } from "../src/features/pricing/index.jsx";
 import { PasswordField } from "../src/ui/fields.jsx";
+import { Landing } from "../src/features/landing/Landing.jsx";
+import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
 import { styles } from "../src/ui/styles.js";
 import { css } from "../src/ui/theme.js";
 
@@ -221,6 +223,20 @@ function PasswordView() {
 
 const noop = () => {};
 
+// 랜딩 — 로그인 전/후가 달라 보여야 합니다.
+// (로그인했는데도 비로그인 화면과 똑같아 보이던 문제의 검수 자리)
+const LandingView = (user, plan) => () => (
+  <Landing
+    user={user} plan={plan} isAdmin={false} usage={12} quota={2000}
+    onStart={noop} onOpenPricing={noop} onChoose={noop} onPickDoc={noop}
+    onLogin={noop} onLogout={noop} onLegal={noop}
+    // 앱(민트쌤.jsx)과 같은 규칙을 씁니다 — 검수 화면만 따로 판단하면 검증이 헛돕니다
+    lockOf={(key) =>
+      isDocLocked({ signedIn: Boolean(user), isAdmin: false, plan, mode: key })
+        ? minPlanFor(key) : null}
+  />
+);
+
 const VIEWS = {
   paywall: () => <PaywallModal info={{ need: "basic", reason: "lock", modeLabel: "생활기록부" }}
     onOpenPricing={noop} onClose={noop} onFallback={noop} />,
@@ -231,6 +247,8 @@ const VIEWS = {
   pricing: () => <PricingModal plan="free" onChoose={noop} onClose={noop} />,
   savebar: () => <SaveBarView />,
   password: () => <PasswordView />,
+  "landing-guest": LandingView(null, "free"),
+  "landing-user": LandingView({ name: "김민트", email: "mint@example.com", avatar: null }, "pro"),
   ...Object.fromEntries(Object.keys(SAMPLES).map((k) => [`card-${k}`, () => <CardView kind={k} />])),
 };
 

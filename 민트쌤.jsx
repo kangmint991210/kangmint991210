@@ -34,14 +34,19 @@ export default function MintSsaem() {
         <Landing
           user={user}
           plan={plan}
+          isAdmin={app.isAdmin}
+          usage={app.usage}
+          quota={app.quota}
+          onLogout={app.logout}
           onStart={app.startTrial}
           onOpenPricing={() => app.setShowPricing(true)}
           onChoose={chooseFromLanding}
           onPickDoc={app.pickDoc}
           onLogin={() => app.openAuth("login")}
           onLegal={app.openLegal}
-          // 랜딩에서는 아직 로그인 전이므로 "이 문서가 어느 플랜인지"만 알려 줍니다
-          lockOf={(key) => (key === DEFAULT_MODE ? null : minPlanFor(key))}
+          // "지금 이 사용자에게" 잠겼는지를 봅니다.
+          // 예전에는 요금제와 무관하게 최소 플랜만 표시해, Pro 회원에게도 자물쇠가 붙었습니다.
+          lockOf={(key) => (app.isLocked(key) ? minPlanFor(key) : null)}
         />
         {showPricing && (
           <PricingModal

@@ -15,7 +15,7 @@ import {
   createEmptyForm, missingFields, restoreMode,
 } from "../domain/documents.js";
 import {
-  DEFAULT_PLAN, planIncludes, minPlanFor, canExportFiles, PLAN_KEYS,
+  DEFAULT_PLAN, isDocLocked, minPlanFor, canExportFiles, PLAN_KEYS,
 } from "../domain/plans.js";
 import { toTurns, filterTurns, toHistory, shouldFollowNewest } from "../domain/threads.js";
 import { promptFor } from "../prompts/index.js";
@@ -33,6 +33,9 @@ export function useMintApp() {
   /* ── 화면 전환 ────────────────────────────────── */
   // 새로고침해도 하던 자리로 돌아옵니다 (규칙은 lib/storage.js 의 restoreView)
   const [view, setView] = useState(() => restoreView(storage.get(KEYS.lastView)));
+  // 이 브라우저에서 전에 보던 화면이 있었는지.
+  // ⚠ 아래 "돌아올 자리 기억" 효과가 마운트 직후 값을 덮어쓰므로, 그 전에 붙잡아 둡니다.
+  const hadSavedView = useRef(Boolean(storage.get(KEYS.lastView)));
                                                    // landing | auth | app | legal
   const [authMode, setAuthMode] = useState("login"); // login | signup
   const [legalTab, setLegalTab] = useState("terms");  // terms | privacy
@@ -100,8 +103,7 @@ export function useMintApp() {
     // 새로고침하면 세션은 즉시 되살아나지만 요금제 조회는 한 박자 뒤라, 그 사이에 판단하면
     // Pro 회원에게 "이 문서는 Basic 플랜부터예요" 가 뜹니다. (plans.js 의 canJudgePlan)
     if (!planReady) return false;
-    if (isGuest) return key !== DEFAULT_MODE;
-    return !isAdmin && !planIncludes(plan, key);
+    return isDocLocked({ signedIn: !isGuest, isAdmin, plan, mode: key });
   }, [planReady, isGuest, isAdmin, plan]);
 
   /** 잠긴 문서를 만나면 상대에 맞는 안내를 띄웁니다. */
@@ -161,6 +163,17 @@ export function useMintApp() {
     threads.restoreGuestDoc(guest.savedDoc());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // 이미 로그인한 분이 처음 들어오면 마케팅 화면 대신 작업 화면으로 보냅니다.
+  // ⚠ 무조건 보내면 안 됩니다 — 작업 화면 로고를 눌러 일부러 랜딩에 오는 길이 있고,
+  //    요금제·약관도 랜딩에 있습니다. 그런 경우엔 보던 화면 기록이 남아 있으므로 건드리지 않습니다.
+  const welcomed = useRef(false);
+  useEffect(() => {
+    if (welcomed.current || !user || !planReady) return;
+    welcomed.current = true;
+    if (!hadSavedView.current && view === "landing") setView("app");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, planReady]);
 
   // 로그인 후 첫 진입에서 잠긴 문서를 고른 상태라면 입력하기 "전에" 알려 줍니다.
   const greeted = useRef(false);

@@ -4,7 +4,7 @@
 // 문서 개방 범위를 "앞에서부터 N개"가 아니라 문서 키 목록으로 적어 둡니다.
 // 메뉴 순서를 바꿨다고 과금 범위가 따라 바뀌면 안 되기 때문입니다.
 
-import { MODE_KEYS, labelOf } from "./documents.js";
+import { MODE_KEYS, labelOf, DEFAULT_MODE } from "./documents.js";
 
 /** 월 생성 한도 */
 const QUOTA = { free: 3, basic: 500, pro: 2000 };
@@ -65,6 +65,17 @@ export const docsOf = (key) => DOCS[key] || DOCS[DEFAULT_PLAN];
 
 /** 이 플랜으로 그 문서를 쓸 수 있는가 */
 export const planIncludes = (planKey, modeKey) => docsOf(planKey).includes(modeKey);
+
+/**
+ * "지금 이 사용자에게" 그 문서가 잠겨 있는가.
+ *
+ * 화면(작업 화면의 잠금 안내, 랜딩의 자물쇠 배지)이 각자 판단하면 서로 다른 말을 합니다.
+ * 실제로 랜딩은 요금제를 보지 않고 최소 플랜만 표시해, Pro 회원에게도 자물쇠를 붙였습니다.
+ *
+ * ⚠ 요금제를 아직 모르는 시점에 부르면 안 됩니다 — canJudgePlan 으로 먼저 확인하세요.
+ */
+export const isDocLocked = ({ signedIn, isAdmin, plan, mode }) =>
+  signedIn ? !isAdmin && !planIncludes(plan, mode) : mode !== DEFAULT_MODE;
 
 /** 그 문서를 쓰려면 최소 어떤 플랜이 필요한가 (없으면 최상위) */
 export const minPlanFor = (modeKey) =>

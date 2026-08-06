@@ -9,6 +9,7 @@ import { brand, contact } from "../../config.js";
 import { MODES } from "../../domain/documents.js";
 import { planName } from "../../domain/plans.js";
 import { Brand, Mascot } from "../../ui/primitives.jsx";
+import { AccountChip } from "../account/AccountChip.jsx";
 import { ObsCard } from "../results/Card.jsx";
 import { PlanCards } from "../pricing/index.jsx";
 import { styles } from "../../ui/styles.js";
@@ -36,14 +37,21 @@ const SAMPLE_OBS = {
   "summary": "만 2세 발달 수준에 맞춰 신체 조작, 사회적 상호작용, 인지 탐구 측면에서 전반적으로 고른 발달을 보임. 자동차와 공룡 등 관심 대상에 대한 깊은 몰입과 탐색 의지가 강하게 나타남. 사회관계 측면에서는 낯선 상황에서 보호자를 찾거나 또래를 의식하는 등 정서적 안정감을 바탕으로 주변을 인식하는 변화가 보임. 의사소통 발달 또한 그림책을 가리키며 능동적으로 의미를 전달하려는 노력이 관찰됨. 안정된 애착 관계를 바탕으로 독립적인 탐색 활동을 시도하는 시기임. 앞으로 하빈이가 자신의 관심을 다양한 방식으로 표현하고 또래와 함께 놀이를 확장해 나갈 수 있도록 격려할 예정임. 하빈이의 개별적인 놀이 속도를 존중하며 긍정적인 상호작용을 지속하겠음."
 };
 
-export function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDoc, onLogin, onLegal, lockOf }) {
+export function Landing({
+  user, plan, isAdmin, usage, quota,
+  onStart, onOpenPricing, onChoose, onPickDoc, onLogin, onLogout, onLegal, lockOf,
+}) {
   return (
     <div style={styles.landing}>
       <style>{css}</style>
       <nav style={styles.landNav}>
         <Brand />
-        <div style={{ display: "flex", gap: 8 }}>
-          <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>
+        <div style={styles.landNavRight}>
+          {/* 로그인했는데도 비로그인 화면과 똑같아 보이면 안 됩니다 — 작업 화면과 같은 조각을 씁니다 */}
+          <AccountChip
+            user={user} plan={plan} isAdmin={isAdmin} usage={usage} quota={quota}
+            onLogout={onLogout} onOpenPricing={onOpenPricing} />
+          {!user && <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>}
           {!user && <button style={styles.navGhost} onClick={onLogin}>로그인</button>}
           <button style={styles.navCta} onClick={onStart}>
             {user ? "이어서 작업하기" : "무료로 시작"}
@@ -53,24 +61,35 @@ export function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDo
 
       <section style={styles.hero}>
         <div style={styles.heroMascot}><Mascot size={104} /></div>
-        <h1 style={styles.heroTitle}>보육교사의 하루,<br />민트쌤이 함께해요</h1>
-        <p style={styles.heroSub}>놀이 아이디어부터 관찰일지 · 알림장 · 상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
+        {/* 이미 쓰고 계신 분께 "이 서비스가 무엇인지" 설득하는 문구를 다시 보여 줄 이유가 없습니다 */}
+        {user ? (
+          <>
+            <h1 style={styles.heroTitle}>{user.name} 선생님,<br />다시 오셨네요</h1>
+            <p style={styles.heroSub}>하던 작업이 그대로 남아 있어요.<br />아래에서 문서를 골라 바로 이어서 하실 수 있어요.</p>
+          </>
+        ) : (
+          <>
+            <h1 style={styles.heroTitle}>보육교사의 하루,<br />민트쌤이 함께해요</h1>
+            <p style={styles.heroSub}>놀이 아이디어부터 관찰일지 · 알림장 · 상담일지까지.<br />간단한 메모만 적으면, 제출용 문서로 정리해 드려요.</p>
+          </>
+        )}
         <div style={styles.heroCtas}>
           <button style={styles.ctaPrimary} onClick={onStart}>
             {user ? "이어서 작업하기" : "가입 없이 만들어 보기"}
           </button>
           <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>
         </div>
-        <div style={styles.heroNote}>
-          {user ? "다시 오셨네요! 하던 작업이 그대로 있어요 🌿" : "회원가입 없이 1건 바로 만들어 볼 수 있어요 · 신용카드 불필요"}
-        </div>
+        {!user && (
+          <div style={styles.heroNote}>회원가입 없이 1건 바로 만들어 볼 수 있어요 · 신용카드 불필요</div>
+        )}
       </section>
 
       <section style={styles.featWrap}>
         <div style={styles.sectionTitle}>이런 걸 만들어 드려요</div>
         <div style={styles.featGrid}>
           {MODES.map((m) => {
-            // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다
+            // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다.
+            // lockOf 는 "지금 이 사용자에게" 잠겼는지를 봅니다 — Pro 회원에게 자물쇠를 보여 주면 안 됩니다.
             const need = lockOf(m.key);
             return (
               <button key={m.key} className="feat-card" style={styles.featCard}
@@ -79,7 +98,7 @@ export function Landing({ user, plan, onStart, onOpenPricing, onChoose, onPickDo
                 <span style={styles.featLabel}>{m.label}</span>
                 {need
                   ? <span style={styles.featLock}><Lock size={9} /> {planName(need)}</span>
-                  : <span style={styles.featFree}>무료 체험</span>}
+                  : !user && <span style={styles.featFree}>무료 체험</span>}
               </button>
             );
           })}

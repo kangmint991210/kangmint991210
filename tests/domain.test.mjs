@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import {
   PLANS, PLAN_KEYS, DEFAULT_PLAN, planName, quotaOf, docsOf,
   planIncludes, minPlanFor, newDocsIn, higherPlan, normalizePlan, canExportFiles,
-  upgradeCopy, planBenefits, canJudgePlan,
+  upgradeCopy, planBenefits, canJudgePlan, isDocLocked,
 } from "../src/domain/plans.js";
 import {
   MODE_KEYS, DEFAULT_MODE, missingFields, createEmptyForm, labelOf,
@@ -112,6 +112,23 @@ test("요금제를 알기 전에는 요금제로 막지 않는다", () => {
   assert.equal(canJudgePlan({ authReady: false, signedIn: false, planLoaded: true }), false);
   // 로그인하지 않았다면 기다릴 요금제가 없으므로 바로 판단할 수 있습니다.
   assert.equal(canJudgePlan({ authReady: true, signedIn: false, planLoaded: false }), true);
+});
+
+test("잠금 판단은 실제 요금제를 본다", () => {
+  const pro = { signedIn: true, isAdmin: false, plan: "pro" };
+  const free = { signedIn: true, isAdmin: false, plan: "free" };
+
+  // 랜딩이 요금제를 보지 않아 Pro 회원에게도 자물쇠가 붙던 문제의 회귀 테스트
+  for (const key of MODE_KEYS) assert.equal(isDocLocked({ ...pro, mode: key }), false, `${key} 가 Pro 에게 잠김`);
+  assert.equal(isDocLocked({ ...free, mode: "play" }), false);
+  assert.equal(isDocLocked({ ...free, mode: "life" }), true);
+
+  // 관리자는 요금제와 무관하게 전부 열립니다
+  assert.equal(isDocLocked({ signedIn: true, isAdmin: true, plan: "free", mode: "event" }), false);
+
+  // 로그인하지 않았으면 체험용 문서 하나만
+  assert.equal(isDocLocked({ signedIn: false, mode: DEFAULT_MODE }), false);
+  assert.equal(isDocLocked({ signedIn: false, mode: "obs" }), true);
 });
 
 /* ─────────────── 필수 입력 ─────────────── */
