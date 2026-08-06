@@ -117,7 +117,7 @@ from auth.users u
 on conflict (id) do nothing;
 
 -- ══════════════════════════════════════════════════════════════════
--- 2) admins — 관리자 명단 (요금제와 무관하게 문서 6종 전체 개방)
+-- 2) admins — 관리자 명단 (요금제와 무관하게 문서 전체 개방)
 --    ⚠ 일부러 profiles 의 컬럼이 아니라 별도 테이블로 둡니다.
 --       profiles 는 "본인 행 수정 허용" 정책이라, 관리자 표시를 거기 두면
 --       회원이 브라우저에서 스스로를 관리자로 바꿀 수 있기 때문입니다.
@@ -217,3 +217,38 @@ create policy "usage_select_own" on public.usage_events
 drop policy if exists "usage_insert_own" on public.usage_events;
 create policy "usage_insert_own" on public.usage_events
   for insert with check (auth.uid() = user_id);
+
+-- ══════════════════════════════════════════════════════════════════
+-- 5) API 스키마 캐시 갱신
+--    Supabase 의 REST API(PostgREST)는 테이블 구조를 캐시해 두고 씁니다.
+--    컬럼을 새로 만들어도 이 캐시가 갱신되지 않으면, DB 에는 컬럼이 있는데
+--    앱에서는 "Could not find the 'xxx' column of 'documents' in the schema cache"
+--    로 계속 거부됩니다. 보통은 자동으로 갱신되지만 늦거나 누락될 때가 있어
+--    이 파일을 실행할 때마다 확실하게 한 번 밀어 줍니다.
+-- ══════════════════════════════════════════════════════════════════
+notify pgrst, 'reload schema';
+
+-- ══════════════════════════════════════════════════════════════════
+-- 6) 실행 결과 확인
+--    SQL Editor 는 마지막 문장의 결과만 보여 줍니다.
+--    아래 표가 전부 ✅ 여야 앱에서 저장·즐겨찾기가 동작합니다.
+-- ══════════════════════════════════════════════════════════════════
+select * from (values
+  ('이 프로젝트',
+   current_database()::text),
+  ('documents.is_favorite',
+   case when exists (select 1 from information_schema.columns
+                     where table_schema = 'public' and table_name = 'documents'
+                       and column_name = 'is_favorite')
+        then '있음 ✅' else '없음 ❌' end),
+  ('생활기록부(life) 허용',
+   case when exists (select 1 from pg_constraint
+                     where conrelid = 'public.documents'::regclass and contype = 'c'
+                       and pg_get_constraintdef(oid) like '%life%')
+        then '허용됨 ✅' else '빠짐 ❌' end),
+  ('documents RLS 정책',
+   (select count(*)::text from pg_policies
+    where schemaname = 'public' and tablename = 'documents') || ' / 4'),
+  ('요금제 값',
+   coalesce((select string_agg(distinct plan, ', ') from public.profiles), '(회원 없음)'))
+) as t(확인, 결과);
