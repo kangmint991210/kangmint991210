@@ -10,6 +10,8 @@ import { MODES } from "../../domain/documents.js";
 import { planName } from "../../domain/plans.js";
 import { Brand, Mascot } from "../../ui/primitives.jsx";
 import { AccountChip } from "../account/AccountChip.jsx";
+import { WorkCalendar } from "../calendar/WorkCalendar.jsx";
+import { SocialLinks } from "../../ui/SiteFooter.jsx";
 import { ObsCard } from "../results/Card.jsx";
 import { PlanCards } from "../pricing/index.jsx";
 import { styles } from "../../ui/styles.js";
@@ -38,8 +40,8 @@ const SAMPLE_OBS = {
 };
 
 export function Landing({
-  user, plan, isAdmin, usage, quota,
-  onStart, onOpenPricing, onChoose, onPickDoc, onLogin, onLogout, onLegal, lockOf,
+  user, plan, isAdmin, usage, quota, docs,
+  onStart, onOpenPricing, onChoose, onPickDoc, onLogin, onLogout, onLegal, onOpenDoc, lockOf,
 }) {
   return (
     <div style={styles.landing}>
@@ -64,8 +66,8 @@ export function Landing({
         {/* 이미 쓰고 계신 분께 "이 서비스가 무엇인지" 설득하는 문구를 다시 보여 줄 이유가 없습니다 */}
         {user ? (
           <>
-            <h1 style={styles.heroTitle}>{user.name} 선생님,<br />다시 오셨네요</h1>
-            <p style={styles.heroSub}>하던 작업이 그대로 남아 있어요.<br />아래에서 문서를 골라 바로 이어서 하실 수 있어요.</p>
+            <h1 style={styles.heroTitle}>환영합니다</h1>
+            <p style={styles.heroSub}>버거운 작업들, 민트쌤과 함께 금방 작업해보아요</p>
           </>
         ) : (
           <>
@@ -77,7 +79,7 @@ export function Landing({
           <button style={styles.ctaPrimary} onClick={onStart}>
             {user ? "이어서 작업하기" : "가입 없이 만들어 보기"}
           </button>
-          <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>
+          {!user && <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>}
         </div>
         {!user && (
           <div style={styles.heroNote}>회원가입 없이 1건 바로 만들어 볼 수 있어요 · 신용카드 불필요</div>
@@ -85,7 +87,7 @@ export function Landing({
       </section>
 
       <section style={styles.featWrap}>
-        <div style={styles.sectionTitle}>이런 걸 만들어 드려요</div>
+        <div style={styles.sectionTitle}>{user ? "어떤 걸 작업해볼까요" : "이런 걸 만들어 드려요"}</div>
         <div style={styles.featGrid}>
           {MODES.map((m) => {
             // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다.
@@ -105,26 +107,39 @@ export function Landing({
         </div>
       </section>
 
-      {/* 결과물 미리보기 — 무엇이 나오는지 보고 결정할 수 있게 실제 카드를 그대로 보여줍니다 */}
-      <section style={styles.sampleWrap}>
-        <div style={styles.sectionTitle}>이렇게 나와요</div>
-        <div style={styles.sampleSub}>아래는 실제 생성 결과 화면이에요. 표 서식 그대로 한글·워드에 붙일 수 있어요.</div>
-        <div style={styles.sampleCard}>
-          <ObsCard o={SAMPLE_OBS} />
-        </div>
-        <button style={styles.sampleCta} onClick={onStart}>나도 만들어 보기</button>
-      </section>
+      {/* 로그인 전에는 "무엇이 나오는지"를, 로그인 후에는 "내가 뭘 해뒀는지"를 보여 줍니다.
+          이미 쓰고 계신 분께 결과 샘플과 요금제를 다시 보여 줄 이유가 없습니다. */}
+      {user ? (
+        <section style={styles.sampleWrap}>
+          <div style={styles.sectionTitle}>이 달의 작업</div>
+          <div style={styles.sampleSub}>날짜를 누르면 그날 만든 문서를 볼 수 있어요.</div>
+          <WorkCalendar docs={docs} onOpenDoc={onOpenDoc} />
+        </section>
+      ) : (
+        <>
+          {/* 결과물 미리보기 — 무엇이 나오는지 보고 결정할 수 있게 실제 카드를 그대로 보여줍니다 */}
+          <section style={styles.sampleWrap}>
+            <div style={styles.sectionTitle}>이렇게 나와요</div>
+            <div style={styles.sampleSub}>아래는 실제 생성 결과 화면이에요. 표 서식 그대로 한글·워드에 붙일 수 있어요.</div>
+            <div style={styles.sampleCard}>
+              <ObsCard o={SAMPLE_OBS} />
+            </div>
+            <button style={styles.sampleCta} onClick={onStart}>나도 만들어 보기</button>
+          </section>
 
-      <section style={styles.priceWrap}>
-        <div style={styles.sectionTitle}>요금제</div>
-        <PlanCards plan={user ? plan : undefined} onChoose={onChoose} />
-        <div style={styles.demoNote}>
-          * 지금은 베타 기간이라 유료 플랜도 결제 없이 바로 이용 상태로 전환됩니다. 결제는 곧 연결될 예정이에요.
-        </div>
-      </section>
+          <section style={styles.priceWrap}>
+            <div style={styles.sectionTitle}>요금제</div>
+            <PlanCards plan={undefined} onChoose={onChoose} />
+            <div style={styles.demoNote}>
+              * 지금은 베타 기간이라 유료 플랜도 결제 없이 바로 이용 상태로 전환됩니다. 결제는 곧 연결될 예정이에요.
+            </div>
+          </section>
+        </>
+      )}
 
       <footer style={styles.landFoot}>
         <div>{brand.name} · {brand.description}</div>
+        <SocialLinks />
         <div style={styles.footLinks}>
           <button style={styles.footLink} onClick={() => onLegal("terms")}>이용약관</button>
           <span style={styles.footDot}>·</span>

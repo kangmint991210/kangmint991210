@@ -204,6 +204,33 @@ export const styles = {
   needHint: { marginTop: 9, fontSize: 12, color: "#B08900", background: "#FFF8E1", borderRadius: 12, padding: "9px 13px", lineHeight: 1.6 },
   needWhy: { color: "#A08A4B", fontWeight: 400 },
 
+  /* ── 작업 달력 ──────────────────────────────────────── */
+  calWrap: { background: "#fff", borderRadius: 20, padding: "16px 16px 14px", boxShadow: `0 4px 0 ${SH}`, margin: "0 auto", maxWidth: 560 },
+  calHead: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 },
+  calNav: { width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: 12, border: "none", background: "#F1F9F5", color: "#2E9E86" },
+  calTitle: { flex: 1, textAlign: "center", fontFamily: DISPLAY, fontSize: 17, color: "#2E4A42" },
+  calCount: { display: "block", fontSize: 11.5, color: "#8AA79D", fontWeight: 600, marginTop: 2, fontFamily: BODY },
+  calGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
+  calWeekday: { textAlign: "center", fontSize: 11.5, fontWeight: 800, color: "#8AA79D", padding: "2px 0 6px" },
+  calSun: { color: "#E08585" },
+  calDay: { position: "relative", aspectRatio: "1 / 1", minHeight: 38, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, border: "none", borderRadius: 12, background: "#F7FBF9", color: "#5A6B64", fontSize: 13, fontWeight: 600 },
+  calToday: { outline: "2px solid #7FD8C4", outlineOffset: -2 },
+  calPicked: { background: "#CDEEDD", color: "#1F6B5A", fontWeight: 800 },
+  calDot: { fontSize: 10, fontWeight: 800, color: "#fff", background: MINT, borderRadius: 999, minWidth: 16, padding: "0 4px", lineHeight: "16px" },
+  calDetail: { marginTop: 12, display: "flex", flexDirection: "column", gap: 6 },
+  calDetailHead: { fontSize: 12.5, fontWeight: 800, color: "#1F6B5A", marginBottom: 2 },
+  calDocRow: { display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: "none", borderRadius: 12, background: "#F5FBF8", padding: "10px 12px" },
+  calDocEmoji: { fontSize: 15, flexShrink: 0 },
+  calDocLabel: { flexShrink: 0, fontSize: 11, fontWeight: 800, color: "#1F6B5A", background: "#CDEEDD", padding: "3px 8px", borderRadius: 999 },
+  calDocTitle: { flex: 1, minWidth: 0, fontSize: 13, color: "#48564F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  calHint: { marginTop: 12, fontSize: 12, color: "#8AA79D", textAlign: "center", lineHeight: 1.6 },
+
+  /* ── 소셜 채널 ──────────────────────────────────────── */
+  socialRow: { display: "flex", justifyContent: "center", alignItems: "center", gap: 10, padding: "14px 0 4px", flexWrap: "wrap" },
+  socialBtn: { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 999, background: "#fff", color: "#7A9A90", border: "none", boxShadow: `0 2px 0 ${SH}` },
+  socialOff: { opacity: 0.45 },
+  siteFoot: { padding: "8px 16px 24px" },
+
   /* ── 보관함 검색 ────────────────────────────────────── */
   searchRow: { display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "8px 12px", boxShadow: `0 2px 0 ${SH}` },
   searchInput: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 13, color: INK, fontFamily: "inherit" },

@@ -19,6 +19,7 @@ import { AuthPage } from "./src/features/auth/AuthPage.jsx";
 import { LegalPage } from "./src/features/legal/LegalPage.jsx";
 import { Workspace } from "./src/features/workspace/Workspace.jsx";
 import { PricingModal, PaywallModal, SignupWallModal } from "./src/features/pricing/index.jsx";
+import { SiteFooter } from "./src/ui/SiteFooter.jsx";
 
 export default function MintSsaem() {
   const app = useMintApp();
@@ -38,6 +39,8 @@ export default function MintSsaem() {
           usage={app.usage}
           quota={app.quota}
           onLogout={app.logout}
+          docs={app.allDocs}
+          onOpenDoc={app.openDocFromCalendar}
           onStart={app.startTrial}
           onOpenPricing={() => app.setShowPricing(true)}
           onChoose={chooseFromLanding}
@@ -61,23 +64,27 @@ export default function MintSsaem() {
 
   if (view === "auth") {
     return (
-      <AuthPage
-        mode={app.authMode}
-        setMode={app.setAuthMode}
-        onHome={() => { app.setAuthError(null); app.setView("landing"); }}
-        onLegal={app.openLegal}
-        initialError={app.authError}
-      />
+      <>
+        <AuthPage
+          mode={app.authMode}
+          setMode={app.setAuthMode}
+          onHome={() => { app.setAuthError(null); app.setView("landing"); }}
+          onLegal={app.openLegal}
+          initialError={app.authError}
+        />
+        <SiteFooter />
+      </>
     );
   }
 
   if (view === "legal") {
-    return <LegalPage tab={app.legalTab} setTab={app.setLegalTab} onHome={app.closeLegal} />;
+    return <><LegalPage tab={app.legalTab} setTab={app.setLegalTab} onHome={app.closeLegal} /><SiteFooter /></>;
   }
 
   return (
     <>
       <Workspace app={app} />
+      <SiteFooter />
 
       {showPricing && (
         <PricingModal plan={plan} onChoose={app.choosePlan} onClose={() => app.setShowPricing(false)} />

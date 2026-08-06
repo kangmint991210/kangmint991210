@@ -18,6 +18,9 @@ import {
 } from "../src/domain/documents.js";
 import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import {
+  dayKey, shiftMonth, monthGrid, groupByDay, countInMonth, monthLabel, WEEKDAYS,
+} from "../src/domain/calendar.js";
+import {
   MAX_PENDING, addPending, removePending, pendingFor, withoutUser,
 } from "../src/domain/pending-docs.js";
 import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
@@ -256,6 +259,57 @@ test("망가진 값이 섞여 있어도 죽지 않는다", () => {
   assert.deepEqual(pendingFor(list, "u1").map((d) => d.id), ["a"]);
   assert.deepEqual(removePending(list, "a").length, 2);
   assert.deepEqual(pendingFor(null, "u1"), []);
+});
+
+/* ─────────────── 작업 달력 ─────────────── */
+// 날짜 계산은 눈으로 검토하기 어렵고(월말·윤년·시간대) 틀리면 조용히 다른 날에 표시됩니다.
+
+test("달력은 일요일부터 시작하고 앞뒤를 빈 칸으로 채운다", () => {
+  assert.deepEqual(WEEKDAYS, ["일", "월", "화", "수", "목", "금", "토"]);
+  // 2026년 8월 1일은 토요일 → 앞에 빈 칸 6개
+  const cells = monthGrid({ year: 2026, month: 8 });
+  assert.equal(cells.length % 7, 0, "항상 7의 배수여야 줄이 어긋나지 않음");
+  assert.deepEqual(cells.slice(0, 6), [null, null, null, null, null, null]);
+  assert.equal(cells[6].day, 1);
+  assert.equal(cells[6].key, "2026-08-01");
+  assert.equal(cells.filter(Boolean).length, 31);
+});
+
+test("윤년 2월을 정확히 센다", () => {
+  assert.equal(monthGrid({ year: 2024, month: 2 }).filter(Boolean).length, 29);
+  assert.equal(monthGrid({ year: 2026, month: 2 }).filter(Boolean).length, 28);
+});
+
+test("달 이동은 해를 넘어간다", () => {
+  assert.deepEqual(shiftMonth({ year: 2026, month: 12 }, 1), { year: 2027, month: 1 });
+  assert.deepEqual(shiftMonth({ year: 2026, month: 1 }, -1), { year: 2025, month: 12 });
+  assert.deepEqual(shiftMonth({ year: 2026, month: 3 }, -5), { year: 2025, month: 10 });
+  assert.equal(monthLabel({ year: 2026, month: 8 }), "2026년 8월");
+});
+
+test("날짜는 현지 시각으로 센다", () => {
+  // created_at 은 UTC 로 저장됩니다. 그대로 UTC 로 날짜를 뽑으면
+  // 한국에서 밤에 만든 문서가 다음 날로 밀립니다.
+  const local = new Date(2026, 7, 6, 23, 30);   // 8월 6일 밤 11시 30분 (현지)
+  assert.equal(dayKey(local), "2026-08-06");
+  assert.equal(dayKey("이상한 값"), null);
+});
+
+test("문서를 날짜별로 묶고, 날짜를 모르는 것은 세지 않는다", () => {
+  const iso = (y, m, d, h = 12) => new Date(y, m - 1, d, h).toISOString();
+  const docs = [
+    { uid: "a", createdAt: iso(2026, 8, 6) },
+    { uid: "b", createdAt: iso(2026, 8, 6) },
+    { uid: "c", createdAt: iso(2026, 8, 7) },
+    { uid: "d", createdAt: null },              // 아직 저장 전이라 날짜를 모름
+    { uid: "e", createdAt: "깨진값" },
+  ];
+  const byDay = groupByDay(docs);
+  assert.deepEqual(byDay["2026-08-06"].map((d) => d.uid), ["a", "b"]);
+  assert.deepEqual(byDay["2026-08-07"].map((d) => d.uid), ["c"]);
+  assert.equal(countInMonth(byDay, { year: 2026, month: 8 }), 3);
+  assert.equal(countInMonth(byDay, { year: 2026, month: 9 }), 0, "다른 달을 세면 안 됨");
+  assert.deepEqual(groupByDay(null), {});
 });
 
 /* ─────────────── 날짜 ─────────────── */

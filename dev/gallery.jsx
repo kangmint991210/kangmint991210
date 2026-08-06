@@ -18,6 +18,8 @@ import { PaywallModal, SignupWallModal, PricingModal } from "../src/features/pri
 import { PasswordField } from "../src/ui/fields.jsx";
 import { Landing } from "../src/features/landing/Landing.jsx";
 import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
+import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
+import { SiteFooter } from "../src/ui/SiteFooter.jsx";
 import { styles } from "../src/ui/styles.js";
 import { css } from "../src/ui/theme.js";
 
@@ -221,6 +223,25 @@ function PasswordView() {
   );
 }
 
+// 달력 표본 — 이번 달 안의 날짜여야 화면에 보입니다
+const now = new Date();
+const at = (day, hour = 12) => new Date(now.getFullYear(), now.getMonth(), day, hour).toISOString();
+const CAL_DOCS = [
+  { mode: "obs", no: 0, uid: "c1", createdAt: at(3), title: "관찰일지 · 김○○", favorite: true },
+  { mode: "note", no: 0, uid: "c2", createdAt: at(3, 15), title: "알림장", favorite: false },
+  { mode: "life", no: 0, uid: "c3", createdAt: at(3, 18), title: "생활기록부 · 김○○", favorite: false },
+  { mode: "event", no: 0, uid: "c4", createdAt: at(11), title: "행사 계획안 · 여름 물놀이 축제", favorite: false },
+];
+
+function CalendarView() {
+  return (
+    <div style={{ ...styles.landing, padding: "20px 16px" }}>
+      <WorkCalendar docs={CAL_DOCS} onOpenDoc={() => {}} />
+      <SiteFooter />
+    </div>
+  );
+}
+
 const noop = () => {};
 
 // 랜딩 — 로그인 전/후가 달라 보여야 합니다.
@@ -228,6 +249,7 @@ const noop = () => {};
 const LandingView = (user, plan) => () => (
   <Landing
     user={user} plan={plan} isAdmin={false} usage={12} quota={2000}
+    docs={user ? CAL_DOCS : []} onOpenDoc={noop}
     onStart={noop} onOpenPricing={noop} onChoose={noop} onPickDoc={noop}
     onLogin={noop} onLogout={noop} onLegal={noop}
     // 앱(민트쌤.jsx)과 같은 규칙을 씁니다 — 검수 화면만 따로 판단하면 검증이 헛돕니다
@@ -247,6 +269,7 @@ const VIEWS = {
   pricing: () => <PricingModal plan="free" onChoose={noop} onClose={noop} />,
   savebar: () => <SaveBarView />,
   password: () => <PasswordView />,
+  calendar: () => <CalendarView />,
   "landing-guest": LandingView(null, "free"),
   "landing-user": LandingView({ name: "김민트", email: "mint@example.com", avatar: null }, "pro"),
   ...Object.fromEntries(Object.keys(SAMPLES).map((k) => [`card-${k}`, () => <CardView kind={k} />])),

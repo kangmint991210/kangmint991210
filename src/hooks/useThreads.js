@@ -25,6 +25,7 @@ const rowToMessages = (row) => {
     role: "bot", uid: uid(), docId: row.id, kind: row.kind,
     text: row.payload?.reply || "완성했어요!", payload: row.payload,
     favorite: Boolean(row.is_favorite),
+    createdAt: row.created_at,   // 달력이 "며칠에 무엇을 만들었는지" 세는 근거
   });
   return out;
 };
@@ -96,7 +97,8 @@ export function useThreads() {
           ...(next[d.kind] || []),
           ...(d.userText ? [{ role: "user", uid: uid(), text: d.userText }] : []),
           { role: "bot", uid: uid(), kind: d.kind, pendingId: d.id,
-            text: d.payload?.reply || "완성했어요!", payload: d.payload },
+            text: d.payload?.reply || "완성했어요!", payload: d.payload,
+            createdAt: d.at ? new Date(d.at).toISOString() : null },
         ];
       }
       return next;
@@ -126,6 +128,11 @@ export function useThreads() {
 
   const toggleOpen = useCallback((mode, index, currentOpen) => {
     setOpenDoc((o) => ({ ...o, [mode]: currentOpen === index ? null : index }));
+  }, []);
+
+  /** 특정 문서를 펼친 채로 (달력에서 그날의 작업을 눌러 들어올 때) */
+  const openAt = useCallback((mode, index) => {
+    setOpenDoc((o) => ({ ...o, [mode]: index }));
   }, []);
 
   /* ── 수정 · 저장 ─────────────────────────────── */
@@ -233,7 +240,7 @@ export function useThreads() {
   return {
     threads, messagesOf, openDoc,
     loadAll, clearAll, restoreGuestDoc,
-    setMessages, resetOpen, toggleOpen, restorePending,
+    setMessages, resetOpen, toggleOpen, openAt, restorePending,
     // 수정·저장
     payloadOf, isDirty, draftCount, editField, saveDoc, dropDraft,
     savingUid, savedUid, failedUid,

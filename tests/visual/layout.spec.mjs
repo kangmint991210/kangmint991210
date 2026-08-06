@@ -193,7 +193,7 @@ test("로그인 전에는 로그인·무료로 시작 버튼이 보인다", asyn
 test("유료 회원에게는 문서 카드에 자물쇠가 붙지 않는다", async ({ page }) => {
   // 예전에는 요금제와 무관하게 최소 플랜만 표시해, Pro 회원에게도 🔒 Basic 이 붙었습니다.
   await page.goto("/gallery.html?v=landing-user");
-  await expect(page.getByText("이런 걸 만들어 드려요")).toBeVisible();
+  await expect(page.locator(".feat-card").first()).toBeVisible();
   await expect(lockedDocCards(page)).toHaveCount(0);
 
   await page.goto("/gallery.html?v=landing-guest");
@@ -203,7 +203,7 @@ test("유료 회원에게는 문서 카드에 자물쇠가 붙지 않는다", as
 for (const view of ["landing-guest", "landing-user"]) {
   test(`${view} 는 화면 밖으로 넘치지 않는다`, async ({ page }) => {
     await page.goto(`/gallery.html?v=${view}`);
-    await expect(page.getByText("이런 걸 만들어 드려요")).toBeVisible();
+    await expect(page.locator(".feat-card").first()).toBeVisible();
     const overflow = await page.evaluate(() => {
       const el = document.scrollingElement;
       return el.scrollWidth - el.clientWidth;
@@ -211,6 +211,46 @@ for (const view of ["landing-guest", "landing-user"]) {
     expect(overflow, `${view} 가 가로로 넘침`).toBeLessThanOrEqual(1);
   });
 }
+
+/* ─────────────── 작업 달력 ─────────────── */
+
+test("작업한 날에 건수가 표시되고, 누르면 그날 문서가 나온다", async ({ page }) => {
+  await page.goto("/gallery.html?v=calendar");
+
+  const day3 = page.getByTitle("3일 · 3건", { exact: true });
+  await expect(day3).toBeVisible();
+  // 기록이 없는 날은 누를 수 없어야 합니다 (빈 목록을 열어 놓으면 헛걸음입니다)
+  await expect(page.getByTitle("2일", { exact: true })).toBeDisabled();
+
+  await day3.click();
+  await expect(page.getByText("3일에 만든 문서 3건")).toBeVisible();
+  await expect(page.getByText("관찰일지 · 김○○")).toBeVisible();
+  await expect(page.getByText("행사 계획안 · 여름 물놀이 축제")).toHaveCount(0);
+});
+
+test("로그인하면 랜딩에 결과 샘플·요금제 대신 달력이 나온다", async ({ page }) => {
+  await page.goto("/gallery.html?v=landing-user");
+  await expect(page.getByText("이 달의 작업")).toBeVisible();
+  await expect(page.getByText("어떤 걸 작업해볼까요")).toBeVisible();
+  await expect(page.getByText("환영합니다")).toBeVisible();
+  // 이미 쓰고 계신 분께 다시 보여 줄 이유가 없는 것들
+  await expect(page.getByText("이렇게 나와요")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "요금제 보기" })).toHaveCount(0);
+});
+
+test("로그인 전에는 결과 샘플과 요금제가 그대로 나온다", async ({ page }) => {
+  await page.goto("/gallery.html?v=landing-guest");
+  await expect(page.getByText("이렇게 나와요")).toBeVisible();
+  await expect(page.getByText("이런 걸 만들어 드려요")).toBeVisible();
+  await expect(page.getByText("이 달의 작업")).toHaveCount(0);
+});
+
+test("소셜 채널 아이콘이 하단에 보인다", async ({ page }) => {
+  await page.goto("/gallery.html?v=calendar");
+  for (const name of ["카카오톡 채널", "인스타그램", "페이스북", "X"]) {
+    await expect(page.getByTitle(new RegExp(`^${name}`))).toBeVisible();
+  }
+});
 
 /* ─────────────── 저장 바 ─────────────── */
 

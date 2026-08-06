@@ -12,6 +12,20 @@ export const contact = {
   email: "help@mintssaem.kr",
 };
 
+/**
+ * 소셜 채널 주소. 모든 화면 하단에 아이콘으로 나갑니다.
+ *
+ * ⚠ 비워 두면 아이콘은 보이되 눌러도 아무 일도 일어나지 않고 "준비 중" 으로 표시됩니다.
+ *    계정을 만드셨으면 아래에 주소를 채워 주세요. 채우는 즉시 링크가 열립니다.
+ *    (없는 주소를 미리 적어 두면 방문자가 오류 페이지를 보게 되므로 비워 둡니다)
+ */
+export const social = {
+  kakao: "",       // 카카오톡 채널 (예: https://pf.kakao.com/_xxxxxxx)
+  instagram: "",   // 예: https://instagram.com/계정명
+  facebook: "",    // 예: https://facebook.com/페이지명
+  x: "",           // 예: https://x.com/계정명
+};
+
 export const ai = {
   model: "gemini-3.1-flash-lite",
   endpoint: "/api/gemini",

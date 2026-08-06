@@ -17,7 +17,7 @@ import {
 import {
   DEFAULT_PLAN, isDocLocked, minPlanFor, canExportFiles, PLAN_KEYS,
 } from "../domain/plans.js";
-import { toTurns, filterTurns, toHistory, shouldFollowNewest } from "../domain/threads.js";
+import { toTurns, filterTurns, toHistory, shouldFollowNewest, docTitle } from "../domain/threads.js";
 import { promptFor } from "../prompts/index.js";
 import { generateDocument, QuotaExceededError } from "../services/gemini.js";
 import { documents } from "../services/repository.js";
@@ -91,6 +91,19 @@ export function useMintApp() {
   const favCount = allTurns.filter((t) => t.bot?.favorite).length;
   const lastDocIdx = allTurns.reduce((acc, t, i) => (t.bot ? i : acc), -1);
   const openIdx = threads.openDoc[mode] === undefined ? lastDocIdx : threads.openDoc[mode];
+
+  /** 달력이 쓸 "만든 문서 전체" — 종류를 가리지 않고 한 줄로 폅니다 */
+  const allDocs = useMemo(() =>
+    MODE_KEYS.flatMap((key) =>
+      toTurns(threads.threads[key] || [])
+        .filter((t) => t.bot && !t.bot.error)
+        .map((t) => ({
+          mode: key, no: t.no, uid: t.bot.uid,
+          createdAt: t.bot.createdAt,
+          title: docTitle(t.bot),
+          favorite: Boolean(t.bot.favorite),
+        }))
+    ), [threads.threads]);
 
   const current = modeOf(mode);
   const prompt = promptFor(mode);
@@ -227,7 +240,8 @@ export function useMintApp() {
       const botUid = uid();
       threads.setMessages(mode, (list) => [
         ...list,
-        { role: "bot", uid: botUid, kind: mode, text: payload.reply || "완성했어요!", payload },
+        { role: "bot", uid: botUid, kind: mode, text: payload.reply || "완성했어요!", payload,
+          createdAt: new Date().toISOString() },
       ]);
 
       if (user) {
@@ -312,6 +326,15 @@ export function useMintApp() {
     setView("app");
   }, [user]);
 
+  // 달력에서 그날의 문서를 눌렀을 때 — 그 문서를 펼친 채로 작업 화면으로.
+  const openDocFromCalendar = useCallback(({ mode: key, no }) => {
+    setMode(key);
+    setFavOnly(false);
+    setQuery("");
+    threads.openAt(key, no);
+    setView("app");
+  }, [threads]);
+
   // 랜딩의 문서 카드 → 그 문서를 고른 채로 앱으로.
   const pickDoc = useCallback((key) => {
     setMode(key);
@@ -355,10 +378,11 @@ export function useMintApp() {
     query, setQuery, favOnly, setFavOnly, loading, elapsed, scroller,
     // 파생
     current, prompt, missing, canGenerate, isLocked, explainLock,
-    messages, allTurns, turns, docCount, favCount, openIdx, eta: prompt?.eta || ai.defaultEta,
+    messages, allTurns, turns, docCount, favCount, openIdx, allDocs, eta: prompt?.eta || ai.defaultEta,
     // 동작
     send, threads, clearCurrentMode,
     openLegal, closeLegal, goAuth, startTrial, pickDoc, choosePlan, logout, openAuth,
+    openDocFromCalendar,
     MODES,
   };
 }
