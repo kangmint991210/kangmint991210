@@ -13,17 +13,24 @@ npm install
 `.env` 파일에 아래 3개 값을 채웁니다. (`.env.example` 참고)
 ```
 GEMINI_API_KEY=...                     # AI 문서 생성 (Gemini)
-VITE_SUPABASE_URL=https://moudhssidpgbpeuihzsr.supabase.co
+VITE_SUPABASE_URL=https://qmgrxztlluspcfkqosan.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → API → anon public
 ```
 - Gemini 키: https://aistudio.google.com/apikey — Vite 프록시가 서버 쪽에서 붙여 브라우저에 노출되지 않음.
 - Supabase `anon` 키: 프론트엔드 노출 OK(RLS 로 보호). `VITE_` 접두사 필수.
+- 🚨 **URL 과 anon 키는 반드시 같은 프로젝트의 것을 함께 복사하세요.**
+  섞이면 모든 DB 요청이 `401 Invalid API key` 로 죽는데, 화면에는 "저장이 안 된다" 정도로만 보입니다.
+  앱을 열면 브라우저 콘솔에 `[민트쌤] Supabase 프로젝트: <ref>` 가 찍히니, 의도한 프로젝트인지 확인하세요.
+  어긋나 있으면 빨간 경고로 무엇을 고쳐야 하는지 알려 줍니다. (`src/supabaseClient.js`)
+- 프로젝트 ref 는 위 URL 의 `https://<ref>.supabase.co` 부분입니다.
+  **SQL 을 실행할 때도 이 ref 와 같은 프로젝트의 SQL Editor 인지 먼저 확인하세요** —
+  다른 프로젝트에 실행하면 앱에서는 아무것도 바뀌지 않습니다.
 
 ### 3. Supabase 준비 (인증 + DB)
 1. **테이블 생성** — 대시보드 → SQL Editor 에서 [`supabase/schema.sql`](supabase/schema.sql) 전체를 실행. (`profiles` 회원 추적 테이블 + 가입 자동 트리거, `admins` 관리자 명단, `documents` 결과물 테이블 + RLS 정책)
 2. **이메일 로그인** — Authentication → Providers → Email 활성화. (빠른 테스트를 위해 "Confirm email"을 끄면 가입 즉시 로그인됩니다. 켜두면 확인 메일 링크를 눌러야 함)
 3. **소셜 로그인** — Authentication → Providers 에서 **Google**, **Kakao** 활성화 후 각 콘솔의 Client ID/Secret 입력.
-   - 각 공급자 콘솔의 **Redirect URI** 에 `https://moudhssidpgbpeuihzsr.supabase.co/auth/v1/callback` 등록.
+   - 각 공급자 콘솔의 **Redirect URI** 에 `https://qmgrxztlluspcfkqosan.supabase.co/auth/v1/callback` 등록.
 4. **Redirect URL 허용** — Authentication → URL Configuration → Redirect URLs 에 `http://localhost:5173` (배포 시 실제 도메인) 추가.
 
 > 회원 추적: 회원가입(이메일/구글/카카오)이 일어나면 트리거가 `profiles` 테이블에 회원 행을 자동 생성해
