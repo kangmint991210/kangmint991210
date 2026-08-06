@@ -13,7 +13,7 @@ npm install
 `.env` 파일에 아래 3개 값을 채웁니다. (`.env.example` 참고)
 ```
 GEMINI_API_KEY=...                     # AI 문서 생성 (Gemini)
-VITE_SUPABASE_URL=https://qmgrxztlluspcfkqosan.supabase.co
+VITE_SUPABASE_URL=https://moudhssidpgbpeuihzsr.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → API → anon public
 ```
 - Gemini 키: https://aistudio.google.com/apikey — Vite 프록시가 서버 쪽에서 붙여 브라우저에 노출되지 않음.
@@ -25,12 +25,18 @@ VITE_SUPABASE_ANON_KEY=eyJ...          # Supabase 대시보드 → Settings → 
 - 프로젝트 ref 는 위 URL 의 `https://<ref>.supabase.co` 부분입니다.
   **SQL 을 실행할 때도 이 ref 와 같은 프로젝트의 SQL Editor 인지 먼저 확인하세요** —
   다른 프로젝트에 실행하면 앱에서는 아무것도 바뀌지 않습니다.
+  헷갈리지 않으려면 대시보드를 이 주소로 여세요:
+  <https://supabase.com/dashboard/project/moudhssidpgbpeuihzsr/sql/new>
+- ⚠ **`.env` 의 ref 가 대시보드 프로젝트 목록에 실제로 있는지 확인하세요.**
+  예전에 쓰다 만 프로젝트의 URL·키가 `.env` 에 남아 있으면, 그 프로젝트가 살아 있는 한
+  앱은 조용히 거기에 읽고 씁니다. SQL 을 아무리 실행해도 반영되지 않고,
+  대시보드에서는 정상으로 보여 원인을 찾기가 매우 어렵습니다. (2026-08 에 실제로 겪은 일)
 
 ### 3. Supabase 준비 (인증 + DB)
 1. **테이블 생성** — 대시보드 → SQL Editor 에서 [`supabase/schema.sql`](supabase/schema.sql) 전체를 실행. (`profiles` 회원 추적 테이블 + 가입 자동 트리거, `admins` 관리자 명단, `documents` 결과물 테이블 + RLS 정책)
 2. **이메일 로그인** — Authentication → Providers → Email 활성화. (빠른 테스트를 위해 "Confirm email"을 끄면 가입 즉시 로그인됩니다. 켜두면 확인 메일 링크를 눌러야 함)
 3. **소셜 로그인** — Authentication → Providers 에서 **Google**, **Kakao** 활성화 후 각 콘솔의 Client ID/Secret 입력.
-   - 각 공급자 콘솔의 **Redirect URI** 에 `https://qmgrxztlluspcfkqosan.supabase.co/auth/v1/callback` 등록.
+   - 각 공급자 콘솔의 **Redirect URI** 에 `https://moudhssidpgbpeuihzsr.supabase.co/auth/v1/callback` 등록.
 4. **Redirect URL 허용** — Authentication → URL Configuration → Redirect URLs 에 `http://localhost:5173` (배포 시 실제 도메인) 추가.
 
 > 회원 추적: 회원가입(이메일/구글/카카오)이 일어나면 트리거가 `profiles` 테이블에 회원 행을 자동 생성해
