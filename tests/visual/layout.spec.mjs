@@ -177,7 +177,7 @@ const lockedDocCards = (page) => page.locator('.feat-card[title*="플랜부터�
 test("로그인하면 랜딩 우측 상단에 계정과 요금제가 보인다", async ({ page }) => {
   await page.goto("/gallery.html?v=landing-user");
 
-  await expect(topBar(page).getByText("✨ Pro")).toBeVisible();
+  await expect(topBar(page).getByText("Pro", { exact: true })).toBeVisible();
   await expect(topBar(page).getByRole("button", { name: /김민트/ })).toBeVisible();
   // 이미 로그인했으므로 로그인 버튼은 없어야 합니다.
   await expect(topBar(page).getByRole("button", { name: "로그인", exact: true })).toHaveCount(0);
@@ -191,7 +191,7 @@ test("로그인 전에는 로그인·무료로 시작 버튼이 보인다", asyn
 
   await expect(topBar(page).getByRole("button", { name: "로그인", exact: true })).toBeVisible();
   await expect(topBar(page).getByRole("button", { name: "무료로 시작" })).toBeVisible();
-  await expect(topBar(page).getByText("✨ Pro")).toHaveCount(0);
+  await expect(topBar(page).getByText("Pro", { exact: true })).toHaveCount(0);
 });
 
 test("유료 회원에게는 문서 카드에 자물쇠가 붙지 않는다", async ({ page }) => {

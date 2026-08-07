@@ -314,7 +314,7 @@ export const styles = {
   legalTodo: { marginTop: 22, fontSize: 11.5, color: "#B08900", background: "#FFF8E1", borderRadius: 12, padding: "11px 13px", lineHeight: 1.6 },
 
   headRight: { display: "flex", alignItems: "center", gap: 8 },
-  planPro: { fontSize: 12.5, fontWeight: 800, color: "#7A5A00", background: "#FFE9A8", padding: "7px 12px", borderRadius: 999, boxShadow: "0 2px 0 #F0D480" },
+  planPro: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 800, color: "#6B4E00", background: "#FFE39A", padding: "7px 12px", borderRadius: 999, boxShadow: "0 2px 0 #EFCC6A" },
   // 업그레이드 유도 버튼 — 민트색 배경에 묻히지 않도록 산뜻한 연노랑으로 대비를 줌
   planFree: { fontSize: 12, fontWeight: 800, color: "#7A5A00", background: "#FFF3B0", border: "none", padding: "8px 12px", borderRadius: 999, boxShadow: "0 2px 0 #EFD26A" },
 

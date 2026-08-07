@@ -8,7 +8,7 @@
 // (작업 화면은 "체험 중 · 가입하기", 랜딩은 "로그인 / 무료로 시작")
 
 import React from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 import { planName } from "../../domain/plans.js";
 import { styles } from "../../ui/styles.js";
 
@@ -16,7 +16,14 @@ function PlanBadge({ plan, isAdmin, usage, quota, onOpenPricing }) {
   if (isAdmin) return <span style={styles.planPro} title="관리자 — 문서 전체 이용">👑 관리자</span>;
   // 최상위 플랜은 더 권할 것이 없으므로 배지만
   if (plan === "pro") {
-    return <span style={styles.planPro} title={`이번 달 ${usage}/${quota}회 사용`}>✨ Pro</span>;
+    // ⚠ ✨ 이모지를 쓰면 안 됩니다. 이모지는 제 색으로 그려져 CSS 로 바꿀 수 없는데,
+    //    노란 이모지가 노란 배지 위에 얹혀 거의 보이지 않았습니다.
+    //    글자와 같은 진한 금색을 물려받는 아이콘으로 그립니다.
+    return (
+      <span style={styles.planPro} title={`이번 달 ${usage}/${quota}회 사용`}>
+        <Sparkles size={13} strokeWidth={2.6} /> Pro
+      </span>
+    );
   }
   return (
     <button style={styles.planFree} onClick={onOpenPricing}
