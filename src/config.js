@@ -16,10 +16,10 @@ export const contact = {
 /**
  * 환불 정책의 숫자와 결제 정보.
  *
- * ⚠ live 는 "실제로 결제를 받고 있는가" 입니다. 아직 베타라 false 이고,
- *    환불 화면에 그 사실을 먼저 알려 줍니다. 정식 결제를 붙일 때
- *    processor 를 적고 live 를 true 로 바꾸세요.
- *    쓰지 않는 결제사를 미리 적어 두면 약관 자체가 분쟁거리가 됩니다.
+ * ⚠ live 는 "실제로 결제를 받고 있는가" 입니다. 2026-08 Paddle 연결과 함께 true 가 됐습니다.
+ *    결제를 잠시 멈추게 되면 false 로 되돌리세요 — 환불 화면이 그 사실을 먼저 알려 줍니다.
+ *    processor 는 실제로 쓰는 결제사만 적습니다. 쓰지 않는 곳을 적어 두면
+ *    약관 자체가 분쟁거리가 됩니다.
  */
 export const refund = {
   live: true,
@@ -85,10 +85,10 @@ export const trial = {
  *    지어낸 값을 미리 적어 두면 그 자체가 허위 표시가 됩니다.
  */
 export const business = {
-  name: "",             // 상호
-  owner: "",            // 대표자
-  registrationNo: "",   // 사업자등록번호
-  address: "",          // 사업장 주소
+  name: "",             // 상호 — 아직 확인 중
+  owner: "박수빈",
+  registrationNo: "218-13-19736",
+  address: "",          // 사업장 주소 — 아직 확인 중
   mailOrderNo: "2025-의정부흥선-0680",  // 통신판매업 신고번호
 };
 
