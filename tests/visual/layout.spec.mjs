@@ -80,6 +80,40 @@ for (const { kind, text } of EDIT_ROWS) {
   });
 }
 
+/* ─────────────── 입력 폼 정렬 ─────────────── */
+// 흰 입력칸이 줄마다 다른 자리에서 시작하면 폼이 들쭉날쭉해 보입니다.
+// 원인이 됐던 것들: 라벨이 입력칸 "안"에 있던 주제·준비물,
+// 위아래 줄과 기준 폭이 달랐던 기록자, 가장 긴 라벨보다 좁던 rowLabel 의 minWidth.
+
+for (const view of ["panel-play", "panel-obs"]) {
+  test(`${view} 의 입력칸이 같은 자리에서 시작한다`, async ({ page }) => {
+    // ⚠ 폭을 직접 정합니다 — 좁은 화면에서는 두 칸이 한 줄씩으로 접혀서
+    //    "왼쪽 칸 / 오른쪽 칸" 이라는 것 자체가 없어집니다.
+    await page.setViewportSize({ width: 780, height: 800 });
+    await page.goto(`/gallery.html?v=${view}`);
+    await expect(page.locator("input, button").first()).toBeVisible();
+
+    const box = await page.evaluate(() => {
+      const root = document.querySelector("div > div");
+      const r = root.getBoundingClientRect();
+      const mid = r.left + r.width / 2;
+      // 눈에 보이는 "흰 상자"만 — 라벨·칩 텍스트는 배경이 없습니다
+      const rects = [...root.querySelectorAll("input, textarea, button, div")]
+        .filter((el) => getComputedStyle(el).backgroundColor === "rgb(255, 255, 255)")
+        .map((el) => el.getBoundingClientRect())
+        .filter((b) => b.width > 60 && b.height > 20);
+      const lefts = (list) => [...new Set(list.map((b) => Math.round(b.left)))].sort((a, b) => a - b);
+      return {
+        left: lefts(rects.filter((b) => b.left < mid)),
+        right: lefts(rects.filter((b) => b.left >= mid)),
+      };
+    });
+
+    expect(box.left, `왼쪽 입력칸들이 서로 다른 자리에서 시작: ${box.left.join(", ")}`).toHaveLength(1);
+    expect(box.right, `오른쪽 입력칸들이 서로 다른 자리에서 시작: ${box.right.join(", ")}`).toHaveLength(1);
+  });
+}
+
 /* ─────────────── 모달 배치 ─────────────── */
 
 test("요금제 안내 — 버튼과 혜택 목록이 한 줄에 나란히 놓이지 않는다", async ({ page }) => {

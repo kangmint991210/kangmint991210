@@ -30,7 +30,9 @@ export const styles = {
   row: { display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10, flexWrap: "wrap" },
   rowSplit: { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 },
   miniRow: { display: "flex", alignItems: "flex-start", gap: 10, flex: "1 1 220px" },
-  rowLabel: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: "#7A9A90", minWidth: 50, paddingTop: 7, whiteSpace: "nowrap" },
+  // ⚠ minWidth 는 가장 긴 라벨("🧸 준비물", "✍️ 기록자" = 52px)보다 넓어야 합니다.
+  //    좁으면 그 줄만 입력칸이 몇 px 밀려서, 위아래 줄과 흰 상자가 어긋나 보입니다.
+  rowLabel: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 700, color: "#7A9A90", minWidth: 56, paddingTop: 7, whiteSpace: "nowrap" },
   chips: { display: "flex", flexWrap: "wrap", gap: 7 },
   chip: { fontSize: 12.5, padding: "7px 13px", borderRadius: 999, border: "none", background: "#fff", color: "#6f8079", boxShadow: `0 2px 0 ${SH}` },
   chipOn: { background: "#B7EBDD", color: "#1F6B5A", fontWeight: 700, boxShadow: "0 2px 0 #7FD4BE" },

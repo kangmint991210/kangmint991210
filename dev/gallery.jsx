@@ -19,7 +19,7 @@ import { PasswordField } from "../src/ui/fields.jsx";
 import { Landing } from "../src/features/landing/Landing.jsx";
 import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
 import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
-import { ObsPanel } from "../src/features/editor/Panels.jsx";
+import { ObsPanel, PlayPanel } from "../src/features/editor/Panels.jsx";
 import { createEmptyForm } from "../src/domain/documents.js";
 import { DocGlyph, GlyphDefs } from "../src/features/landing/DocGlyphs.jsx";
 import { MODES } from "../src/domain/documents.js";
@@ -255,6 +255,16 @@ function ObsPanelView() {
   );
 }
 
+function PlayPanelView() {
+  const [form, setForm] = useState(() => ({ ...createEmptyForm(), theme: "", materials: "" }));
+  return (
+    <div style={{ ...styles.landing, padding: "20px 16px" }}>
+      <PlayPanel form={form} setF={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
+        toggleDomain={() => {}} />
+    </div>
+  );
+}
+
 function CalendarView() {
   return (
     <div style={{ ...styles.landing, padding: "20px 16px" }}>
@@ -317,6 +327,7 @@ const VIEWS = {
   password: () => <PasswordView />,
   calendar: () => <CalendarView />,
   "panel-obs": () => <ObsPanelView />,
+  "panel-play": () => <PlayPanelView />,
   glyphs: () => <GlyphsView />,
   ...Object.fromEntries(LEGAL_TABS.map(([k]) => [`legal-${k}`, () => <LegalView tab={k} />])),
   "landing-guest": LandingView(null, "free"),

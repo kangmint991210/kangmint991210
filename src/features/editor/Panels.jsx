@@ -26,9 +26,15 @@ export function PlayPanel({ form, setF, toggleDomain }) {
         <div style={styles.miniRow}><Lbl>📍 장소</Lbl><Chips items={PLACES} value={form.place} onPick={(v) => setF("place", v)} /></div>
         <div style={styles.miniRow}><Lbl>⏰ 시간</Lbl><Chips items={DURATIONS} value={form.duration} onPick={(v) => setF("duration", v)} /></div>
       </div>
+      {/* 위의 장소·시간과 같은 구조(라벨 밖 + 입력칸)로 둡니다.
+          라벨을 입력칸 안에 두면 흰 칸이 시작하는 자리가 위아래로 어긋나 보입니다. */}
       <div style={styles.rowSplit}>
-        <input value={form.theme} onChange={(e) => setF("theme", e.target.value)} placeholder="🎈 주제 (예: 봄, 공룡)" style={styles.field} />
-        <input value={form.materials} onChange={(e) => setF("materials", e.target.value)} placeholder="🧸 준비물 (예: 색종이)" style={styles.field} />
+        <div style={styles.miniRow}><Lbl>🎈 주제</Lbl>
+          <input value={form.theme} onChange={(e) => setF("theme", e.target.value)}
+            placeholder="예: 봄, 공룡" style={styles.field} /></div>
+        <div style={styles.miniRow}><Lbl>🧸 준비물</Lbl>
+          <input value={form.materials} onChange={(e) => setF("materials", e.target.value)}
+            placeholder="예: 색종이" style={styles.field} /></div>
       </div>
     </>
   );
@@ -66,7 +72,11 @@ export function ObsPanel({ form, setF }) {
         <DateField type="date" text="생년월일" label="생년월일"
           value={form.birth} onChange={(v) => setF("birth", v)}
           suffix={ageSuffix(form.birth, form.obsPeriod)} />
-        <input value={form.recorder} onChange={(e) => setF("recorder", e.target.value)} placeholder="✍️ 기록자 (선택)" style={styles.field} />
+        {/* 위아래 줄(성별·연령)과 같이 라벨을 밖에 둡니다 —
+            그래야 오른쪽 칸의 흰 상자가 세 줄에서 같은 자리에서 시작합니다 */}
+        <div style={styles.miniRow}><Lbl>✍️ 기록자</Lbl>
+          <input value={form.recorder} onChange={(e) => setF("recorder", e.target.value)}
+            placeholder="선택" style={styles.field} /></div>
       </div>
       <div style={styles.rowSplit}>
         <DateField type="month" value={form.obsPeriod} onChange={(v) => setF("obsPeriod", v)} label="관찰 월" />
