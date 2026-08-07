@@ -204,16 +204,13 @@ const SHAPES = {
   </>),
 };
 
-/**
- * @param {string} mode  문서 종류
- * @param {boolean} light 색 타일 위에 흰 마크로 그릴지 (기본은 옅은 타일 위 색 마크)
- */
-export function DocGlyph({ mode, size = 32, light = false }) {
+/** @param {string} mode 문서 종류 */
+export function DocGlyph({ mode, size = 32 }) {
   const draw = SHAPES[mode];
   if (!draw) return null;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden focusable="false">
-      {draw(light ? "#fff" : `url(#g-${mode})`)}
+      {draw(`url(#g-${mode})`)}
     </svg>
   );
 }

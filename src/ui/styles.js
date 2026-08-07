@@ -401,19 +401,14 @@ export const styles = {
   //
   // 광택은 세 가지가 겹쳐 만들어집니다 — 위에서 내려오는 밝은 결(배경 그라디언트),
   // 맨 윗변의 얇은 하이라이트, 아래쪽 안쪽 그늘. 여기에 스페큘러 반사(featShine)를 얹습니다.
-  featTile: (tint, accent, color) => ({
+  featTile: (tint, color) => ({
     position: "relative", width: "100%", maxWidth: 76, aspectRatio: "1 / 1",
     borderRadius: 22, display: "grid", placeItems: "center", overflow: "hidden",
-    background: accent
-      ? `linear-gradient(158deg, ${accent[0]} 0%, ${accent[1]} 100%)`
-      // ⚠ 아래쪽을 문서 색으로 살짝 눌러 줍니다. tint 만 쓰면 위아래가 거의 같은 흰색이라
-      //    빛이 비쳐도 티가 나지 않습니다.
-      : `linear-gradient(158deg, #fff 0%, ${tint} 38%, ${color}4D 100%)`,
-    boxShadow: accent
-      ? `inset 0 1.5px 0 rgba(255,255,255,.55), inset 0 -10px 16px -10px rgba(0,0,0,.28),
-         0 8px 16px -5px ${accent[1]}70, 0 1px 2px rgba(46,74,66,.10)`
-      : `inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -10px 16px -10px rgba(46,74,66,.16),
-         0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)`,
+    // ⚠ 아래쪽을 문서 색으로 살짝 눌러 줍니다. tint 만 쓰면 위아래가 거의 같은 흰색이라
+    //    빛이 비쳐도 티가 나지 않습니다.
+    background: `linear-gradient(158deg, #fff 0%, ${tint} 38%, ${color}4D 100%)`,
+    boxShadow: `inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -10px 16px -10px rgba(46,74,66,.16),
+                0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)`,
   }),
   // 왼쪽 위에서 비친 빛. 타일 밖으로 새지 않게 타일에 overflow:hidden 을 두었습니다.
   featShine: {
@@ -423,6 +418,9 @@ export const styles = {
   },
   featGlyph: { position: "relative", filter: "drop-shadow(0 1px 1.5px rgba(46,74,66,.18))" },
   // 잠긴 문서 — 타일 안쪽 모서리에 작게. 크게 붙이면 마크를 가립니다.
+  featFree: { position: "absolute", top: 6, right: 6, display: "grid", placeItems: "center",
+    height: 15, padding: "0 5px", borderRadius: 999, background: "#2E9E86", color: "#fff",
+    fontSize: 9, fontWeight: 800, letterSpacing: "-0.3px" },
   featLock: { position: "absolute", top: 6, right: 6, display: "grid", placeItems: "center",
     width: 15, height: 15, borderRadius: 999, background: "#EEF2F0", color: "#9DB0A8" },
   featLabel: { fontSize: 12, fontWeight: 700, color: "#4A5B54", textAlign: "center", lineHeight: 1.3, letterSpacing: "-0.2px" },

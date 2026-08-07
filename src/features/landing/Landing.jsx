@@ -106,11 +106,13 @@ export function Landing({
                 <button className="feat-card" style={styles.featCard}
                   onClick={() => onPickDoc(m.key)}
                   title={need ? `${m.label} — ${planName(need)} 플랜부터예요` : `${m.label} 만들러 가기`}>
-                  {/* 손님에게 열려 있는 문서 하나만 색 타일로 — 어디서 시작할지 눈이 먼저 갑니다 */}
-                  <span className="feat-tile" style={styles.featTile(m.tint, free ? [m.color, m.color2] : null, m.color)}>
+                  <span className="feat-tile" style={styles.featTile(m.tint, m.color)}>
                     <span style={styles.featShine} aria-hidden />
-                    <span style={styles.featGlyph}><DocGlyph mode={m.key} size={46} light={free} /></span>
-                    {need && <span style={styles.featLock} aria-hidden><Lock size={9} /></span>}
+                    <span style={styles.featGlyph}><DocGlyph mode={m.key} size={46} /></span>
+                    {/* 잠금·무료 표시는 같은 자리에 같은 크기로. 타일 색으로 알리면 그 하나만 튑니다. */}
+                    {need
+                      ? <span style={styles.featLock} aria-hidden><Lock size={9} /></span>
+                      : !user && <span style={styles.featFree}>무료</span>}
                   </span>
                   <span style={styles.featLabel}>{m.label}</span>
                 </button>
