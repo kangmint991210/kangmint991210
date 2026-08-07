@@ -378,8 +378,10 @@ test("로그인 전에는 결과 샘플과 요금제가 그대로 나온다", as
 
 test("소셜 채널 아이콘이 공식 브랜드 색으로 하단에 보인다", async ({ page }) => {
   await page.goto("/gallery.html?v=calendar");
-  for (const name of ["카카오톡 채널", "인스타그램", "페이스북", "X"]) {
-    await expect(page.getByTitle(new RegExp(`^${name}`))).toBeVisible();
+  // ⚠ 라벨 전체를 박아 두지 않습니다 — "카카오톡 채널" 을 "카카오톡 오픈채팅" 으로
+  //    고쳤더니 검사가 깨졌습니다. 확인하려는 것은 이름이 아니라 "네 채널이 다 있는가" 입니다.
+  for (const name of ["카카오", "인스타그램", "페이스북", "X"]) {
+    await expect(page.getByTitle(new RegExp(`^${name}`)), `${name} 채널이 없음`).toBeVisible();
   }
 
   // 단색 아이콘으로 되돌아가면 무슨 채널인지 알아보기 어려워집니다.
