@@ -376,6 +376,27 @@ test("로그인 전에는 결과 샘플과 요금제가 그대로 나온다", as
   await expect(page.getByText("이 달의 작업")).toHaveCount(0);
 });
 
+test("사업자 정보가 초기화면 하단에 보이고 화면을 넘치지 않는다", async ({ page }) => {
+  // 전자상거래법 제10조는 사업자 정보를 초기화면에도 보이도록 요구합니다.
+  // 결제를 받는 사이트라 약관 안에만 두면 부족합니다.
+  await page.goto("/gallery.html?v=landing-guest");
+
+  const line = page.locator("footer").getByText(/사업자등록번호/);
+  await expect(line, "푸터에 사업자 정보가 없음").toBeVisible();
+
+  const text = await line.innerText();
+  for (const must of ["벨티보", "대표", "통신판매업", "의정부"]) {
+    expect(text, `사업자 정보에 ${must} 가 빠짐`).toContain(must);
+  }
+
+  // 길어서 좁은 화면에서 가로로 넘치기 쉬운 줄입니다
+  const overflow = await page.evaluate(() => {
+    const el = document.scrollingElement;
+    return el.scrollWidth - el.clientWidth;
+  });
+  expect(overflow, "사업자 정보 줄이 화면을 넘침").toBeLessThanOrEqual(1);
+});
+
 test("소셜 채널 아이콘이 공식 브랜드 색으로 하단에 보인다", async ({ page }) => {
   await page.goto("/gallery.html?v=calendar");
   // ⚠ 라벨 전체를 박아 두지 않습니다 — "카카오톡 채널" 을 "카카오톡 오픈채팅" 으로

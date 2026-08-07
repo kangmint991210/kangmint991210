@@ -9,7 +9,7 @@
 // 오류 페이지를 보여 주는 것보다 낫습니다. (모양과 색은 그대로 둡니다)
 
 import React, { useId } from "react";
-import { brand, social } from "../config.js";
+import { brand, social, business } from "../config.js";
 import { LEGAL_TABS } from "../features/legal/LegalPage.jsx";
 import { styles } from "./styles.js";
 
@@ -101,6 +101,20 @@ export function SocialLinks() {
 }
 
 /**
+ * 푸터에 한 줄로 늘어놓을 사업자 정보.
+ *
+ * 약관의 표와 달리 여기서는 짧게 씁니다("사업자등록번호" 대신 그냥 값처럼).
+ * 아직 받지 못한 값은 빠지므로, 하나도 없으면 줄 자체가 나오지 않습니다.
+ */
+const businessLine = () => [
+  business.name,
+  business.owner && `대표 ${business.owner}`,
+  business.registrationNo && `사업자등록번호 ${business.registrationNo}`,
+  business.mailOrderNo && `통신판매업 신고 ${business.mailOrderNo}`,
+  business.address,
+].filter(Boolean).join(" · ");
+
+/**
  * 화면 맨 아래 줄 — 어느 화면에서나 같은 모습입니다.
  *
  * 약관·개인정보처리방침·환불 정책·계정 삭제 안내는 어느 화면에서든 닿을 수 있어야 합니다.
@@ -119,6 +133,9 @@ export function SiteFooter({ onLegal }) {
         ))}
       </div>
       <div style={styles.footBrand}>{brand.name} · {brand.description}</div>
+      {/* 전자상거래법 제10조는 사업자 정보를 초기화면에도 보이도록 요구합니다.
+          아직 못 받은 값은 통째로 빠집니다 — 빈 자리가 남으면 오히려 어설퍼 보입니다. */}
+      {businessLine() && <div style={styles.footBiz}>{businessLine()}</div>}
     </footer>
   );
 }

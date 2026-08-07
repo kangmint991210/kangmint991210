@@ -85,10 +85,10 @@ export const trial = {
  *    지어낸 값을 미리 적어 두면 그 자체가 허위 표시가 됩니다.
  */
 export const business = {
-  name: "",             // 상호 — 아직 확인 중
+  name: "벨티보 belltivo",
   owner: "박수빈",
   registrationNo: "218-13-19736",
-  address: "",          // 사업장 주소 — 아직 확인 중
+  address: "경기도 의정부시 평화로 195, 7층 718호(호원동)",
   mailOrderNo: "2025-의정부흥선-0680",  // 통신판매업 신고번호
 };
 

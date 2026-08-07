@@ -241,6 +241,8 @@ export const styles = {
   socialBtn: { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 12, border: "none", background: "transparent", padding: 0, lineHeight: 0 },
   siteFoot: { padding: "10px 16px 26px", textAlign: "center" },
   footBrand: { marginTop: 10, fontSize: 11.5, color: "#9DB0A8" },
+  // 사업자 정보는 길어서 좁은 화면에서 반드시 접혀야 합니다
+  footBiz: { marginTop: 6, fontSize: 10.5, lineHeight: 1.7, color: "#B3C3BC", maxWidth: 560, marginLeft: "auto", marginRight: "auto", padding: "0 12px", wordBreak: "keep-all" },
 
   /* ── 보관함 검색 ────────────────────────────────────── */
   searchRow: { display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "8px 12px", boxShadow: `0 2px 0 ${SH}` },
