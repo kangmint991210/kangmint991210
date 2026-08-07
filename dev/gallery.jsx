@@ -19,6 +19,8 @@ import { PasswordField } from "../src/ui/fields.jsx";
 import { Landing } from "../src/features/landing/Landing.jsx";
 import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
 import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
+import { DocGlyph, GlyphDefs } from "../src/features/landing/DocGlyphs.jsx";
+import { MODES } from "../src/domain/documents.js";
 import { SiteFooter } from "../src/ui/SiteFooter.jsx";
 import { styles } from "../src/ui/styles.js";
 import { css } from "../src/ui/theme.js";
@@ -242,6 +244,25 @@ function CalendarView() {
   );
 }
 
+// 문서 마크를 크게 늘어놓고 보는 자리 — 작은 타일에서는 어디가 어색한지 알 수 없습니다
+function GlyphsView() {
+  return (
+    <div style={{ padding: 20, background: "#EAF7F1", minHeight: "100dvh" }}>
+      <GlyphDefs />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 18 }}>
+        {MODES.map((m) => (
+          <div key={m.key} style={{ textAlign: "center" }}>
+            <div style={{ background: m.tint, borderRadius: 28, padding: 14, display: "grid", placeItems: "center" }}>
+              <DocGlyph mode={m.key} size={84} />
+            </div>
+            <div style={{ fontSize: 12, marginTop: 6, color: "#5A6B64" }}>{m.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const noop = () => {};
 
 // 랜딩 — 로그인 전/후가 달라 보여야 합니다.
@@ -270,6 +291,7 @@ const VIEWS = {
   savebar: () => <SaveBarView />,
   password: () => <PasswordView />,
   calendar: () => <CalendarView />,
+  glyphs: () => <GlyphsView />,
   "landing-guest": LandingView(null, "free"),
   "landing-user": LandingView({ name: "김민트", email: "mint@example.com", avatar: null }, "pro"),
   ...Object.fromEntries(Object.keys(SAMPLES).map((k) => [`card-${k}`, () => <CardView kind={k} />])),

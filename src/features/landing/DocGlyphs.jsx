@@ -15,6 +15,14 @@ import { MODES } from "../../domain/documents.js";
 
 const BLUSH = "#FF9AA2";
 
+// 적응일지의 두 아이에게만 쓰는 색 (아이로 읽히려면 제 색이 필요합니다)
+const HAIR = "#6E4C36";
+const SKIN = "#FBE3D8";
+const EYE = "#3B2A22";
+const BLUSH2 = "#F3A9A9";
+const MOUTH = "#EF5A4C";
+const RIBBON = "#F0605E";
+
 /** 그라디언트는 한 번만 정의하고 모든 마크가 함께 씁니다 */
 export function GlyphDefs() {
   return (
@@ -85,15 +93,40 @@ const SHAPES = {
     <Heart x={25} y={7} s={1.25} c={BLUSH} />
   </>),
 
-  // 신입원아 적응일지 — 볼터치가 있는 병아리
-  adapt: (c) => (<>
-    <path d="M16 6 V2.5" stroke={c} strokeWidth="2.6" strokeLinecap="round" opacity=".6" />
-    <circle cx="16" cy="17.5" r="10" fill={c} />
-    <circle cx="12.6" cy="15.5" r="1.55" fill="#3E4F48" />
-    <circle cx="19.4" cy="15.5" r="1.55" fill="#3E4F48" />
-    <path d="M14.6 19.4 L17.4 19.4 L16 21.4 Z" fill="#fff" opacity=".9" />
-    <circle cx="9.6" cy="19.4" r="2" fill={BLUSH} opacity=".65" />
-    <circle cx="22.4" cy="19.4" r="2" fill={BLUSH} opacity=".65" />
+  // 신입원아 적응일지 — 마주 붙은 두 아이
+  //
+  // ⚠ 이 마크만 문서 색을 쓰지 않고 제 색을 갖습니다.
+  //    아이 얼굴은 살색·머리색이 있어야 아이로 읽히고, 한 가지 색으로 칠하면
+  //    앞서 그렸던 병아리처럼 정체 모를 덩어리가 됩니다.
+  adapt: () => (<>
+    <circle cx="16" cy="17" r="12.6" fill="#FBD9A5" />
+
+    {/* 왼쪽 아이 — 묶은 머리와 리본 */}
+    <circle cx="8.6" cy="8.6" r="2.6" fill={HAIR} />
+    <path d="M6.2 8.2 L4.1 6.9 L4.1 10.4 Z M6.2 8.2 L4.6 9.6" fill={RIBBON} />
+    <path d="M6.35 8.1 L4.2 6.8 Q3.6 8.2 4.2 9.7 Z" fill={RIBBON} />
+    <ellipse cx="7.6" cy="22.5" rx="2.3" ry="3.1" fill={HAIR} />
+    <circle cx="10.9" cy="16.6" r="7.3" fill={HAIR} />
+    <circle cx="6.5" cy="19.2" r="1.5" fill={SKIN} />
+    <ellipse cx="11.1" cy="19" rx="4.9" ry="5.1" fill={SKIN} />
+    <path d="M6.3 17.4 Q6.9 12.4 11.1 12.4 Q15.3 12.4 15.9 17.4 Q14.3 15 12.7 15.6 Q11.9 13.9 10.5 14.6 Q8.6 15.2 6.3 17.4 Z" fill={HAIR} />
+    <circle cx="9.1" cy="18.4" r="0.95" fill={EYE} />
+    <circle cx="13.1" cy="18.4" r="0.95" fill={EYE} />
+    <circle cx="7.5" cy="20.6" r="1.4" fill={BLUSH2} />
+    <circle cx="14.7" cy="20.6" r="1.4" fill={BLUSH2} />
+    <path d="M9.4 20.6 A2 2 0 0 0 12.8 20.6 Z" fill={MOUTH} />
+
+    {/* 오른쪽 아이 — 뻗친 머리 */}
+    <path d="M25.8 10.4 Q28 10 28.6 12.2 Q27.4 11 25.9 11.6 Z" fill={HAIR} />
+    <circle cx="21.1" cy="16.6" r="7.3" fill={HAIR} />
+    <circle cx="25.5" cy="19.2" r="1.5" fill={SKIN} />
+    <ellipse cx="20.9" cy="19" rx="4.9" ry="5.1" fill={SKIN} />
+    <path d="M16.1 17.4 Q16.7 12.4 20.9 12.4 Q25.1 12.4 25.7 17.4 Q24.6 15.1 23.1 15.6 Q22.3 13.8 20.6 14.7 Q18.6 14 16.1 17.4 Z" fill={HAIR} />
+    <circle cx="18.9" cy="18.4" r="0.95" fill={EYE} />
+    <circle cx="22.9" cy="18.4" r="0.95" fill={EYE} />
+    <circle cx="17.3" cy="20.6" r="1.4" fill={BLUSH2} />
+    <circle cx="24.5" cy="20.6" r="1.4" fill={BLUSH2} />
+    <path d="M19.2 20.6 A2 2 0 0 0 22.6 20.6 Z" fill={MOUTH} />
   </>),
 
   // 학부모 상담일지 — 오가는 두 말풍선

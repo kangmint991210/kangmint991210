@@ -11,7 +11,7 @@ export const MODES = [
   { key: "daily", label: "보육일지", emoji: "📔", color: "#63D0C0", color2: "#1E8F94", tint: "#E6F9F6" },
   { key: "obs", label: "관찰일지", emoji: "🔎", color: "#7CC4F5", color2: "#3B7FD4", tint: "#EAF4FE" },
   { key: "note", label: "알림장", emoji: "💌", color: "#FFAE86", color2: "#F4694F", tint: "#FFF0E9" },
-  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣", color: "#C6A9F0", color2: "#7B5AD6", tint: "#F4EDFE" },
+  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣", color: "#F5C98E", color2: "#D79046", tint: "#FFF4E6" },
   { key: "counsel", label: "학부모 상담일지", emoji: "🗣️", color: "#FFCB73", color2: "#F09322", tint: "#FFF5E4" },
   { key: "life", label: "생활기록부", emoji: "📗", color: "#93E0AE", color2: "#3FA96C", tint: "#EAFAF0" },
   { key: "assess", label: "발달평가 총평", emoji: "📊", color: "#8FB6F5", color2: "#4759D6", tint: "#EDF2FE" },
