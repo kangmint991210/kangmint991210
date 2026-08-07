@@ -37,8 +37,8 @@ export const refund = {
  *    (없는 주소를 미리 적어 두면 방문자가 오류 페이지를 보게 되므로 비워 둡니다)
  */
 export const social = {
-  kakao: "",       // 카카오톡 채널 (예: https://pf.kakao.com/_xxxxxxx)
-  instagram: "",   // 예: https://instagram.com/계정명
+  kakao: "https://open.kakao.com/o/pdzyaKHi",   // 카카오톡 오픈채팅
+  instagram: "https://www.instagram.com/mintssaem",
   facebook: "",    // 예: https://facebook.com/페이지명
   x: "",           // 예: https://x.com/계정명
 };

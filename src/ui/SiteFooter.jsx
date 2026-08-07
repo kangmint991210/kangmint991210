@@ -73,7 +73,7 @@ function XMark() {
 }
 
 const CHANNELS = [
-  { key: "kakao", label: "카카오톡 채널", Mark: KakaoMark },
+  { key: "kakao", label: "카카오톡 오픈채팅", Mark: KakaoMark },
   { key: "instagram", label: "인스타그램", Mark: InstagramMark },
   { key: "facebook", label: "페이스북", Mark: FacebookMark },
   { key: "x", label: "X", Mark: XMark },

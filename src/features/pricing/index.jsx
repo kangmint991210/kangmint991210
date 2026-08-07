@@ -7,7 +7,7 @@
 
 import React from "react";
 import { Check } from "lucide-react";
-import { PLANS, planName, upgradeCopy, planBenefits } from "../../domain/plans.js";
+import { PLANS, planName, upgradeCopy, planBenefits, PRICE_NOTE } from "../../domain/plans.js";
 import { MODES } from "../../domain/documents.js";
 import { Mascot, ModalShell } from "../../ui/primitives.jsx";
 import { styles } from "../../ui/styles.js";
@@ -38,6 +38,8 @@ export function PlanCards({ plan, onChoose }) {
           </div>
         );
       })}
+      {/* 부가세 안내는 카드와 함께 다닙니다 — 요금제 창과 랜딩 두 곳에서 모두 보여야 합니다 */}
+      <div style={styles.priceNote}>{PRICE_NOTE}</div>
     </div>
   );
 }

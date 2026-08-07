@@ -400,6 +400,8 @@ export const styles = {
   heroTitle: { fontFamily: DISPLAY, color: "#2E4A42", fontSize: 29, lineHeight: 1.28, margin: "6px 0 0" },
   heroSub: { fontSize: 14, color: "#5E7168", lineHeight: 1.7, marginTop: 12 },
   heroCtas: { display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 20 },
+  // 요금제 카드 아래 부가세 안내 — 격자 전체 너비를 차지해야 카드 사이에 끼지 않습니다
+  priceNote: { gridColumn: "1 / -1", fontSize: 12, color: "#7A9A90", textAlign: "center", marginTop: 2 },
   ctaPrimary: { fontSize: 15, fontWeight: 800, color: "#fff", background: MINT, border: "none", borderRadius: 16, padding: "14px 24px", boxShadow: `0 4px 0 ${MINT_STRONG}`, width: "100%", maxWidth: 300 },
   ctaGhost: { fontSize: 15, fontWeight: 800, color: "#2E9E86", background: "#fff", border: "none", borderRadius: 16, padding: "14px 24px", boxShadow: `0 4px 0 ${SH}`, width: "100%", maxWidth: 300 },
   heroNote: { fontSize: 12, color: "#8AA79D", marginTop: 14 },
