@@ -96,37 +96,38 @@ const SHAPES = {
   // 신입원아 적응일지 — 마주 붙은 두 아이
   //
   // ⚠ 이 마크만 문서 색을 쓰지 않고 제 색을 갖습니다.
-  //    아이 얼굴은 살색·머리색이 있어야 아이로 읽히고, 한 가지 색으로 칠하면
-  //    앞서 그렸던 병아리처럼 정체 모를 덩어리가 됩니다.
+  //    아이 얼굴은 살결·머리색이 있어야 아이로 읽힙니다.
+  // ⚠ 얼굴은 세로보다 가로가 넓어야 합니다. 세로가 길면 찌그러져 보입니다.
   adapt: () => (<>
-    <circle cx="16" cy="17" r="12.6" fill="#FBD9A5" />
+    <circle cx="16" cy="16.5" r="13" fill="#FBD9A5" />
 
     {/* 왼쪽 아이 — 묶은 머리와 리본 */}
-    <circle cx="8.6" cy="8.6" r="2.6" fill={HAIR} />
-    <path d="M6.2 8.2 L4.1 6.9 L4.1 10.4 Z M6.2 8.2 L4.6 9.6" fill={RIBBON} />
-    <path d="M6.35 8.1 L4.2 6.8 Q3.6 8.2 4.2 9.7 Z" fill={RIBBON} />
-    <ellipse cx="7.6" cy="22.5" rx="2.3" ry="3.1" fill={HAIR} />
-    <circle cx="10.9" cy="16.6" r="7.3" fill={HAIR} />
-    <circle cx="6.5" cy="19.2" r="1.5" fill={SKIN} />
-    <ellipse cx="11.1" cy="19" rx="4.9" ry="5.1" fill={SKIN} />
-    <path d="M6.3 17.4 Q6.9 12.4 11.1 12.4 Q15.3 12.4 15.9 17.4 Q14.3 15 12.7 15.6 Q11.9 13.9 10.5 14.6 Q8.6 15.2 6.3 17.4 Z" fill={HAIR} />
-    <circle cx="9.1" cy="18.4" r="0.95" fill={EYE} />
-    <circle cx="13.1" cy="18.4" r="0.95" fill={EYE} />
-    <circle cx="7.5" cy="20.6" r="1.4" fill={BLUSH2} />
-    <circle cx="14.7" cy="20.6" r="1.4" fill={BLUSH2} />
-    <path d="M9.4 20.6 A2 2 0 0 0 12.8 20.6 Z" fill={MOUTH} />
+    <circle cx="7.6" cy="7.4" r="2.5" fill={HAIR} />
+    <path d="M5.6 7.2 L3.3 5.8 Q2.6 7.3 3.3 8.9 Z" fill={RIBBON} />
+    <ellipse cx="6.2" cy="21.8" rx="2.2" ry="3" fill={HAIR} />
+    <circle cx="9.9" cy="16" r="7.4" fill={HAIR} />
+    <circle cx="4.6" cy="18" r="1.5" fill={SKIN} />
+    <ellipse cx="9.9" cy="18.4" rx="5.9" ry="5.2" fill={SKIN} />
+    <path d="M4.3 16.4 Q4.9 11 9.9 11 Q14.9 11 15.5 16.4 Q13.9 13.9 12.1 14.6
+             Q11.2 12.8 9.6 13.7 Q7.2 13.1 4.3 16.4 Z" fill={HAIR} />
+    <circle cx="7.6" cy="17.9" r="1.05" fill={EYE} />
+    <circle cx="12.2" cy="17.9" r="1.05" fill={EYE} />
+    <circle cx="5.8" cy="20.2" r="1.5" fill={BLUSH2} />
+    <circle cx="14" cy="20.2" r="1.5" fill={BLUSH2} />
+    <path d="M8 20.2 A2.2 2.2 0 0 0 11.8 20.2 Z" fill={MOUTH} />
 
     {/* 오른쪽 아이 — 뻗친 머리 */}
-    <path d="M25.8 10.4 Q28 10 28.6 12.2 Q27.4 11 25.9 11.6 Z" fill={HAIR} />
-    <circle cx="21.1" cy="16.6" r="7.3" fill={HAIR} />
-    <circle cx="25.5" cy="19.2" r="1.5" fill={SKIN} />
-    <ellipse cx="20.9" cy="19" rx="4.9" ry="5.1" fill={SKIN} />
-    <path d="M16.1 17.4 Q16.7 12.4 20.9 12.4 Q25.1 12.4 25.7 17.4 Q24.6 15.1 23.1 15.6 Q22.3 13.8 20.6 14.7 Q18.6 14 16.1 17.4 Z" fill={HAIR} />
-    <circle cx="18.9" cy="18.4" r="0.95" fill={EYE} />
-    <circle cx="22.9" cy="18.4" r="0.95" fill={EYE} />
-    <circle cx="17.3" cy="20.6" r="1.4" fill={BLUSH2} />
-    <circle cx="24.5" cy="20.6" r="1.4" fill={BLUSH2} />
-    <path d="M19.2 20.6 A2 2 0 0 0 22.6 20.6 Z" fill={MOUTH} />
+    <path d="M26.6 9.4 Q29 8.9 29.6 11.2 Q28.3 9.9 26.7 10.6 Z" fill={HAIR} />
+    <circle cx="22.1" cy="16" r="7.4" fill={HAIR} />
+    <circle cx="27.4" cy="18" r="1.5" fill={SKIN} />
+    <ellipse cx="22.1" cy="18.4" rx="5.9" ry="5.2" fill={SKIN} />
+    <path d="M16.5 16.4 Q17.1 11 22.1 11 Q27.1 11 27.7 16.4 Q26.3 13.8 24.4 14.6
+             Q23.4 12.7 21.6 13.8 Q19.2 12.9 16.5 16.4 Z" fill={HAIR} />
+    <circle cx="19.8" cy="17.9" r="1.05" fill={EYE} />
+    <circle cx="24.4" cy="17.9" r="1.05" fill={EYE} />
+    <circle cx="18" cy="20.2" r="1.5" fill={BLUSH2} />
+    <circle cx="26.2" cy="20.2" r="1.5" fill={BLUSH2} />
+    <path d="M20.2 20.2 A2.2 2.2 0 0 0 24 20.2 Z" fill={MOUTH} />
   </>),
 
   // 학부모 상담일지 — 오가는 두 말풍선
@@ -175,25 +176,31 @@ const SHAPES = {
     <circle cx="23" cy="20.5" r="1.7" fill={BLUSH} opacity=".55" />
   </>),
 
-  // 견학 계획안 — 통통한 나들이 버스
+  // 견학 계획안 — 옆에서 본 나들이 버스
+  // (앞모습으로 창 두 개를 그렸더니 눈처럼 보여 로봇 얼굴이 됐습니다)
   trip: (c) => (<>
-    <rect x="4" y="6.5" width="24" height="16" rx="6.5" fill={c} />
-    <rect x="7" y="10" width="7.5" height="5.5" rx="2.2" fill="#fff" opacity=".88" />
-    <rect x="17.5" y="10" width="7.5" height="5.5" rx="2.2" fill="#fff" opacity=".88" />
-    <circle cx="10" cy="24.5" r="3.4" fill={c} opacity=".65" />
-    <circle cx="22" cy="24.5" r="3.4" fill={c} opacity=".65" />
-    <circle cx="8.6" cy="18.6" r="1.6" fill={BLUSH} opacity=".6" />
-    <circle cx="23.4" cy="18.6" r="1.6" fill={BLUSH} opacity=".6" />
+    <rect x="2.5" y="8" width="27" height="13.5" rx="4.5" fill={c} />
+    <rect x="5" y="10.5" width="6.2" height="5" rx="1.8" fill="#fff" opacity=".9" />
+    <rect x="12.6" y="10.5" width="6.2" height="5" rx="1.8" fill="#fff" opacity=".9" />
+    <rect x="20.2" y="10.5" width="4.4" height="8.4" rx="1.8" fill="#fff" opacity=".62" />
+    <rect x="26.2" y="13" width="3" height="2.4" rx="1.2" fill="#fff" opacity=".85" />
+    <circle cx="8.5" cy="22.4" r="3.3" fill={c} />
+    <circle cx="8.5" cy="22.4" r="1.35" fill="#fff" opacity=".8" />
+    <circle cx="22" cy="22.4" r="3.3" fill={c} />
+    <circle cx="22" cy="22.4" r="1.35" fill="#fff" opacity=".8" />
+    <Spark x={27.5} y={5.5} s={1} c={c} o={0.7} />
   </>),
 
-  // 행사 계획안 — 넉넉한 고깔모자와 색종이
+  // 행사 계획안 — 줄무늬 고깔과 흩날리는 색종이
   event: (c) => (<>
-    <path d="M16 9.5 L24.5 24.5 H7.5 Z" fill={c} stroke={c} strokeWidth="4.5" strokeLinejoin="round" />
-    <circle cx="16" cy="5" r="3.4" fill={c} opacity=".55" />
-    <circle cx="5.5" cy="12" r="2" fill={c} opacity=".5" />
-    <circle cx="27" cy="13.5" r="1.7" fill={c} opacity=".5" />
-    <circle cx="8.5" cy="6.5" r="1.4" fill={BLUSH} opacity=".7" />
-    <Spark x={26.5} y={6} s={0.95} c={c} o={0.7} />
+    <path d="M16 9 L25 25.5 H7 Z" fill={c} stroke={c} strokeWidth="4" strokeLinejoin="round" />
+    <path d="M13.2 15.5 L18.8 15.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+    <path d="M11 21 L21 21" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+    <circle cx="16" cy="5.2" r="3.5" fill={c} opacity=".6" />
+    <rect x="3.5" y="9.5" width="4" height="2.6" rx="1.3" fill={c} opacity=".5" transform="rotate(-28 5.5 10.8)" />
+    <rect x="25" y="11.5" width="4" height="2.6" rx="1.3" fill={c} opacity=".5" transform="rotate(24 27 12.8)" />
+    <circle cx="4.5" cy="18.5" r="1.5" fill={BLUSH} opacity=".8" />
+    <Spark x={27.5} y={6.5} s={1} c={c} o={0.75} />
   </>),
 };
 

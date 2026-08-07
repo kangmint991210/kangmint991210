@@ -109,7 +109,7 @@ export function Landing({
                   {/* 손님에게 열려 있는 문서 하나만 색 타일로 — 어디서 시작할지 눈이 먼저 갑니다 */}
                   <span className="feat-tile" style={styles.featTile(m.tint, free ? [m.color, m.color2] : null, m.color)}>
                     <span style={styles.featShine} aria-hidden />
-                    <span style={styles.featGlyph}><DocGlyph mode={m.key} light={free} /></span>
+                    <span style={styles.featGlyph}><DocGlyph mode={m.key} size={46} light={free} /></span>
                     {need && <span style={styles.featLock} aria-hidden><Lock size={9} /></span>}
                   </span>
                   <span style={styles.featLabel}>{m.label}</span>

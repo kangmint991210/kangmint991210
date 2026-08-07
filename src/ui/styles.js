@@ -391,7 +391,9 @@ export const styles = {
   featWrap: { padding: "24px 20px 6px" },
   sectionTitle: { fontFamily: DISPLAY, color: "#2E9E86", fontSize: 19, textAlign: "center", marginBottom: 16 },
   // 아이폰 홈 화면처럼 — 색 타일 + 그 아래 작은 이름. 큰 흰 카드는 자리를 너무 많이 먹었습니다.
-  featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(74px, 1fr))", gap: "16px 10px", maxWidth: 480, margin: "0 auto" },
+  // ⚠ 최소 폭은 좁은 폰(360px)에서도 한 줄에 4개가 들어가도록 잡습니다.
+  //    폭을 키우면 3열로 떨어져 화면이 세로로 길어집니다.
+  featGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(68px, 1fr))", gap: "18px 10px", maxWidth: 520, margin: "0 auto" },
   featCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 7, width: "100%", padding: 0, border: "none", background: "transparent" },
   // 흰 타일 + 색이 담긴 마크. 색은 마크가 지고 타일은 비워 둡니다 —
   // 타일마다 색을 칠하면 12개가 한꺼번에 소리쳐서 오히려 촌스러워집니다.
@@ -400,8 +402,8 @@ export const styles = {
   // 광택은 세 가지가 겹쳐 만들어집니다 — 위에서 내려오는 밝은 결(배경 그라디언트),
   // 맨 윗변의 얇은 하이라이트, 아래쪽 안쪽 그늘. 여기에 스페큘러 반사(featShine)를 얹습니다.
   featTile: (tint, accent, color) => ({
-    position: "relative", width: "100%", maxWidth: 64, aspectRatio: "1 / 1",
-    borderRadius: 20, display: "grid", placeItems: "center", overflow: "hidden",
+    position: "relative", width: "100%", maxWidth: 76, aspectRatio: "1 / 1",
+    borderRadius: 22, display: "grid", placeItems: "center", overflow: "hidden",
     background: accent
       ? `linear-gradient(158deg, ${accent[0]} 0%, ${accent[1]} 100%)`
       // ⚠ 아래쪽을 문서 색으로 살짝 눌러 줍니다. tint 만 쓰면 위아래가 거의 같은 흰색이라
