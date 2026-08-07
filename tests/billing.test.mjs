@@ -10,7 +10,7 @@ import crypto from "node:crypto";
 
 import { verifySignature } from "../api/_paddle.js";
 import {
-  planFromSubscriptions, planForPrice, planForItems, isLive, formatAmount,
+  planFromSubscriptions, planForPrice, planForItems, isLive, formatAmount, transactionIdFrom,
 } from "../src/domain/billing.js";
 
 /* ─────────────── 서명 검증 ─────────────── */
@@ -125,4 +125,18 @@ test("금액은 통화의 최소 단위를 보고 읽는다", () => {
   assert.ok(formatAmount("990", "USD").includes("9.90"));
   assert.equal(formatAmount(null, "KRW"), null);
   assert.equal(formatAmount("9900", ""), null);
+});
+
+test("결제 이어가기 링크에서 결제 건을 꺼낸다", () => {
+  // Paddle 이 결제 실패 복구 메일 등에서 기본 결제 링크에 붙여 보내는 값입니다.
+  assert.equal(transactionIdFrom("?_ptxn=txn_01abc123"), "txn_01abc123");
+  assert.equal(transactionIdFrom("?foo=1&_ptxn=txn_9"), "txn_9");
+
+  // ⚠ 주소창은 누구나 고칠 수 있습니다. 모양이 아니면 넘기지 않습니다.
+  assert.equal(transactionIdFrom("?_ptxn=sub_01abc"), null, "구독 id 는 결제 건이 아님");
+  assert.equal(transactionIdFrom("?_ptxn=<script>"), null);
+  assert.equal(transactionIdFrom("?_ptxn="), null);
+  assert.equal(transactionIdFrom("?other=1"), null);
+  assert.equal(transactionIdFrom(""), null);
+  assert.equal(transactionIdFrom(null), null);
 });

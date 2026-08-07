@@ -9,6 +9,7 @@
 //    닫히자마자 화면에서 올려 버리면, 결제가 실패했는데도 Pro 로 보입니다.
 
 import { paddle as cfg } from "../config.js";
+import { transactionIdFrom } from "../domain/billing.js";
 
 const SDK_URL = "https://cdn.paddle.com/paddle/v2/paddle.js";
 
@@ -71,6 +72,52 @@ export async function openCheckout({ plan, user, onEvent }) {
       locale: "ko",
       allowLogout: false,   // 로그인한 회원의 결제라 계정을 바꾸지 못하게
     },
+  });
+}
+
+/**
+ * Paddle 이 보낸 결제 이어가기 링크인가.
+ *
+ * Paddle 은 "기본 결제 링크(Default payment link)" 로 등록한 주소에
+ * `?_ptxn=txn_xxx` 를 붙여 고객을 보냅니다. 이런 때 쓰입니다.
+ *   · 카드 결제가 실패해 다시 시도해 달라는 메일
+ *   · 결제수단 변경 링크
+ *   · 대시보드에서 사람이 직접 만든 청구서
+ *
+ * ⚠ 이 값을 처리하지 않으면 링크를 눌러도 그냥 첫 화면만 뜹니다.
+ *    결제하러 온 분이 아무 안내도 못 받고 되돌아가게 됩니다.
+ *
+ * @returns {string|null} 이어서 열 결제 건 id
+ */
+export function pendingTransactionId() {
+  try {
+    return transactionIdFrom(window.location.search);
+  } catch {
+    return null;
+  }
+}
+
+/** 주소에서 _ptxn 을 지웁니다 (새로고침할 때마다 결제창이 다시 뜨지 않게) */
+export function clearTransactionParam() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("_ptxn")) return;
+    url.searchParams.delete("_ptxn");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  } catch { /* 주소를 못 고쳐도 흐름은 이어감 */ }
+}
+
+/**
+ * 이미 만들어진 결제 건을 이어서 엽니다.
+ *
+ * 로그인하지 않았어도 열립니다 — 결제 건 자체가 누구 것인지 이미 알고 있고,
+ * 카드가 막혀 급히 들어온 분에게 로그인부터 시키면 그대로 떠납니다.
+ */
+export async function openTransaction(transactionId, onEvent) {
+  const sdk = await paddle(onEvent);
+  sdk.Checkout.open({
+    transactionId,
+    settings: { displayMode: "overlay", theme: "light", locale: "ko" },
   });
 }
 

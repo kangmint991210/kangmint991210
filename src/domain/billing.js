@@ -65,6 +65,27 @@ export function planForItems(items, priceMap) {
   return null;
 }
 
+/**
+ * 주소에서 "이어서 열 결제 건" 을 꺼냅니다.
+ *
+ * Paddle 은 기본 결제 링크로 등록한 주소에 `?_ptxn=txn_xxx` 를 붙여 고객을 보냅니다
+ * (결제 실패 복구 메일, 결제수단 변경 링크, 대시보드에서 만든 청구서).
+ *
+ * ⚠ 모양을 확인합니다. 주소창은 누구나 고칠 수 있어서, 아무 값이나 그대로
+ *    Paddle 에 넘기면 엉뚱한 창이 뜨거나 오류가 그대로 보입니다.
+ *
+ * @param {string} search "?_ptxn=txn_123" 같은 질의 문자열
+ */
+export function transactionIdFrom(search) {
+  let value;
+  try {
+    value = new URLSearchParams(search || "").get("_ptxn");
+  } catch {
+    return null;
+  }
+  return value && /^txn_[a-z0-9]+$/i.test(value) ? value : null;
+}
+
 /** 사람이 읽는 금액. Paddle 은 최소 단위(원은 1원, 달러는 센트)로 줍니다. */
 export function formatAmount(minorUnits, currency) {
   // ⚠ Number(null) 과 Number("") 은 0 입니다. 그대로 두면 금액이 없을 때

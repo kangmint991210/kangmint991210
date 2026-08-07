@@ -22,7 +22,10 @@ import { promptFor } from "../prompts/index.js";
 import { generateDocument, QuotaExceededError } from "../services/gemini.js";
 import { documents } from "../services/repository.js";
 import { rememberFailedDoc, flushPendingDocs } from "../services/pending-docs.js";
-import { openCheckout, waitForPlan, isPaddleReady } from "../services/paddle.js";
+import {
+  openCheckout, waitForPlan, isPaddleReady,
+  pendingTransactionId, clearTransactionParam, openTransaction,
+} from "../services/paddle.js";
 import { useAccount } from "./useAccount.js";
 import { useGuestTrial } from "./useGuestTrial.js";
 import { useThreads } from "./useThreads.js";
@@ -383,6 +386,33 @@ export function useMintApp() {
   }, [user, account, goAuth]);
 
   const closeBilling = useCallback(() => setBilling(null), []);
+
+  /**
+   * Paddle 이 보낸 결제 이어가기 링크(`?_ptxn=...`)로 들어온 경우.
+   *
+   * 카드 결제가 실패했을 때 Paddle 이 보내는 메일의 링크가 여기로 옵니다.
+   * 처리하지 않으면 첫 화면만 뜨고 아무 일도 일어나지 않아, 결제하러 온 분이
+   * 그대로 돌아가게 됩니다.
+   *
+   * ⚠ 로그인 여부를 따지지 않습니다 — 결제 건 자체가 누구 것인지 알고 있고,
+   *    카드가 막혀 급히 들어온 분에게 로그인부터 시키면 그대로 떠납니다.
+   */
+  useEffect(() => {
+    const txn = pendingTransactionId();
+    if (!txn) return;
+    clearTransactionParam();   // 새로고침할 때마다 다시 뜨지 않게 먼저 지웁니다
+
+    if (!isPaddleReady()) { setBilling({ state: "unavailable" }); return; }
+
+    openTransaction(txn, async (e) => {
+      if (e?.name !== "checkout.completed") return;
+      setBilling({ state: "waiting" });
+      const now = user ? await waitForPlan(() => account.reloadPlan(user.id), account.plan) : null;
+      setBilling(now ? { state: "done", plan: now } : { state: "slow" });
+    }).catch((err) => setBilling({ state: "error", message: err.message }));
+    // 첫 진입에 한 번만 — user 를 기다리면 로그인 안 한 분에게는 영영 열리지 않습니다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * 가입 전에 유료 요금제를 골랐다면, 로그인이 끝나는 대로 결제창을 엽니다.

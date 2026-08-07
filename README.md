@@ -273,13 +273,26 @@ Paddle 이 **Merchant of Record** 라 세금·인보이스·카드 정보를 모
 
 ### Paddle 대시보드에서 할 일
 1. **판매자 승인** — 사이트 심사에 며칠 걸립니다. 이용약관·환불정책·연락처가 있어야 합니다(이미 있음).
-2. **도메인 등록** — Checkout settings 에 결제창을 띄울 도메인 추가. 없으면 결제창이 열리지 않습니다.
+2. **도메인 승인** — "Request website approval" 로 `www.mintsam.xyz` 를 제출. 승인 전에는 결제창이 열리지 않습니다.
+   ⚠ **로컬 개발(localhost)에서는 결제창이 열리지 않습니다.** 승인된 도메인이 아니기 때문입니다 — 정상입니다.
 3. **상품·가격 2개** — Basic ₩9,900/월, Pro ₩19,900/월 (자동 갱신). 가격 ID(`pri_...`)를 받아 둡니다.
-4. **알림(Notifications) 대상 추가** — 주소 `https://<도메인>/api/paddle-webhook`,
+4. **기본 결제 링크(Default payment link)** — `https://www.mintsam.xyz/`
+
+   사이트 루트를 그대로 넣습니다. Paddle 은 이 주소에 `?_ptxn=txn_...` 를 붙여 고객을 보냅니다
+   (결제 실패 복구 메일, 결제수단 변경 링크, 대시보드에서 만든 청구서).
+   앱이 첫 진입 때 그 값을 보고 결제창을 다시 띄웁니다 — `useMintApp` 의 `_ptxn` 처리.
+
+   ⚠ 하위 경로(`/checkout` 등)를 넣지 마세요. 이 앱은 화면을 주소로 나누지 않아
+     그런 경로는 404 가 됩니다(SPA 리라이트 설정이 없습니다).
+
+   ⚠ `www` 를 붙일지 말지를 **한쪽으로 통일**하세요. Paddle 은 승인한 도메인에서만
+     결제창을 띄웁니다. `mintsam.xyz` 로 들어온 방문자가 `www` 로 넘어가지 않으면
+     그 사람만 결제창이 열리지 않고, 원인을 찾기 어렵습니다.
+5. **알림(Notifications) 대상 추가** — 주소 `https://www.mintsam.xyz/api/paddle-webhook`,
    아래 이벤트를 선택하고 **서명 키(`pdl_ntfset_...`)** 를 받아 둡니다.
    - `subscription.created` `subscription.updated` `subscription.canceled`
    - `transaction.completed` `transaction.payment_failed`
-5. **정산 정보** — 은행 계좌 + 세금 양식.
+6. **정산 정보** — 은행 계좌 + 세금 양식.
 
 ### 환경변수 (Vercel)
 | 이름 | 값 | 노출 |
