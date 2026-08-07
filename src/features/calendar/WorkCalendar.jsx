@@ -11,6 +11,7 @@ import { modeOf } from "../../domain/documents.js";
 import {
   WEEKDAYS, dayKey, monthOf, monthGrid, monthLabel, shiftMonth, groupByDay, countInMonth,
 } from "../../domain/calendar.js";
+import { holidayOf, holidaysInMonth } from "../../domain/holidays.js";
 import { styles } from "../../ui/styles.js";
 
 export function WorkCalendar({ docs, onOpenDoc }) {
@@ -21,6 +22,7 @@ export function WorkCalendar({ docs, onOpenDoc }) {
   const byDay = useMemo(() => groupByDay(docs), [docs]);
   const cells = useMemo(() => monthGrid(cursor), [cursor]);
   const total = countInMonth(byDay, cursor);
+  const holidays = useMemo(() => holidaysInMonth(cursor), [cursor]);
   const todayKey = dayKey(today);
   const pickedDocs = picked ? byDay[picked] || [] : [];
 
@@ -44,27 +46,44 @@ export function WorkCalendar({ docs, onOpenDoc }) {
         {cells.map((cell, i) => {
           if (!cell) return <div key={`b${i}`} />;
           const list = byDay[cell.key] || [];
+          const holiday = holidayOf(cell.key);
           const isToday = cell.key === todayKey;
           const isPicked = cell.key === picked;
+          // 일요일과 공휴일은 같은 빨간색으로 — 쉬는 날이라는 뜻이 같습니다
+          const rest = i % 7 === 0 || Boolean(holiday);
+          const label = [`${cell.day}일`, holiday, list.length ? `${list.length}건` : null]
+            .filter(Boolean).join(" · ");
           return (
             <button
               key={cell.key}
               style={{
                 ...styles.calDay,
-                ...(i % 7 === 0 ? styles.calSun : {}),
+                ...(rest ? styles.calSun : {}),
                 ...(isToday ? styles.calToday : {}),
                 ...(isPicked ? styles.calPicked : {}),
               }}
               onClick={() => setPicked(list.length ? (isPicked ? null : cell.key) : null)}
               disabled={!list.length}
-              title={list.length ? `${cell.day}일 · ${list.length}건` : `${cell.day}일`}
+              title={label}
+              aria-label={label}
               aria-pressed={isPicked}>
               <span>{cell.day}</span>
               {list.length > 0 && <span style={styles.calDot}>{list.length}</span>}
+              {holiday && !list.length && <span style={styles.calHolidayMark} aria-hidden />}
             </button>
           );
         })}
       </div>
+
+      {holidays.length > 0 && (
+        <div style={styles.calHolidays}>
+          {holidays.map((h) => (
+            <span key={h.day} style={styles.calHolidayTag}>
+              <b>{h.day}일</b> {h.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {picked ? (
         <div style={styles.calDetail}>

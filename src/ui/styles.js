@@ -220,6 +220,10 @@ export const styles = {
   calToday: { outline: "2px solid #7FD8C4", outlineOffset: -2 },
   calPicked: { background: "#CDEEDD", color: "#1F6B5A", fontWeight: 800 },
   calDot: { fontSize: 10, fontWeight: 800, color: "#fff", background: MINT, borderRadius: 999, minWidth: 16, padding: "0 4px", lineHeight: "16px" },
+  // 문서가 없는 공휴일에도 "특별한 날"이라는 표시가 남도록 작은 점을 둡니다
+  calHolidayMark: { width: 4, height: 4, borderRadius: 999, background: "#E08585" },
+  calHolidays: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 },
+  calHolidayTag: { fontSize: 11, color: "#C0562F", background: "#FFF1EE", borderRadius: 999, padding: "4px 9px", fontWeight: 600 },
   calDetail: { marginTop: 12, display: "flex", flexDirection: "column", gap: 6 },
   calDetailHead: { fontSize: 12.5, fontWeight: 800, color: "#1F6B5A", marginBottom: 2 },
   calDocRow: { display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: "none", borderRadius: 12, background: "#F5FBF8", padding: "10px 12px" },

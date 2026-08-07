@@ -9,6 +9,7 @@
 
 import { test, expect } from "@playwright/test";
 import { MODE_KEYS } from "../../src/domain/documents.js";
+import { holidaysInMonth } from "../../src/domain/holidays.js";
 
 /** 혜택 목록의 첫 줄 — 문서를 추가하면 "8종 전체"처럼 숫자가 바뀌므로 실제 값에서 만듭니다 */
 const DOC_COUNT_LABEL = `문서 ${MODE_KEYS.length}종 전체`;
@@ -276,6 +277,23 @@ for (const [tab, heading] of [["terms", "이용약관"], ["privacy", "개인정�
 }
 
 /* ─────────────── 작업 달력 ─────────────── */
+
+test("공휴일이 빨간색과 이름으로 표시된다", async ({ page }) => {
+  // 달력은 "이번 달"을 보여 주므로, 기대값도 이번 달에서 만들어야 시간이 지나도 깨지지 않습니다.
+  const now = new Date();
+  const expected = holidaysInMonth({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  test.skip(expected.length === 0, "이번 달에는 공휴일이 없습니다");
+
+  await page.goto("/gallery.html?v=calendar");
+  for (const h of expected) {
+    // 달력 아래에 어떤 공휴일인지 이름이 나와야 합니다
+    await expect(page.getByText(`${h.day}일 ${h.name}`)).toBeVisible();
+    // 그 날짜 칸은 쉬는 날 색(빨강)이어야 합니다
+    const color = await page.getByTitle(new RegExp(`^${h.day}일 · ${h.name}`))
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(color, `${h.day}일이 빨간색이 아님`).toBe("rgb(224, 133, 133)");
+  }
+});
 
 test("작업한 날에 건수가 표시되고, 누르면 그날 문서가 나온다", async ({ page }) => {
   await page.goto("/gallery.html?v=calendar");

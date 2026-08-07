@@ -20,6 +20,7 @@ import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import {
   dayKey, shiftMonth, monthGrid, groupByDay, countInMonth, monthLabel, WEEKDAYS,
 } from "../src/domain/calendar.js";
+import { holidayOf, holidaysInMonth, knowsHolidays } from "../src/domain/holidays.js";
 import {
   MAX_PENDING, addPending, removePending, pendingFor, withoutUser,
 } from "../src/domain/pending-docs.js";
@@ -310,6 +311,33 @@ test("문서를 날짜별로 묶고, 날짜를 모르는 것은 세지 않는다
   assert.equal(countInMonth(byDay, { year: 2026, month: 8 }), 3);
   assert.equal(countInMonth(byDay, { year: 2026, month: 9 }), 0, "다른 달을 세면 안 됨");
   assert.deepEqual(groupByDay(null), {});
+});
+
+test("공휴일은 확인한 값만 쓰고, 모르는 해는 표시하지 않는다", () => {
+  // 음력 명절과 대체공휴일은 계산으로 맞히기 어렵습니다. 틀리면 선생님이 일정을 잘못 잡습니다.
+  assert.equal(holidayOf("2026-08-15"), "광복절");
+  assert.equal(holidayOf("2026-08-17"), "대체공휴일");   // 광복절이 토요일이라 월요일로
+  assert.equal(holidayOf("2026-02-17"), "설날");
+  assert.equal(holidayOf("2026-09-25"), "추석");
+  assert.equal(holidayOf("2026-05-24"), "부처님오신날");
+  assert.equal(holidayOf("2026-08-16"), null, "그냥 일요일은 공휴일이 아님");
+
+  // 제헌절(7/17)은 2008년부터 공휴일이 아닙니다 — 달력 블로그에 잘못 적힌 경우가 있습니다.
+  assert.equal(holidayOf("2026-07-17"), null);
+
+  // 표에 없는 해는 아무것도 표시하지 않습니다 (틀린 날짜를 보여 주는 것보다 낫습니다)
+  assert.equal(knowsHolidays(2026), true);
+  assert.equal(knowsHolidays(2099), false);
+  assert.equal(holidayOf("2099-01-01"), null);
+  assert.equal(holidayOf(null), null);
+});
+
+test("그 달의 공휴일을 날짜 순으로 모은다", () => {
+  assert.deepEqual(holidaysInMonth({ year: 2026, month: 8 }),
+    [{ day: 15, name: "광복절" }, { day: 17, name: "대체공휴일" }]);
+  assert.deepEqual(holidaysInMonth({ year: 2026, month: 9 }).map((h) => h.day), [24, 25, 26]);
+  assert.deepEqual(holidaysInMonth({ year: 2026, month: 7 }), [], "공휴일 없는 달");
+  assert.deepEqual(holidaysInMonth({ year: 2099, month: 1 }), []);
 });
 
 /* ─────────────── 날짜 ─────────────── */
