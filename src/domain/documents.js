@@ -3,19 +3,21 @@
 
 /** 문서 종류. 배열 순서 = 화면 메뉴 순서 (요금제와는 무관 — plans.js 가 따로 정합니다) */
 export const MODES = [
-  // color 는 랜딩의 문서 타일 색입니다. 12개가 한눈에 구분되도록 색상환을 고루 씁니다.
-  { key: "play", label: "놀이 활동", emoji: "🖍️", color: "#7FD8C4" },
-  { key: "daily", label: "보육일지", emoji: "📔", color: "#4FC3A8" },
-  { key: "obs", label: "관찰일지", emoji: "🔎", color: "#8FCDF2" },
-  { key: "note", label: "알림장", emoji: "💌", color: "#FF9E7D" },
-  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣", color: "#C9A7E8" },
-  { key: "counsel", label: "학부모 상담일지", emoji: "🗣️", color: "#FFC074" },
-  { key: "life", label: "생활기록부", emoji: "📗", color: "#93D9B0" },
-  { key: "assess", label: "발달평가 총평", emoji: "📊", color: "#7FB3E8" },
-  { key: "monthly", label: "월간 평가", emoji: "🗓️", color: "#6BC9D9" },
-  { key: "safety", label: "안전교육일지", emoji: "🛟", color: "#FFB86B" },
-  { key: "trip", label: "견학 계획안", emoji: "🚌", color: "#A9A0F0" },
-  { key: "event", label: "행사 계획안", emoji: "🎪", color: "#F2A0C0" },
+  // emoji 는 메뉴·보관함처럼 글자 사이에 섞이는 자리에,
+  // color/color2 는 랜딩의 아이콘 마크 그라디언트에 씁니다 (features/landing/DocGlyphs.jsx).
+  // 12개가 한눈에 구분되도록 색상환을 고루 나눠 씁니다.
+  { key: "play", label: "놀이 활동", emoji: "🖍️", color: "#5FD8BE", color2: "#2A9E86" },
+  { key: "daily", label: "보육일지", emoji: "📔", color: "#63D0C0", color2: "#1E8F94" },
+  { key: "obs", label: "관찰일지", emoji: "🔎", color: "#7CC4F5", color2: "#3B7FD4" },
+  { key: "note", label: "알림장", emoji: "💌", color: "#FFAE86", color2: "#F4694F" },
+  { key: "adapt", label: "신입원아 적응일지", emoji: "🐣", color: "#C6A9F0", color2: "#7B5AD6" },
+  { key: "counsel", label: "학부모 상담일지", emoji: "🗣️", color: "#FFCB73", color2: "#F09322" },
+  { key: "life", label: "생활기록부", emoji: "📗", color: "#93E0AE", color2: "#3FA96C" },
+  { key: "assess", label: "발달평가 총평", emoji: "📊", color: "#8FB6F5", color2: "#4759D6" },
+  { key: "monthly", label: "월간 평가", emoji: "🗓️", color: "#6FD5E4", color2: "#2A9FC4" },
+  { key: "safety", label: "안전교육일지", emoji: "🛟", color: "#FFC06B", color2: "#EF7A3D" },
+  { key: "trip", label: "견학 계획안", emoji: "🚌", color: "#A8A6F5", color2: "#6C5CE0" },
+  { key: "event", label: "행사 계획안", emoji: "🎪", color: "#F9A8C8", color2: "#E05A96" },
 ];
 
 export const MODE_KEYS = MODES.map((m) => m.key);

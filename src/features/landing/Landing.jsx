@@ -14,6 +14,7 @@ import { HeroDemo } from "./HeroDemo.jsx";
 import { Reveal } from "./Reveal.jsx";
 import { AccountChip } from "../account/AccountChip.jsx";
 import { WorkCalendar } from "../calendar/WorkCalendar.jsx";
+import { DocGlyph, GlyphDefs } from "./DocGlyphs.jsx";
 import { SocialLinks } from "../../ui/SiteFooter.jsx";
 import { ObsCard } from "../results/Card.jsx";
 import { PlanCards } from "../pricing/index.jsx";
@@ -93,21 +94,22 @@ export function Landing({
 
       <section style={styles.featWrap}>
         <div style={styles.sectionTitle}>{user ? "어떤 걸 작업해볼까요" : "이런 걸 만들어 드려요"}</div>
+        <GlyphDefs />
         <div style={styles.featGrid}>
           {MODES.map((m, i) => {
             // 어떤 문서가 어떤 플랜인지 여기서 미리 알려야, 가입한 뒤에 막히는 일이 없습니다.
             // lockOf 는 "지금 이 사용자에게" 잠겼는지를 봅니다 — Pro 회원에게 자물쇠를 보여 주면 안 됩니다.
             const need = lockOf(m.key);
+            const free = !need && !user;   // 로그인 전, 지금 바로 써 볼 수 있는 문서
             return (
               <Reveal key={m.key} delay={i * 40}>
                 <button className="feat-card" style={styles.featCard}
                   onClick={() => onPickDoc(m.key)}
                   title={need ? `${m.label} — ${planName(need)} 플랜부터예요` : `${m.label} 만들러 가기`}>
-                  <span className="feat-tile" style={styles.featTile(m.color, Boolean(need))}>
-                    {m.emoji}
-                    {need
-                      ? <span style={{ ...styles.featBadge, ...styles.featBadgeLock }} aria-hidden><Lock size={10} /></span>
-                      : !user && <span style={{ ...styles.featBadge, ...styles.featBadgeFree }}>무료</span>}
+                  {/* 손님에게 열려 있는 문서 하나만 색 타일로 — 어디서 시작할지 눈이 먼저 갑니다 */}
+                  <span className="feat-tile" style={styles.featTile(free ? [m.color, m.color2] : null)}>
+                    <DocGlyph mode={m.key} light={free} />
+                    {need && <span style={styles.featLock} aria-hidden><Lock size={9} /></span>}
                   </span>
                   <span style={styles.featLabel}>{m.label}</span>
                 </button>

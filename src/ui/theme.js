@@ -31,8 +31,8 @@ export const css = `
   input[type="week"]::-webkit-datetime-edit,
   input[type="time"]::-webkit-datetime-edit,
   input[type="month"]::-webkit-datetime-edit { color: #2E4A42; }
-  .feat-tile { transition: transform .14s ease, box-shadow .14s ease; }
-  .feat-card:hover .feat-tile { transform: translateY(-3px); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.5), 0 6px 0 rgba(46,74,66,.16); }
+  .feat-tile { transition: transform .16s cubic-bezier(.2,.9,.3,1.3), box-shadow .16s ease; }
+  .feat-card:hover .feat-tile { transform: translateY(-4px) scale(1.04); box-shadow: 0 2px 4px rgba(46,74,66,.08), 0 14px 22px -10px rgba(46,74,66,.3); }
   .feat-card:active { transform: scale(0.94); }
   /* 결과 안에서 고칠 수 있는 문장 — 눌러야 한다는 걸 은근히 알려줌 */
   .editable { cursor: text; border-radius: 8px; transition: background .12s ease; }
