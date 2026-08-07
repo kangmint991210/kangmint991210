@@ -396,14 +396,30 @@ export const styles = {
   // 흰 타일 + 색이 담긴 마크. 색은 마크가 지고 타일은 비워 둡니다 —
   // 타일마다 색을 칠하면 12개가 한꺼번에 소리쳐서 오히려 촌스러워집니다.
   // 옅은 색 타일 + 통통한 마크. 짙게 칠하면 12개가 한꺼번에 소리쳐 부담스러워집니다.
-  featTile: (tint, accent) => ({
+  //
+  // 광택은 세 가지가 겹쳐 만들어집니다 — 위에서 내려오는 밝은 결(배경 그라디언트),
+  // 맨 윗변의 얇은 하이라이트, 아래쪽 안쪽 그늘. 여기에 스페큘러 반사(featShine)를 얹습니다.
+  featTile: (tint, accent, color) => ({
     position: "relative", width: "100%", maxWidth: 64, aspectRatio: "1 / 1",
-    borderRadius: 20, display: "grid", placeItems: "center",
-    background: accent ? `linear-gradient(150deg, ${accent[0]}, ${accent[1]})` : tint,
+    borderRadius: 20, display: "grid", placeItems: "center", overflow: "hidden",
+    background: accent
+      ? `linear-gradient(158deg, ${accent[0]} 0%, ${accent[1]} 100%)`
+      // ⚠ 아래쪽을 문서 색으로 살짝 눌러 줍니다. tint 만 쓰면 위아래가 거의 같은 흰색이라
+      //    빛이 비쳐도 티가 나지 않습니다.
+      : `linear-gradient(158deg, #fff 0%, ${tint} 38%, ${color}4D 100%)`,
     boxShadow: accent
-      ? `0 8px 16px -5px ${accent[1]}70, 0 1px 2px rgba(46,74,66,.10)`
-      : "0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)",
+      ? `inset 0 1.5px 0 rgba(255,255,255,.55), inset 0 -10px 16px -10px rgba(0,0,0,.28),
+         0 8px 16px -5px ${accent[1]}70, 0 1px 2px rgba(46,74,66,.10)`
+      : `inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -10px 16px -10px rgba(46,74,66,.16),
+         0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)`,
   }),
+  // 왼쪽 위에서 비친 빛. 타일 밖으로 새지 않게 타일에 overflow:hidden 을 두었습니다.
+  featShine: {
+    position: "absolute", top: "-18%", left: "-12%", width: "92%", height: "62%",
+    borderRadius: "50%", pointerEvents: "none",
+    background: "radial-gradient(ellipse at 42% 62%, rgba(255,255,255,.97), rgba(255,255,255,0) 66%)",
+  },
+  featGlyph: { position: "relative", filter: "drop-shadow(0 1px 1.5px rgba(46,74,66,.18))" },
   // 잠긴 문서 — 타일 안쪽 모서리에 작게. 크게 붙이면 마크를 가립니다.
   featLock: { position: "absolute", top: 6, right: 6, display: "grid", placeItems: "center",
     width: 15, height: 15, borderRadius: 999, background: "#EEF2F0", color: "#9DB0A8" },
