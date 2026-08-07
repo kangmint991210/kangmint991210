@@ -3,8 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabaseClient.js";
-import { storage, KEYS } from "../lib/storage.js";
-import { DEFAULT_PLAN, normalizePlan, higherPlan, quotaOf, canJudgePlan } from "../domain/plans.js";
+import { DEFAULT_PLAN, quotaOf, canJudgePlan } from "../domain/plans.js";
 import { mapUser, profiles, isAdmin as fetchIsAdmin, usage as usageRepo } from "../services/repository.js";
 
 export function useAccount({ onSignedIn } = {}) {
@@ -18,20 +17,30 @@ export function useAccount({ onSignedIn } = {}) {
   // 요금제를 서버에서 받아왔는가. 세션 복원과 시점이 달라 따로 둡니다 — plans.js 의 canJudgePlan 참고.
   const [planLoaded, setPlanLoaded] = useState(false);
 
-  /** 서버에 저장된 요금제와, 랜딩에서 고른 대기 플랜 중 상위 등급을 적용합니다. */
+  /**
+   * 요금제는 "서버에 저장된 값"만 씁니다.
+   *
+   * ⚠ 예전에는 랜딩에서 고른 플랜(localStorage 의 pendingPlan)과 저장된 값 중
+   *    상위 등급을 적용했습니다. localStorage 에 "pro" 를 적어 넣고 로그인하면
+   *    그대로 Pro 가 되는, 돈을 내지 않고 올라가는 길이었습니다.
+   *    이제 고른 플랜은 "로그인 뒤 결제창을 열 대상"으로만 씁니다(useMintApp).
+   */
   const syncProfile = useCallback(async (sessionUser) => {
-    const pending = normalizePlan(storage.get(KEYS.pendingPlan, DEFAULT_PLAN));
-    storage.remove(KEYS.pendingPlan);
-
     try {
-      const saved = (await profiles.getPlan(sessionUser.id)) || DEFAULT_PLAN;
-      const effective = higherPlan(pending, saved);
-      setPlan(effective);
-      await profiles.upsert(mapUser(sessionUser), effective);
+      setPlan((await profiles.getPlan(sessionUser.id)) || DEFAULT_PLAN);
+      await profiles.upsert(mapUser(sessionUser));
     } finally {
       // 조회에 실패하더라도 준비됨으로 넘깁니다 — 아니면 화면이 영영 멈춰 있습니다.
       setPlanLoaded(true);
     }
+  }, []);
+
+  /** 결제가 끝난 뒤 서버에 반영된 요금제를 다시 읽어 옵니다. */
+  const reloadPlan = useCallback(async (userId) => {
+    if (!userId) return null;
+    const next = (await profiles.getPlan(userId)) || DEFAULT_PLAN;
+    setPlan(next);
+    return next;
   }, []);
 
   const reloadUsage = useCallback(async (userId) => {
@@ -74,12 +83,6 @@ export function useAccount({ onSignedIn } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** 요금제 변경 — 화면에 즉시 반영하고 서버에도 남깁니다. */
-  const changePlan = useCallback(async (next) => {
-    setPlan(next);
-    if (user) await profiles.setPlan(user.id, next);
-  }, [user]);
-
   /** 생성 1건 반영. 서버가 이미 기록했으면 화면 숫자만 올립니다. */
   const countUsage = useCallback(async ({ recordedByServer }) => {
     if (user && !recordedByServer) await usageRepo.record(user.id, "doc");
@@ -101,6 +104,6 @@ export function useAccount({ onSignedIn } = {}) {
     planReady: canJudgePlan({ authReady, signedIn: Boolean(user), planLoaded }),
     isGuest: !user,
     quotaLeft: isAdmin ? Infinity : Math.max(0, quota - usage),
-    changePlan, countUsage, logout, reloadUsage,
+    reloadPlan, countUsage, logout, reloadUsage,
   };
 }

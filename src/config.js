@@ -22,8 +22,8 @@ export const contact = {
  *    쓰지 않는 결제사를 미리 적어 두면 약관 자체가 분쟁거리가 됩니다.
  */
 export const refund = {
-  live: false,
-  processor: "",      // 예: "토스페이먼츠" / "Paddle.com Market Limited (Merchant of Record)"
+  live: true,
+  processor: "Paddle.com Market Limited (Merchant of Record)",
   fullDays: 3,        // 이 기간 안에 미사용이면 전액 환불
   partialDays: 14,    // 이 기간까지는 정당한 사유가 있을 때 환불
   cycle: "월 자동 갱신",
@@ -41,6 +41,24 @@ export const social = {
   instagram: "",   // 예: https://instagram.com/계정명
   facebook: "",    // 예: https://facebook.com/페이지명
   x: "",           // 예: https://x.com/계정명
+};
+
+/**
+ * 결제(Paddle).
+ *
+ * ⚠ 여기 값은 브라우저에 그대로 나갑니다. 공개돼도 되는 것만 둡니다.
+ *    · token    — 결제창 전용 공개 토큰 (결제를 "요청"만 할 수 있음)
+ *    · 가격 ID  — 상품 식별자일 뿐, 이걸로 돈을 움직일 수 없음
+ *    API 키와 웹훅 서명 키는 절대 여기 두지 마세요. 서버 전용입니다(Vercel 환경변수).
+ *
+ * ⚠ 비어 있으면 결제 버튼이 "준비 중"으로 바뀝니다 — 눌러도 아무 일이 없는 것보다 낫습니다.
+ */
+export const paddle = {
+  token: import.meta.env?.VITE_PADDLE_TOKEN || "",
+  prices: {
+    basic: import.meta.env?.VITE_PADDLE_PRICE_BASIC || "",
+    pro: import.meta.env?.VITE_PADDLE_PRICE_PRO || "",
+  },
 };
 
 export const ai = {

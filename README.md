@@ -138,9 +138,12 @@ api/
   _supabase-admin.js   service_role 전용 서버 질의
   holidays.js          공휴일 진입점 (HTTP 어댑터)
   _holidays.js         공휴일 받아오기·파싱 — 개발 서버(vite.config.js)와 공유
+  paddle-webhook.js    결제 알림 진입점 (서명 확인 전용, 본문 파싱 끔)
+  _paddle.js           서명 확인 + 구독·결제내역 반영
 tests/
   domain.test.mjs      규칙 회귀 테스트 — `npm test`
   holidays.test.mjs    공휴일 달력 파싱 회귀 테스트 — `npm test`
+  billing.test.mjs     결제 서명·요금제 판단 회귀 테스트 — `npm test`
   visual/layout.spec.mjs 배치 회귀 테스트 — `npm run test:visual`
 dev/
   gallery.jsx          화면 조각 검수 페이지 (개발 전용, 배포본 제외)
@@ -151,6 +154,7 @@ supabase/
   migrate-plan-names.sql   구 free/pro/max → 신 free/basic/pro (1회성, 두 번 실행 금지)
   diagnose-signup.sql      회원이 profiles 에 안 남을 때 원인 진단 + 복구
   diagnose-documents.sql   문서가 저장되지 않을 때 원인 진단
+  diagnose-payments.sql    결제가 요금제에 반영되지 않을 때 원인 진단
 ```
 
 ### 고칠 때 어디를 보면 되는지
@@ -246,6 +250,63 @@ npm run gallery    # http://localhost:5173/gallery.html
 ⚠ 다른 공휴일 API 를 검토했다면 먼저 실제 응답을 확인하세요. Nager.Date 는 대체공휴일이 있으면
 **원래 공휴일을 빼 버립니다**(3·1절·광복절·개천절이 통째로 사라짐).
 
+## 결제 (Paddle)
+
+Paddle 이 **Merchant of Record** 라 세금·인보이스·카드 정보를 모두 대신 처리합니다.
+우리 서버는 카드 번호를 만지지 않고, 결제 결과 알림만 받습니다.
+
+```
+요금제 버튼 ─▶ Paddle 결제창 ─▶ 결제 완료
+                                   │
+      Paddle ─▶ POST /api/paddle-webhook ─▶ subscriptions·payments 저장 ─▶ profiles.plan 갱신
+                    (서명 확인)                                              │
+      화면은 몇 초간 기다렸다가 서버의 요금제를 다시 읽습니다 ◀──────────────┘
+```
+
+### 🚨 요금제는 회원이 바꿀 수 없어야 합니다
+`profiles.plan` 은 **결제 웹훅(service_role)만** 쓸 수 있습니다. `lock_profile_plan` 트리거가
+그 외의 변경을 조용히 되돌립니다. RLS 정책만으로는 막을 수 없습니다 —
+정책은 "이 행을 고쳐도 되는가"만 볼 뿐, "어느 칸을 고쳤는가"는 보지 못하기 때문입니다.
+
+> 이 트리거가 없던 시절에는 요금제 버튼을 누르는 것만으로 Pro 가 됐습니다.
+> `schema.sql` 실행 후 확인 표의 **`요금제 잠금(결제만 변경)` 이 ✅ 인지 반드시 보세요.**
+
+### Paddle 대시보드에서 할 일
+1. **판매자 승인** — 사이트 심사에 며칠 걸립니다. 이용약관·환불정책·연락처가 있어야 합니다(이미 있음).
+2. **도메인 등록** — Checkout settings 에 결제창을 띄울 도메인 추가. 없으면 결제창이 열리지 않습니다.
+3. **상품·가격 2개** — Basic ₩9,900/월, Pro ₩19,900/월 (자동 갱신). 가격 ID(`pri_...`)를 받아 둡니다.
+4. **알림(Notifications) 대상 추가** — 주소 `https://<도메인>/api/paddle-webhook`,
+   아래 이벤트를 선택하고 **서명 키(`pdl_ntfset_...`)** 를 받아 둡니다.
+   - `subscription.created` `subscription.updated` `subscription.canceled`
+   - `transaction.completed` `transaction.payment_failed`
+5. **정산 정보** — 은행 계좌 + 세금 양식.
+
+### 환경변수 (Vercel)
+| 이름 | 값 | 노출 |
+|---|---|---|
+| `VITE_PADDLE_TOKEN` | Client-side token | 프론트 (공개돼도 안전) |
+| `VITE_PADDLE_PRICE_BASIC` | Basic 가격 ID `pri_...` | 프론트 |
+| `VITE_PADDLE_PRICE_PRO` | Pro 가격 ID `pri_...` | 프론트 |
+| `PADDLE_WEBHOOK_SECRET` | 알림 서명 키 `pdl_ntfset_...` | **서버 전용** |
+
+- `PADDLE_WEBHOOK_SECRET` 이 없으면 **모든 알림을 거부합니다.** 통과시키면 아무나
+  가짜 알림으로 자기를 Pro 로 만들 수 있어서, 없을 때 여는 쪽으로 기울지 않습니다.
+- `SUPABASE_SERVICE_ROLE_KEY` 도 반드시 있어야 합니다 — 요금제를 쓰는 유일한 열쇠입니다.
+- `VITE_PADDLE_TOKEN` 이나 가격 ID 가 비어 있으면 결제 버튼이 "준비 중"으로 바뀝니다.
+- ⚠ **API 키는 필요 없습니다.** 웹훅이 알림 안의 정보만으로 처리하도록 만들었습니다.
+  Paddle API 를 호출하지 않으니 키가 새어 나갈 자리도 없습니다.
+
+### 알아 둘 것
+- **결제창이 닫혀도 요금제는 아직입니다.** 알림이 도착해야 오릅니다(보통 1~3초).
+  화면은 그동안 "결제를 확인하고 있어요"를 보여 주고, 늦어지면 그 사실을 알려 줍니다.
+- **결제 실패(`past_due`)에도 문서를 계속 열어 줍니다.** Paddle 이 며칠 재시도하는데,
+  카드 한도처럼 곧 풀릴 일로 쓰던 문서를 못 열면 곤란합니다. 끝내 실패하면 `canceled` 가 되고 그때 내려갑니다.
+  (`src/domain/billing.js` 의 `LIVE_STATUSES`)
+- **같은 알림이 두 번 와도 한 번만 처리됩니다** — `webhook_events` 에 event_id 를 먼저 기록합니다.
+- **요금제는 알림 하나가 아니라 그 회원의 구독 전체를 보고 정합니다.** 업그레이드 때
+  해지·생성 알림이 뒤바뀌어 도착하면, 방금 결제한 선생님이 무료로 떨어지기 때문입니다.
+- 반영이 안 되면 [`supabase/diagnose-payments.sql`](supabase/diagnose-payments.sql) 을 실행하세요.
+
 ## 결과물 내보내기
 - **표로 복사** — 클립보드에 `text/html` 을 함께 넣어 한글(HWP)·워드에 **표 서식 그대로** 붙습니다.
 - **파일 저장** — 워드·한글이 여는 `.doc`(HTML 기반 문서)로 내려받습니다. 유료 플랜 전용입니다.
@@ -269,7 +330,13 @@ npm run gallery    # http://localhost:5173/gallery.html
   | `GEMINI_API_KEY` | Gemini 키. **`VITE_` 접두사 없이** 설정 → 서버리스 함수만 사용(브라우저 비노출) | 서버 전용 |
   | `VITE_SUPABASE_URL` | Supabase URL (빌드 시 번들에 주입) | 프론트 |
   | `VITE_SUPABASE_ANON_KEY` | Supabase anon 키 (RLS 로 보호) | 프론트 |
-  | `SUPABASE_SERVICE_ROLE_KEY` | 서버에서 요금제 한도를 검증·기록. **`VITE_` 없이** 설정 | 서버 전용 |
+  | `SUPABASE_SERVICE_ROLE_KEY` | 서버에서 요금제 한도를 검증·기록하고 **결제 결과를 반영**. **`VITE_` 없이** 설정 | 서버 전용 |
+  | `PADDLE_WEBHOOK_SECRET` | 결제 알림 서명 확인. 없으면 모든 알림을 거부합니다 | 서버 전용 |
+  | `VITE_PADDLE_TOKEN` | Paddle 결제창 토큰 | 프론트 |
+  | `VITE_PADDLE_PRICE_BASIC` / `VITE_PADDLE_PRICE_PRO` | 요금제별 가격 ID | 프론트 |
 - ⚠️ `VITE_` 변수는 **빌드 시점**에 번들에 박히므로, 값을 바꾸면 **재배포(Redeploy)** 해야 반영됩니다. `GEMINI_API_KEY` 는 런타임에 읽지만, 추가/변경 후에는 마찬가지로 재배포하세요.
 - 개발 서버의 `vite.config.js` 프록시는 **배포본에 존재하지 않습니다.** 배포본의 `/api/gemini/*` 요청은 위 서버리스 함수가 처리합니다.
 - `/api/holidays` 는 환경변수가 필요 없습니다 — 인증키 없이 쓸 수 있는 출처를 골랐습니다.
+- `/api/paddle-webhook` 은 본문 파싱을 끕니다(서명은 받은 바이트 그대로에 대해 계산됨).
+  개발 서버에는 이 경로가 없습니다 — Paddle 이 localhost 로 알림을 보낼 수 없고,
+  흉내 내 봐야 가짜 결제를 넣는 통로만 하나 더 생깁니다.

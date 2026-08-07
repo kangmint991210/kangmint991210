@@ -18,16 +18,24 @@ import { Landing } from "./src/features/landing/Landing.jsx";
 import { AuthPage } from "./src/features/auth/AuthPage.jsx";
 import { LegalPage } from "./src/features/legal/LegalPage.jsx";
 import { Workspace } from "./src/features/workspace/Workspace.jsx";
-import { PricingModal, PaywallModal, SignupWallModal } from "./src/features/pricing/index.jsx";
+import { PricingModal, PaywallModal, SignupWallModal, BillingModal } from "./src/features/pricing/index.jsx";
 import { SiteFooter } from "./src/ui/SiteFooter.jsx";
 
 export default function MintSsaem() {
   const app = useMintApp();
-  const { view, user, plan, showPricing, paywall, signupWall } = app;
+  const { view, user, plan, showPricing, paywall, signupWall, billing } = app;
 
-  // 요금제 카드를 눌렀을 때: 비로그인 + 무료는 체험으로, 그 밖에는 로그인으로.
-  const chooseFromLanding = (key) =>
-    key === DEFAULT_PLAN && !user ? app.startTrial() : app.goAuth(key);
+  // 요금제 카드를 눌렀을 때.
+  //  · 비로그인 + 무료  → 체험으로
+  //  · 비로그인 + 유료  → 가입부터 (가입이 끝나면 고른 요금제로 결제창이 이어집니다)
+  //  · 로그인 + 유료    → 바로 결제창
+  // ⚠ 로그인한 회원을 goAuth 로 보내면 아무 일도 일어나지 않습니다 —
+  //    goAuth 는 더 이상 요금제를 주지 않기 때문입니다(결제만이 요금제를 올립니다).
+  const chooseFromLanding = (key) => {
+    if (key === DEFAULT_PLAN && !user) return app.startTrial();
+    if (user) return app.choosePlan(key);
+    return app.goAuth(key, "signup");
+  };
 
   if (view === "landing") {
     return (
@@ -58,6 +66,8 @@ export default function MintSsaem() {
             onClose={() => app.setShowPricing(false)}
           />
         )}
+        {/* 가입 직후 결제가 이어지는 자리라, 랜딩에서도 진행 상태가 보여야 합니다 */}
+        {billing && <BillingModal info={billing} onClose={app.closeBilling} />}
       </>
     );
   }
@@ -106,6 +116,8 @@ export default function MintSsaem() {
           onFallback={() => { app.setSignupWall(null); app.setMode(DEFAULT_MODE); }}
         />
       )}
+      {/* 결제창이 닫힌 뒤 요금제가 반영되기까지의 몇 초를 설명합니다 */}
+      {billing && <BillingModal info={billing} onClose={app.closeBilling} />}
     </>
   );
 }

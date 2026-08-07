@@ -22,6 +22,7 @@ import { promptFor } from "../prompts/index.js";
 import { generateDocument, QuotaExceededError } from "../services/gemini.js";
 import { documents } from "../services/repository.js";
 import { rememberFailedDoc, flushPendingDocs } from "../services/pending-docs.js";
+import { openCheckout, waitForPlan, isPaddleReady } from "../services/paddle.js";
 import { useAccount } from "./useAccount.js";
 import { useGuestTrial } from "./useGuestTrial.js";
 import { useThreads } from "./useThreads.js";
@@ -44,6 +45,8 @@ export function useMintApp() {
   const [showPricing, setShowPricing] = useState(false);
   const [paywall, setPaywall] = useState(null);       // 회원에게 보여 줄 벽
   const [signupWall, setSignupWall] = useState(null); // 게스트에게 보여 줄 벽
+  // 결제 진행 상태 — 결제창이 닫힌 뒤 요금제가 반영되기까지의 몇 초를 알려 줍니다
+  const [billing, setBilling] = useState(null);
 
   /* ── 입력 ────────────────────────────────────── */
   const [mode, setMode] = useState(() => restoreMode(storage.get(KEYS.lastMode)));
@@ -309,9 +312,10 @@ export function useMintApp() {
     storage.set(KEYS.pendingPlan, planKey);
     storage.set(KEYS.pendingMode, mode); // OAuth 로 페이지를 떠나도 고른 문서를 잃지 않게
     setShowPricing(false); setPaywall(null); setSignupWall(null);
-    if (user) { account.changePlan(planKey); setView("app"); return; }
+    // 이미 로그인했으면 결제는 choosePlan 이 맡습니다 — 여기서는 화면만 옮깁니다
+    if (user) { setView("app"); return; }
     setAuthMode(which); setView("auth");
-  }, [mode, user, account]);
+  }, [mode, user]);
 
   // 랜딩의 "무료로 체험해보세요".
   // 체험을 이미 다 썼더라도 여기서 가입을 청하지 않습니다 — 먼저 만들어 둔 결과를 보게 두고,
@@ -341,12 +345,59 @@ export function useMintApp() {
     if (isLocked(key)) explainLock(key);
   }, [isLocked, explainLock]);
 
-  const choosePlan = useCallback((key) => {
-    account.changePlan(key);
+  /**
+   * 요금제 버튼.
+   *
+   * ⚠ 예전에는 여기서 요금제를 그대로 올려 줬습니다 — 돈을 내지 않고 Pro 가 되는
+   *    버튼이었습니다. 이제 결제창을 열고, 요금제는 결제 웹훅이 올려 줍니다.
+   *    (DB 쪽에서도 lock_profile_plan 트리거가 막습니다 — supabase/schema.sql)
+   *
+   * 로그인하지 않았으면 먼저 가입시킵니다. 결제와 계정을 잇지 못하면
+   * 돈만 빠져나가고 요금제는 그대로인, 가장 나쁜 상황이 됩니다.
+   */
+  const choosePlan = useCallback(async (key) => {
+    if (key === "free") { setShowPricing(false); setPaywall(null); setView("app"); return; }
+    if (!user) { goAuth(key, "signup"); return; }
+    if (!isPaddleReady()) { setBilling({ state: "unavailable" }); return; }
+
     setShowPricing(false);
     setPaywall(null);
-    setView("app");
-  }, [account]);
+    const was = account.plan;
+
+    try {
+      await openCheckout({
+        plan: key,
+        user: { id: user.id, email: user.email },
+        onEvent: async (e) => {
+          if (e?.name !== "checkout.completed") return;
+          // 결제창이 닫혀도 요금제는 아직입니다 — 웹훅이 닿을 때까지 기다립니다
+          setBilling({ state: "waiting", plan: key });
+          const now = await waitForPlan(() => account.reloadPlan(user.id), was);
+          setBilling(now ? { state: "done", plan: now } : { state: "slow", plan: key });
+          setView("app");
+        },
+      });
+    } catch (err) {
+      setBilling({ state: "error", message: err.message });
+    }
+  }, [user, account, goAuth]);
+
+  const closeBilling = useCallback(() => setBilling(null), []);
+
+  /**
+   * 가입 전에 유료 요금제를 골랐다면, 로그인이 끝나는 대로 결제창을 엽니다.
+   *
+   * ⚠ onSignedIn 안에서 부르면 안 됩니다 — 그 콜백은 첫 렌더의 것이 계속 쓰여서,
+   *    아직 로그인 전인 user(null)를 붙든 choosePlan 이 불립니다.
+   *    user 가 실제로 채워진 뒤에 돌도록 여기에 둡니다.
+   */
+  useEffect(() => {
+    if (!user) return;
+    const want = storage.get(KEYS.pendingPlan);
+    if (want !== "basic" && want !== "pro") return;
+    storage.remove(KEYS.pendingPlan);   // 한 번만 열립니다
+    choosePlan(want);
+  }, [user, choosePlan]);
 
   const logout = useCallback(async () => {
     // 저장하지 않은 수정은 화면에만 있어서, 로그아웃하면 그대로 사라집니다.
@@ -378,6 +429,7 @@ export function useMintApp() {
     // 동작
     send, threads, clearCurrentMode,
     openLegal, closeLegal, goAuth, startTrial, pickDoc, choosePlan, logout, openAuth,
+    billing, closeBilling,
     openDocFromCalendar,
     MODES,
   };

@@ -33,10 +33,14 @@ export const profiles = {
     return normalizePlan(data?.plan);
   },
 
-  /** 마지막 접속·요금제·SNS 정보 갱신.
+  /** 마지막 접속·SNS 정보 갱신.
    *  DB 트리거가 행을 못 만든 경우(트리거 생성 전 가입자)도 여기서 보강됩니다.
-   *  회원 기록이 통째로 사라지는 자리라, 한 번 실패하면 재시도합니다. */
-  async upsert(user, plan) {
+   *  회원 기록이 통째로 사라지는 자리라, 한 번 실패하면 재시도합니다.
+   *
+   *  ⚠ plan 은 여기서 보내지 않습니다 — 요금제는 결제 웹훅만 바꿉니다.
+   *     보내더라도 DB 트리거(lock_profile_plan)가 무시하므로, 아예 빼서
+   *     "화면에서는 바꿀 수 없다"는 사실을 코드에서도 분명히 둡니다. */
+  async upsert(user) {
     if (!supabase || !user) return;
     const row = {
       id: user.id,
@@ -44,7 +48,6 @@ export const profiles = {
       name: user.name,
       provider: user.provider,
       avatar_url: user.avatar,
-      plan,
       last_seen_at: new Date().toISOString(),
     };
     let { error } = await supabase.from("profiles").upsert(row, { onConflict: "id" });
@@ -57,17 +60,6 @@ export const profiles = {
       warn(`profiles 저장 (${user.provider} 가입자 ${user.id}) — ` +
            "schema.sql 을 실행했는지, plan 제약이 free/basic/pro 인지 확인하세요", error);
     }
-  },
-
-  /** 요금제만 갱신 */
-  async setPlan(userId, plan) {
-    if (!supabase || !userId) return;
-    try {
-      await supabase.from("profiles").upsert(
-        { id: userId, plan, last_seen_at: new Date().toISOString() },
-        { onConflict: "id" }
-      );
-    } catch (e) { warn("요금제 저장", e); }
   },
 };
 

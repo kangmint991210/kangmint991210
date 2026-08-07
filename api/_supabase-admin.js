@@ -56,6 +56,61 @@ export async function countUsageThisMonth(userId) {
   return Number.isFinite(total) ? total : 0;
 }
 
+/**
+ * 행을 넣거나(있으면) 덮어씁니다.
+ * @param {string} table
+ * @param {object} row
+ * @param {string} conflictColumn 이 값이 같으면 같은 행으로 봅니다
+ */
+export async function upsert(table, row, conflictColumn) {
+  const r = await rest(`${table}?on_conflict=${conflictColumn}`, {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: row,
+  });
+  if (!r.ok) throw new Error(`${table} 저장 실패 ${r.status}: ${await r.text()}`);
+}
+
+/**
+ * 이미 처리한 알림인지 확인하고, 처음이면 표시해 둡니다.
+ * @returns {Promise<boolean>} true 면 처음 보는 알림
+ */
+export async function claimEvent(eventId, eventType, raw) {
+  // Prefer 를 주지 않으면 기본이 "충돌 시 실패" 라, 두 번째 시도는 409 로 돌아옵니다.
+  const r = await rest("webhook_events", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: { event_id: eventId, event_type: eventType, raw },
+  });
+  if (r.status === 409) return false;          // 이미 처리한 알림
+  if (!r.ok) throw new Error(`webhook_events 기록 실패 ${r.status}: ${await r.text()}`);
+  return true;
+}
+
+/** 이메일로 회원 찾기 — 결제창이 계정 정보를 실어 보내지 못했을 때의 마지막 수단 */
+export async function userIdByEmail(email) {
+  if (!email) return null;
+  const r = await rest(`profiles?select=id&email=eq.${encodeURIComponent(email)}&limit=1`);
+  const rows = (await r.json().catch(() => [])) || [];
+  return rows[0]?.id || null;
+}
+
+/** 그 회원의 구독 전부 (요금제를 다시 계산할 때 씁니다) */
+export async function listSubscriptions(userId) {
+  const r = await rest(`subscriptions?select=plan,status&user_id=eq.${userId}`);
+  return (await r.json().catch(() => [])) || [];
+}
+
+/** 요금제 설정 — service_role 이라 lock_profile_plan 트리거를 통과합니다 */
+export async function setPlan(userId, plan) {
+  const r = await rest(`profiles?id=eq.${userId}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: { plan },
+  });
+  if (!r.ok) throw new Error(`요금제 반영 실패 ${r.status}: ${await r.text()}`);
+}
+
 /** 사용량 1건 기록. 성공 여부를 돌려줍니다(실패하면 클라이언트가 대신 기록). */
 export async function recordUsage(userId, kind) {
   try {

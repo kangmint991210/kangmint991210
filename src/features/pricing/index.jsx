@@ -49,7 +49,58 @@ export function PricingModal({ plan, onChoose, onClose }) {
       <div style={styles.modalTitle}>요금제를 선택하세요</div>
       <div style={styles.modalSub}>필요할 때 언제든 바꿀 수 있어요.</div>
       <PlanCards plan={plan} onChoose={onChoose} />
-      <div style={styles.demoNote}>* 베타 기간 — 유료 플랜을 누르면 결제 없이 바로 이용 상태로 전환돼요.</div>
+      <div style={styles.demoNote}>
+        * 결제는 Paddle 에서 안전하게 처리돼요. 언제든 해지할 수 있고, 해지해도 결제한 기간까지는 그대로 쓰실 수 있어요.
+      </div>
+    </ModalShell>
+  );
+}
+
+/**
+ * 결제 직후의 몇 초를 설명하는 창.
+ *
+ * ⚠ 결제창이 닫혔다고 요금제가 바로 오르지 않습니다 — Paddle 이 우리 서버로
+ *    알림을 보내야 반영됩니다. 그 사이에 아무 말이 없으면 선생님은
+ *    "돈은 냈는데 그대로네" 라고 생각하게 됩니다. 그래서 상태를 그대로 보여 줍니다.
+ */
+export function BillingModal({ info, onClose }) {
+  const VIEW = {
+    waiting: {
+      title: "결제를 확인하고 있어요",
+      body: "잠시만 기다려 주세요. 보통 몇 초 안에 끝나요.",
+      closable: false,
+    },
+    done: {
+      title: `${planName(info.plan)} 플랜이 시작됐어요 🌿`,
+      body: "이제 모든 문서를 만드실 수 있어요. 영수증은 결제하신 이메일로 갑니다.",
+      closable: true,
+    },
+    slow: {
+      title: "결제는 접수됐어요",
+      body: "요금제 반영이 조금 늦어지고 있어요. 잠시 뒤 새로고침하면 적용된 걸 보실 수 있어요. " +
+            "10분이 지나도 그대로면 문의해 주세요 — 결제 내역은 이미 남아 있으니 안전해요.",
+      closable: true,
+    },
+    unavailable: {
+      title: "결제 준비 중이에요",
+      body: "지금은 결제를 받을 수 없어요. 조금 뒤에 다시 시도해 주세요.",
+      closable: true,
+    },
+    error: {
+      title: "결제를 시작하지 못했어요",
+      body: info.message || "잠시 뒤 다시 시도해 주세요.",
+      closable: true,
+    },
+  }[info.state] || { title: "결제", body: "", closable: true };
+
+  return (
+    <ModalShell onClose={VIEW.closable ? onClose : undefined}>
+      <div style={styles.modalMascot}><Mascot size={54} /></div>
+      <div style={styles.modalTitle}>{VIEW.title}</div>
+      <div style={styles.modalSub}>{VIEW.body}</div>
+      {VIEW.closable && (
+        <button style={styles.ctaPrimary} onClick={onClose}>확인</button>
+      )}
     </ModalShell>
   );
 }
