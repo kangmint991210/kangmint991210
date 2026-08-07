@@ -401,12 +401,11 @@ export const styles = {
   //
   // 광택은 세 가지가 겹쳐 만들어집니다 — 위에서 내려오는 밝은 결(배경 그라디언트),
   // 맨 윗변의 얇은 하이라이트, 아래쪽 안쪽 그늘. 여기에 스페큘러 반사(featShine)를 얹습니다.
-  featTile: (tint, color) => ({
+  featTile: (tint, tint2) => ({
     position: "relative", width: "100%", maxWidth: 76, aspectRatio: "1 / 1",
     borderRadius: 22, display: "grid", placeItems: "center", overflow: "hidden",
-    // ⚠ 아래쪽을 문서 색으로 살짝 눌러 줍니다. tint 만 쓰면 위아래가 거의 같은 흰색이라
-    //    빛이 비쳐도 티가 나지 않습니다.
-    background: `linear-gradient(158deg, #fff 0%, ${tint} 38%, ${color}4D 100%)`,
+    // ⚠ 위아래에 색 차이가 있어야 빛이 비친 티가 납니다. 같은 흰색으로 두면 광택이 사라집니다.
+    background: `linear-gradient(158deg, #fff 0%, ${tint} 36%, ${tint2} 100%)`,
     boxShadow: `inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -10px 16px -10px rgba(46,74,66,.16),
                 0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)`,
   }),

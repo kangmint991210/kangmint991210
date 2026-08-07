@@ -252,7 +252,7 @@ function GlyphsView() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 18 }}>
         {MODES.map((m) => (
           <div key={m.key} style={{ textAlign: "center" }}>
-            <div style={{ background: m.tint, borderRadius: 28, padding: 14, display: "grid", placeItems: "center" }}>
+            <div style={{ background: `linear-gradient(158deg, #fff, ${m.tint} 36%, ${m.tint2})`, borderRadius: 28, padding: 14, display: "grid", placeItems: "center" }}>
               <DocGlyph mode={m.key} size={84} />
             </div>
             <div style={{ fontSize: 12, marginTop: 6, color: "#5A6B64" }}>{m.label}</div>
