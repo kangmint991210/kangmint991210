@@ -14,7 +14,7 @@ import {
 } from "../src/domain/plans.js";
 import {
   MODE_KEYS, DEFAULT_MODE, missingFields, createEmptyForm, labelOf,
-  LIFE_AREAS, LIFE_LEVELS, ASSESS_AREAS, restoreMode,
+  LIFE_AREAS, LIFE_LEVELS, ASSESS_AREAS, restoreMode, childTerm,
 } from "../src/domain/documents.js";
 import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import {
@@ -567,7 +567,7 @@ test("모든 문서가 공통 규칙을 물려받는다 — 원아 호칭과 목
   // 목록 줄바꿈 지시를 못 받아 한 줄에 뭉쳐 나왔습니다.
   for (const key of MODE_KEYS) {
     const { system } = promptFor(key);
-    assert.ok(system.includes("이름 대신 \"원아\""), `${key} 에 호칭 규칙이 없음`);
+    assert.ok(system.includes("[호칭]"), `${key} 에 호칭 규칙이 없음`);
     assert.ok(system.includes("한 줄에 하나씩"), `${key} 에 목록 줄바꿈 규칙이 없음`);
   }
 });
@@ -582,6 +582,34 @@ test("아이를 가리키는 설정 라벨이 문서마다 어긋나지 않는�
     assert.ok(msg.includes("원아:민준"), `${key} 의 설정 라벨이 '원아:' 가 아님`);
     assert.ok(!msg.includes("아동:민준"), `${key} 에 '아동:' 라벨이 남아 있음`);
   }
+});
+
+test("연령에 따라 영아·유아를 가려 부른다", () => {
+  // 표준보육과정이 0~2세(영아)와 3~5세(누리과정, 유아)로 나뉩니다.
+  // "만 2세 유아" 처럼 바꿔 쓰면 서식 자체가 틀립니다.
+  for (const age of ["만 0세", "만 1세", "만 2세"]) assert.equal(childTerm(age), "영아");
+  for (const age of ["만 3세", "만 4세", "만 5세"]) assert.equal(childTerm(age), "유아");
+  // 혼합연령은 하나로 정할 수 없습니다 — 두루 쓰이는 "원아" 로 둡니다.
+  assert.equal(childTerm("혼합연령"), null);
+  assert.equal(childTerm(""), null);
+  assert.equal(childTerm(undefined), null);
+});
+
+test("호칭은 모델이 고르지 않고 지시문에 못박아 넘긴다", () => {
+  // 규칙만 주고 연령에서 알아서 고르게 두면 문서마다 흔들립니다.
+  const say = (mode, age) => promptFor(mode).buildUserMessage({ ...createEmptyForm(), age, child: "민준" }, "");
+
+  assert.ok(say("obs", "만 1세").includes('"영아"라고만 씁니다'), say("obs", "만 1세"));
+  assert.ok(say("obs", "만 4세").includes('"유아"라고만 씁니다'));
+  assert.ok(!say("obs", "혼합연령").includes("[호칭]"), "혼합연령은 하나로 정하지 않음");
+
+  // 연령을 받는 문서는 모두 호칭을 넘겨야 합니다
+  const withAge = MODE_KEYS.filter((k) => say(k, "만 1세").includes("연령:"));
+  assert.ok(withAge.length >= 10, `연령을 쓰는 문서가 ${withAge.length}개뿐`);
+  for (const key of withAge) assert.ok(say(key, "만 1세").includes("[호칭]"), `${key} 에 호칭이 없음`);
+
+  // 행사 계획안은 영아반·유아반이 함께라서 하나로 정하면 오히려 틀립니다
+  assert.ok(!say("event", "만 1세").includes("[호칭]"), "행사 계획안은 호칭을 정하지 않음");
 });
 
 test("관찰일지는 생년월일에서 월령을 계산해 넘긴다", () => {

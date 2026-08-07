@@ -46,6 +46,20 @@ export const domainEmoji = (key) => DOMAINS.find((d) => d.key === key)?.emoji ||
 
 /** 입력 폼의 선택지 */
 export const AGES = ["만 0세", "만 1세", "만 2세", "만 3세", "만 4세", "만 5세", "혼합연령"];
+
+/**
+ * 그 연령의 아이를 서식에서 부르는 말.
+ *
+ * 표준보육과정이 0~2세(영아)와 3~5세(누리과정, 유아)로 나뉘고,
+ * 어린이집 서식도 그 경계를 그대로 씁니다. "만 2세 유아" 라고 쓰면 어색합니다.
+ *
+ * 혼합연령처럼 하나로 정할 수 없으면 null — 그때는 두루 쓰이는 "원아" 로 둡니다.
+ */
+export function childTerm(age) {
+  if (/만\s*[012]\s*세/.test(age || "")) return "영아";
+  if (/만\s*[345]\s*세/.test(age || "")) return "유아";
+  return null;
+}
 export const PLACES = ["실내", "실외", "교실 책상", "유희실"];
 export const DURATIONS = ["10분", "20분", "30분", "40분+"];
 export const COUNSEL_METHODS = ["방문", "전화", "화상", "기타"];
