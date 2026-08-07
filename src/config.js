@@ -88,7 +88,7 @@ export const business = {
   name: "벨티보 belltivo",
   owner: "박수빈",
   registrationNo: "218-13-19736",
-  address: "경기도 의정부시 평화로 195, 7층 718호(호원동)",
+  address: "경기도 의정부시 평화로 195",
   mailOrderNo: "2025-의정부흥선-0680",  // 통신판매업 신고번호
 };
 

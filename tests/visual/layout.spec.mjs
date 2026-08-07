@@ -385,7 +385,7 @@ test("사업자 정보가 초기화면 하단에 보이고 화면을 넘치지 �
   await expect(line, "푸터에 사업자 정보가 없음").toBeVisible();
 
   const text = await line.innerText();
-  for (const must of ["벨티보", "대표", "통신판매업", "의정부"]) {
+  for (const must of ["벨티보", "대표", "통신판매업", "평화로"]) {
     expect(text, `사업자 정보에 ${must} 가 빠짐`).toContain(must);
   }
 
