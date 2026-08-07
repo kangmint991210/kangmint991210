@@ -181,6 +181,9 @@ test("로그인하면 랜딩 우측 상단에 계정과 요금제가 보인다",
   await expect(topBar(page).getByRole("button", { name: /김민트/ })).toBeVisible();
   // 이미 로그인했으므로 로그인 버튼은 없어야 합니다.
   await expect(topBar(page).getByRole("button", { name: "로그인", exact: true })).toHaveCount(0);
+  // 작업을 이어 가는 버튼은 히어로에 있으므로 상단에는 두지 않습니다.
+  await expect(topBar(page).getByRole("button", { name: "이어서 작업하기" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "이어서 작업하기" })).toHaveCount(1);
 });
 
 test("로그인 전에는 로그인·무료로 시작 버튼이 보인다", async ({ page }) => {

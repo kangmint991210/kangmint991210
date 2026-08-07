@@ -57,11 +57,13 @@ export function Landing({
           <AccountChip
             user={user} plan={plan} isAdmin={isAdmin} usage={usage} quota={quota}
             onLogout={onLogout} onOpenPricing={onOpenPricing} />
-          {!user && <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>}
-          {!user && <button style={styles.navGhost} onClick={onLogin}>로그인</button>}
-          <button style={styles.navCta} onClick={onStart}>
-            {user ? "이어서 작업하기" : "무료로 시작"}
-          </button>
+          {/* 로그인하면 상단은 "내 상태"만 보여 줍니다.
+              작업을 이어 가는 버튼은 히어로 한가운데에 이미 있어, 위에도 두면 같은 말을 두 번 합니다. */}
+          {!user && <>
+            <button style={styles.navGhost} onClick={onOpenPricing}>요금제</button>
+            <button style={styles.navGhost} onClick={onLogin}>로그인</button>
+            <button style={styles.navCta} onClick={onStart}>무료로 시작</button>
+          </>}
         </div>
       </nav>
 
