@@ -30,6 +30,7 @@ import { weekInfo, monthRange, weekdaysFrom, monthsOld } from "../src/lib/korean
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
 import { toTurns, filterTurns, docTitle, shouldFollowNewest } from "../src/domain/threads.js";
 import { buildDoc } from "../src/domain/document-export.js";
+import { splitBullets, splitBulletsDeep } from "../src/domain/bullets.js";
 import { promptFor, PROMPTS } from "../src/prompts/index.js";
 
 /* ─────────────── 요금제 ─────────────── */
@@ -582,6 +583,40 @@ test("아이를 가리키는 설정 라벨이 문서마다 어긋나지 않는�
     assert.ok(msg.includes("원아:민준"), `${key} 의 설정 라벨이 '원아:' 가 아님`);
     assert.ok(!msg.includes("아동:민준"), `${key} 에 '아동:' 라벨이 남아 있음`);
   }
+});
+
+test("한 줄에 뭉쳐 온 목록을 줄마다 하나씩으로 편다", () => {
+  // 실제로 선생님 화면에 이렇게 나왔습니다 — 프롬프트로 못박아도 모델이 가끔 붙여 보냅니다.
+  const glued = "[사회관계 > 나를 알고 존중하기] 말로 표현하는 법을 배우고 있음. " +
+    "· 거부감을 언어로 전달하며 감정을 조절하고 있음. · 타협점을 찾아가는 시도를 함.";
+  assert.equal(splitBullets(glued),
+    "[사회관계 > 나를 알고 존중하기] 말로 표현하는 법을 배우고 있음.\n" +
+    "· 거부감을 언어로 전달하며 감정을 조절하고 있음.\n· 타협점을 찾아가는 시도를 함.");
+
+  // 이미 제대로 나뉜 것은 건드리지 않습니다
+  const fine = "· 첫째 줄임.\n· 둘째 줄임.\n· 셋째 줄임.";
+  assert.equal(splitBullets(fine), fine);
+
+  // ⚠ 가운뎃점은 낱말을 잇는 데도 씁니다 — 붙여 쓴 것은 줄을 바꾸면 안 됩니다.
+  assert.equal(splitBullets("식사·수면·배변을 스스로 하려 함."), "식사·수면·배변을 스스로 하려 함.");
+  assert.equal(splitBullets("손·발·시선의 움직임을 살핌. 반복 횟수를 셈."),
+    "손·발·시선의 움직임을 살핌. 반복 횟수를 셈.");
+  // 목록 기호가 하나뿐이면 목록으로 보지 않습니다 (문장 중간의 점을 건드리지 않으려고)
+  assert.equal(splitBullets("놀이 · 활동을 이어 감."), "놀이 · 활동을 이어 감.");
+
+  assert.equal(splitBullets(""), "");
+  assert.equal(splitBullets(null), null);
+  assert.equal(splitBullets(42), 42);
+});
+
+test("문서 전체를 훑어 목록을 편다 — 중첩된 값까지", () => {
+  const doc = { observation: { areas: [{ area: "사회관계", learning: "· 하나임. · 둘임." }], summary: "· 셋임. · 넷임." } };
+  const out = splitBulletsDeep(doc);
+  assert.equal(out.observation.areas[0].learning, "· 하나임.\n· 둘임.");
+  assert.equal(out.observation.summary, "· 셋임.\n· 넷임.");
+  assert.equal(out.observation.areas[0].area, "사회관계", "고칠 게 없는 값은 그대로");
+  // 원본은 건드리지 않습니다
+  assert.equal(doc.observation.summary, "· 셋임. · 넷임.");
 });
 
 test("연령에 따라 영아·유아를 가려 부른다", () => {

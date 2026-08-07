@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Check, Pencil } from "lucide-react";
 import { brand } from "../config.js";
+import { splitBullets } from "../domain/bullets.js";
 import { styles } from "./styles.js";
 import { css } from "./theme.js";
 
@@ -42,7 +43,11 @@ export function Mascot({ size = 44 }) {
   );
 }
 
-export function Editable({ value, path, onEdit, style, multiline = true, placeholder = "내용을 적어주세요" }) {
+export function Editable({ value: raw, path, onEdit, style, multiline = true, placeholder = "내용을 적어주세요" }) {
+  // 뭉쳐 저장된 목록을 폅니다. 새로 만드는 문서는 저장 전에 이미 펴지지만(services/gemini.js),
+  // 그 전에 만들어 둔 문서는 뭉친 채로 남아 있어 보여 줄 때 한 번 더 폅니다.
+  const value = multiline ? splitBullets(raw) : raw;
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const ref = useRef(null);

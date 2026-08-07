@@ -2,6 +2,7 @@
 
 import { ai } from "../config.js";
 import { promptFor } from "../prompts/index.js";
+import { splitBulletsDeep } from "../domain/bullets.js";
 
 /** 요금제·체험 한도에 걸렸을 때. 화면은 이 오류를 보고 안내 모달을 띄웁니다. */
 export class QuotaExceededError extends Error {
@@ -108,5 +109,7 @@ export async function generateDocument({ mode, form, extra = "", history = [], a
   const payload = parsePayload(data);
   if (!payload) throw new Error("결과를 이해하지 못했어요."); // 깨진 결과를 그대로 보여주지 않음
 
-  return { payload, usageCounted: res.headers.get("X-Usage-Counted") === "1" };
+  // 목록이 한 줄에 뭉쳐 오는 경우가 있어 여기서 폅니다 — 저장되기 전에 고쳐야
+  // 화면·수정·내보내기가 모두 같은 모양을 봅니다. (domain/bullets.js)
+  return { payload: splitBulletsDeep(payload), usageCounted: res.headers.get("X-Usage-Counted") === "1" };
 }

@@ -251,11 +251,15 @@ test("관찰기록의 네 항목이 모두 줄바꿈을 지킨다", async ({ pag
     const label = [...document.querySelectorAll("span")].find((el) => el.textContent === name);
     const body = label?.parentElement?.querySelector("p");
     if (!body) return { name, found: false };
-    const cs = getComputedStyle(body);
+    const text = body.textContent;
     return {
-      name, found: true, whiteSpace: cs.whiteSpace,
-      bullets: (body.textContent.match(/·\s/g) || []).length,
-      lines: Math.round(body.getBoundingClientRect().height / parseFloat(cs.lineHeight)),
+      name, found: true,
+      whiteSpace: getComputedStyle(body).whiteSpace,
+      bullets: (text.match(/·\s/g) || []).length,
+      // ⚠ 높이로 줄 수를 가늠하면 안 됩니다 — 좁은 화면에서는 뭉친 글도 저절로
+      //    여러 줄로 접혀서, 고치지 않아도 검사가 통과합니다(모바일에서 실제로 그랬습니다).
+      //    화면 폭과 무관하게, 글 자체의 줄 구조를 봅니다.
+      glued: text.split("\n").filter((l) => (l.match(/·\s/g) || []).length > 1).length,
     };
   }), fields);
 
@@ -263,7 +267,7 @@ test("관찰기록의 네 항목이 모두 줄바꿈을 지킨다", async ({ pag
     expect(s.found, `${s.name} 항목이 화면에 없음`).toBe(true);
     expect(s.bullets, `${s.name} 표본에 목록이 있어야 검사가 의미 있음`).toBeGreaterThanOrEqual(2);
     expect(s.whiteSpace, `${s.name} 의 줄바꿈이 뭉개짐`).toMatch(/pre-wrap|pre-line/);
-    expect(s.lines, `${s.name} 이 한 줄로 붙어 있음`).toBeGreaterThanOrEqual(s.bullets);
+    expect(s.glued, `${s.name} 의 블릿이 한 줄에 뭉쳐 있음`).toBe(0);
   }
 });
 
