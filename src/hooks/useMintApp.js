@@ -35,7 +35,7 @@ export function useMintApp() {
   const [view, setView] = useState(() => restoreView(storage.get(KEYS.lastView)));
                                                    // landing | auth | app | legal
   const [authMode, setAuthMode] = useState("login"); // login | signup
-  const [legalTab, setLegalTab] = useState("terms");  // terms | privacy
+  const [legalTab, setLegalTab] = useState("terms");  // terms | privacy | refund | delete
   // 소셜 로그인이 실패해 되돌아온 경우의 안내 (주소창에 실려 옵니다)
   const [authError, setAuthError] = useState(() => readAuthRedirectError());
   const legalFrom = useRef("landing");               // 약관을 열기 직전 화면

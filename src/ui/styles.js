@@ -233,7 +233,8 @@ export const styles = {
   // 아이콘이 자기 배경색(공식 브랜드 색)을 직접 그리므로 여기서는 색을 입히지 않습니다.
   // 색을 덧씌우면 무슨 채널인지 알아보기 어려워집니다.
   socialBtn: { width: 38, height: 38, display: "grid", placeItems: "center", borderRadius: 12, border: "none", background: "transparent", padding: 0, lineHeight: 0 },
-  siteFoot: { padding: "8px 16px 24px" },
+  siteFoot: { padding: "10px 16px 26px", textAlign: "center" },
+  footBrand: { marginTop: 10, fontSize: 11.5, color: "#9DB0A8" },
 
   /* ── 보관함 검색 ────────────────────────────────────── */
   searchRow: { display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 14, padding: "8px 12px", boxShadow: `0 2px 0 ${SH}` },
@@ -310,6 +311,14 @@ export const styles = {
   legalH: { fontFamily: DISPLAY, fontSize: 21, color: "#2E4A42", margin: "0 0 4px" },
   legalH3: { fontSize: 14, fontWeight: 800, color: "#1F6B5A", margin: "18px 0 6px" },
   legalP: { margin: 0, fontSize: 13, lineHeight: 1.75, color: "#48564F" },
+  legalMeta: { margin: "0 0 4px", fontSize: 12, color: "#8AA79D" },
+  legalList: { margin: "6px 0 0", paddingLeft: 18, display: "flex", flexDirection: "column", gap: 5 },
+  legalLi: { fontSize: 13, lineHeight: 1.7, color: "#48564F" },
+  legalTable: { display: "flex", flexDirection: "column", gap: 1, background: "#E8F4EE", borderRadius: 12, overflow: "hidden", marginTop: 8 },
+  legalRow: { display: "flex", gap: 1, background: "#E8F4EE", flexWrap: "wrap" },
+  legalRowKey: { flex: "0 0 132px", minWidth: 104, background: "#F1F9F5", padding: "9px 12px", fontSize: 12, fontWeight: 800, color: "#1F6B5A" },
+  legalRowVal: { flex: "1 1 190px", minWidth: 0, background: "#fff", padding: "9px 12px", fontSize: 12.5, lineHeight: 1.65, color: "#48564F" },
+  legalNote: { marginTop: 12, fontSize: 12.5, lineHeight: 1.7, color: "#5E7168", background: "#F1F9F5", borderRadius: 12, padding: "12px 14px" },
   legalLink: { color: "#2E9E86", fontWeight: 700 },
   legalTodo: { marginTop: 22, fontSize: 11.5, color: "#B08900", background: "#FFF8E1", borderRadius: 12, padding: "11px 13px", lineHeight: 1.6 },
 

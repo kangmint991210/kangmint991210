@@ -5,7 +5,6 @@
 
 import React from "react";
 import { Lock } from "lucide-react";
-import { brand, contact } from "../../config.js";
 import { MODES } from "../../domain/documents.js";
 import { planName } from "../../domain/plans.js";
 import { Brand } from "../../ui/primitives.jsx";
@@ -15,7 +14,7 @@ import { Reveal } from "./Reveal.jsx";
 import { AccountChip } from "../account/AccountChip.jsx";
 import { WorkCalendar } from "../calendar/WorkCalendar.jsx";
 import { DocGlyph, GlyphDefs } from "./DocGlyphs.jsx";
-import { SocialLinks } from "../../ui/SiteFooter.jsx";
+import { SiteFooter } from "../../ui/SiteFooter.jsx";
 import { ObsCard } from "../results/Card.jsx";
 import { PlanCards } from "../pricing/index.jsx";
 import { styles } from "../../ui/styles.js";
@@ -154,17 +153,7 @@ export function Landing({
         </>
       )}
 
-      <footer style={styles.landFoot}>
-        <div>{brand.name} · {brand.description}</div>
-        <SocialLinks />
-        <div style={styles.footLinks}>
-          <button style={styles.footLink} onClick={() => onLegal("terms")}>이용약관</button>
-          <span style={styles.footDot}>·</span>
-          <button style={styles.footLink} onClick={() => onLegal("privacy")}>개인정보처리방침</button>
-          <span style={styles.footDot}>·</span>
-          <a style={styles.footLink} href={`mailto:${contact.email}`}>문의하기</a>
-        </div>
-      </footer>
+      <SiteFooter onLegal={onLegal} />
     </div>
   );
 }

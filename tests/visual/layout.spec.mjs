@@ -247,6 +247,34 @@ test("랜딩 예시는 햇님이 관찰기록으로 나온다", async ({ page })
   await expect(page.getByText("탐구과정 즐기기", { exact: false }).first()).toBeVisible();
 });
 
+/* ─────────────── 화면 하단 ─────────────── */
+
+const LEGAL = ["이용약관", "개인정보처리방침", "환불 정책", "계정 삭제 안내"];
+
+for (const view of ["landing-guest", "landing-user", "calendar"]) {
+  test(`${view} 하단에 법적 문서 4개가 모두 있다`, async ({ page }) => {
+    // 약관·개인정보·환불·계정삭제는 어느 화면에서든 닿을 수 있어야 합니다.
+    await page.goto(`/gallery.html?v=${view}`);
+    const foot = page.locator("footer").last();
+    for (const label of LEGAL) {
+      await expect(foot.getByRole("button", { name: label })).toBeVisible();
+    }
+  });
+}
+
+for (const [tab, heading] of [["terms", "이용약관"], ["privacy", "개인정보처리방침"],
+                              ["refund", "환불 정책"], ["delete", "계정 삭제 안내"]]) {
+  test(`법적 문서 화면 — ${heading}`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(`/gallery.html?v=legal-${tab}`);
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+    // 연락처는 config 한 곳에서 오므로, 본문에 옛 주소가 남아 있으면 안 됩니다.
+    await expect(page.getByText("help@mintssaem.kr")).toHaveCount(0);
+    expect(errors, "화면에 오류가 났습니다").toEqual([]);
+  });
+}
+
 /* ─────────────── 작업 달력 ─────────────── */
 
 test("작업한 날에 건수가 표시되고, 누르면 그날 문서가 나온다", async ({ page }) => {

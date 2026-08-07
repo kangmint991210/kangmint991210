@@ -72,19 +72,19 @@ export default function MintSsaem() {
           onLegal={app.openLegal}
           initialError={app.authError}
         />
-        <SiteFooter />
+        <SiteFooter onLegal={app.openLegal} />
       </>
     );
   }
 
   if (view === "legal") {
-    return <><LegalPage tab={app.legalTab} setTab={app.setLegalTab} onHome={app.closeLegal} /><SiteFooter /></>;
+    return <><LegalPage tab={app.legalTab} setTab={app.setLegalTab} onHome={app.closeLegal} /><SiteFooter onLegal={app.setLegalTab} /></>;
   }
 
   return (
     <>
       <Workspace app={app} />
-      <SiteFooter />
+      <SiteFooter onLegal={app.openLegal} />
 
       {showPricing && (
         <PricingModal plan={plan} onChoose={app.choosePlan} onClose={() => app.setShowPricing(false)} />

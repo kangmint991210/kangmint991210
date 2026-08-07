@@ -22,6 +22,7 @@ import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
 import { DocGlyph, GlyphDefs } from "../src/features/landing/DocGlyphs.jsx";
 import { MODES } from "../src/domain/documents.js";
 import { SiteFooter } from "../src/ui/SiteFooter.jsx";
+import { LegalPage, LEGAL_TABS } from "../src/features/legal/LegalPage.jsx";
 import { styles } from "../src/ui/styles.js";
 import { css } from "../src/ui/theme.js";
 
@@ -263,6 +264,11 @@ function GlyphsView() {
   );
 }
 
+function LegalView({ tab }) {
+  const [t, setT] = useState(tab);
+  return <LegalPage tab={t} setTab={setT} onHome={() => {}} />;
+}
+
 const noop = () => {};
 
 // 랜딩 — 로그인 전/후가 달라 보여야 합니다.
@@ -292,6 +298,7 @@ const VIEWS = {
   password: () => <PasswordView />,
   calendar: () => <CalendarView />,
   glyphs: () => <GlyphsView />,
+  ...Object.fromEntries(LEGAL_TABS.map(([k]) => [`legal-${k}`, () => <LegalView tab={k} />])),
   "landing-guest": LandingView(null, "free"),
   "landing-user": LandingView({ name: "김민트", email: "mint@example.com", avatar: null }, "pro"),
   ...Object.fromEntries(Object.keys(SAMPLES).map((k) => [`card-${k}`, () => <CardView kind={k} />])),

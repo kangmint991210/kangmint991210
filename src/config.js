@@ -8,8 +8,25 @@ export const brand = {
 };
 
 export const contact = {
-  // 정식 공개 전 실제 운영 주소로 교체하세요 (약관·개인정보처리방침에서도 이 값을 씁니다)
-  email: "help@mintssaem.kr",
+  // 약관·개인정보처리방침·환불·계정삭제 안내가 모두 이 값을 씁니다
+  email: "kangmint79@gmail.com",
+  privacyOfficer: "박수빈",
+};
+
+/**
+ * 환불 정책의 숫자와 결제 정보.
+ *
+ * ⚠ live 는 "실제로 결제를 받고 있는가" 입니다. 아직 베타라 false 이고,
+ *    환불 화면에 그 사실을 먼저 알려 줍니다. 정식 결제를 붙일 때
+ *    processor 를 적고 live 를 true 로 바꾸세요.
+ *    쓰지 않는 결제사를 미리 적어 두면 약관 자체가 분쟁거리가 됩니다.
+ */
+export const refund = {
+  live: false,
+  processor: "",      // 예: "토스페이먼츠" / "Paddle.com Market Limited (Merchant of Record)"
+  fullDays: 3,        // 이 기간 안에 미사용이면 전액 환불
+  partialDays: 14,    // 이 기간까지는 정당한 사유가 있을 때 환불
+  cycle: "월 자동 갱신",
 };
 
 /**

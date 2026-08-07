@@ -9,7 +9,8 @@
 // 오류 페이지를 보여 주는 것보다 낫습니다. (모양과 색은 그대로 둡니다)
 
 import React, { useId } from "react";
-import { social } from "../config.js";
+import { brand, social } from "../config.js";
+import { LEGAL_TABS } from "../features/legal/LegalPage.jsx";
 import { styles } from "./styles.js";
 
 const SIZE = 38;
@@ -99,11 +100,25 @@ export function SocialLinks() {
   );
 }
 
-/** 화면 맨 아래에 두는 줄. 지금은 소셜 채널만 담고 있습니다. */
-export function SiteFooter() {
+/**
+ * 화면 맨 아래 줄 — 어느 화면에서나 같은 모습입니다.
+ *
+ * 약관·개인정보처리방침·환불 정책·계정 삭제 안내는 어느 화면에서든 닿을 수 있어야 합니다.
+ * 목록은 LegalPage 의 LEGAL_TABS 하나만 보므로, 문서를 더해도 여기는 손대지 않습니다.
+ */
+export function SiteFooter({ onLegal }) {
   return (
     <footer style={styles.siteFoot}>
       <SocialLinks />
+      <div style={styles.footLinks}>
+        {LEGAL_TABS.map(([key, label], i) => (
+          <React.Fragment key={key}>
+            {i > 0 && <span style={styles.footDot}>|</span>}
+            <button style={styles.footLink} onClick={() => onLegal?.(key)}>{label}</button>
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={styles.footBrand}>{brand.name} · {brand.description}</div>
     </footer>
   );
 }
