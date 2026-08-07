@@ -20,7 +20,9 @@ import { restoreView, isRestorableView } from "../src/lib/storage.js";
 import {
   dayKey, shiftMonth, monthGrid, groupByDay, countInMonth, monthLabel, WEEKDAYS,
 } from "../src/domain/calendar.js";
-import { holidayOf, holidaysInMonth, knowsHolidays } from "../src/domain/holidays.js";
+import {
+  holidayOf, holidaysInMonth, knowsHolidays, withYear, BUILTIN_HOLIDAYS,
+} from "../src/domain/holidays.js";
 import {
   MAX_PENDING, addPending, removePending, pendingFor, withoutUser,
 } from "../src/domain/pending-docs.js";
@@ -322,8 +324,11 @@ test("공휴일은 확인한 값만 쓰고, 모르는 해는 표시하지 않는
   assert.equal(holidayOf("2026-05-24"), "부처님오신날");
   assert.equal(holidayOf("2026-08-16"), null, "그냥 일요일은 공휴일이 아님");
 
-  // 제헌절(7/17)은 2008년부터 공휴일이 아닙니다 — 달력 블로그에 잘못 적힌 경우가 있습니다.
-  assert.equal(holidayOf("2026-07-17"), null);
+  // 손으로 적은 표가 실제로 틀렸던 두 날 — 표는 낡고, 법은 바뀝니다.
+  // 제헌절은 2008년에 공휴일에서 빠졌다가 2026-05-11 부터 되살아났습니다(대통령령 제36290호).
+  assert.equal(holidayOf("2026-07-17"), "제헌절");
+  // 선거일도 법정공휴일입니다 (제9회 전국동시지방선거)
+  assert.equal(holidayOf("2026-06-03"), "지방선거일");
 
   // 표에 없는 해는 아무것도 표시하지 않습니다 (틀린 날짜를 보여 주는 것보다 낫습니다)
   assert.equal(knowsHolidays(2026), true);
@@ -336,8 +341,25 @@ test("그 달의 공휴일을 날짜 순으로 모은다", () => {
   assert.deepEqual(holidaysInMonth({ year: 2026, month: 8 }),
     [{ day: 15, name: "광복절" }, { day: 17, name: "대체공휴일" }]);
   assert.deepEqual(holidaysInMonth({ year: 2026, month: 9 }).map((h) => h.day), [24, 25, 26]);
-  assert.deepEqual(holidaysInMonth({ year: 2026, month: 7 }), [], "공휴일 없는 달");
+  assert.deepEqual(holidaysInMonth({ year: 2026, month: 4 }), [], "공휴일 없는 달");
   assert.deepEqual(holidaysInMonth({ year: 2099, month: 1 }), []);
+});
+
+test("받아 온 공휴일이 내장 표를 대신한다 — 원래 표는 그대로 둔다", () => {
+  // 정부가 대체공휴일을 뒤늦게 확정해도 앱을 다시 배포하지 않고 따라갈 수 있어야 합니다.
+  const fetched = { "01-01": "새해", "10-05": "대체공휴일" };
+  const table = withYear(BUILTIN_HOLIDAYS, 2028, fetched);
+
+  assert.equal(holidayOf("2028-10-05", table), "대체공휴일");
+  assert.equal(knowsHolidays(2028, table), true);
+  // 다른 해는 건드리지 않습니다
+  assert.equal(holidayOf("2026-07-17", table), "제헌절");
+  // 원본은 그대로 — 화면이 다시 그려질 때 값이 뒤섞이면 안 됩니다
+  assert.equal(knowsHolidays(2028), false, "BUILTIN_HOLIDAYS 가 오염되면 안 됨");
+
+  // 빈 값을 받으면 무시합니다 (통신은 됐지만 내용이 없는 경우 달력이 비어 버림)
+  assert.equal(withYear(BUILTIN_HOLIDAYS, 2026, {}), BUILTIN_HOLIDAYS);
+  assert.equal(withYear(BUILTIN_HOLIDAYS, 2026, null), BUILTIN_HOLIDAYS);
 });
 
 /* ─────────────── 날짜 ─────────────── */

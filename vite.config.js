@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { handleGeminiRequest, bearerToken } from "./api/_gemini-proxy.js";
 import { clientIp } from "./api/_guard.js";
+import { fetchHolidays, validYear } from "./api/_holidays.js";
 
 // 개발 서버에서 POST /api/gemini 를 처리하는 미들웨어.
 // 프로덕션(api/gemini.js)과 "같은 모듈"을 호출하므로 개발과 배포의 동작이 어긋나지 않습니다.
@@ -36,6 +37,29 @@ function geminiDevProxy(apiKey) {
   };
 }
 
+// 개발 서버에서 GET /api/holidays 를 처리하는 미들웨어 (프로덕션은 api/holidays.js).
+function holidayDevProxy() {
+  return {
+    name: "holiday-dev-proxy",
+    configureServer(server) {
+      server.middlewares.use("/api/holidays", async (req, res) => {
+        const json = (status, body) => {
+          res.statusCode = status;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(body));
+        };
+        const year = validYear(new URL(req.url, "http://x").searchParams.get("year"));
+        if (!year) return json(400, { error: "year 는 2021~2031 사이의 값이어야 합니다." });
+
+        const days = await fetchHolidays(year);
+        return days
+          ? json(200, { year, days })
+          : json(502, { error: "공휴일 달력을 불러오지 못했습니다." });
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // .env 의 값을 서버리스와 같은 이름으로 넘겨 줍니다(개발 미들웨어는 process.env 를 못 봄).
@@ -44,7 +68,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), geminiDevProxy(env.GEMINI_API_KEY || "")],
+    plugins: [react(), geminiDevProxy(env.GEMINI_API_KEY || ""), holidayDevProxy()],
     // 화면 검증(Playwright)은 서버를 직접 띄우므로, 그때는 브라우저를 열지 않습니다.
     server: { port: 5173, strictPort: true, open: !process.env.VITE_NO_OPEN },
   };

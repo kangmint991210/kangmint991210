@@ -9,6 +9,7 @@ export const KEYS = {
   lastView: "mint_last_view",       // 새로고침해도 보던 화면으로 돌아오기
   lastMode: "mint_last_mode",       // 새로고침해도 보던 문서 종류로 돌아오기
   pendingDocs: "mint_pending_docs", // 계정에 넣지 못한 문서 (다음 접속 때 다시 저장)
+  holidays: "mint_holidays_",       // + 연도 — 받아 온 공휴일 (오프라인·서버 장애 대비)
 };
 
 /**

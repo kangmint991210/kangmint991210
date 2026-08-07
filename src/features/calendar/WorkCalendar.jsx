@@ -12,6 +12,7 @@ import {
   WEEKDAYS, dayKey, monthOf, monthGrid, monthLabel, shiftMonth, groupByDay, countInMonth,
 } from "../../domain/calendar.js";
 import { holidayOf, holidaysInMonth } from "../../domain/holidays.js";
+import { useHolidays } from "../../hooks/useHolidays.js";
 import { styles } from "../../ui/styles.js";
 
 export function WorkCalendar({ docs, onOpenDoc }) {
@@ -22,7 +23,9 @@ export function WorkCalendar({ docs, onOpenDoc }) {
   const byDay = useMemo(() => groupByDay(docs), [docs]);
   const cells = useMemo(() => monthGrid(cursor), [cursor]);
   const total = countInMonth(byDay, cursor);
-  const holidays = useMemo(() => holidaysInMonth(cursor), [cursor]);
+  // 공휴일은 바깥 달력에서 받아 옵니다 (못 받으면 내장 표) — domain/holidays.js 참고
+  const holidayTable = useHolidays(cursor.year);
+  const holidays = useMemo(() => holidaysInMonth(cursor, holidayTable), [cursor, holidayTable]);
   const todayKey = dayKey(today);
   const pickedDocs = picked ? byDay[picked] || [] : [];
 
@@ -46,7 +49,7 @@ export function WorkCalendar({ docs, onOpenDoc }) {
         {cells.map((cell, i) => {
           if (!cell) return <div key={`b${i}`} />;
           const list = byDay[cell.key] || [];
-          const holiday = holidayOf(cell.key);
+          const holiday = holidayOf(cell.key, holidayTable);
           const isToday = cell.key === todayKey;
           const isPicked = cell.key === picked;
           // 일요일과 공휴일은 같은 빨간색으로 — 쉬는 날이라는 뜻이 같습니다
