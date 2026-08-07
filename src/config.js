@@ -77,6 +77,30 @@ export const trial = {
   limit: 1,
 };
 
+/**
+ * 사업자 정보 — 전자상거래법 제10조가 표시를 요구하는 항목들입니다.
+ *
+ * ⚠ 아직 받지 못한 값은 빈 문자열로 둡니다. 채운 항목만 화면에 나오고,
+ *    빠진 항목은 "아직 채워야 할 것" 안내에 이름이 남습니다.
+ *    지어낸 값을 미리 적어 두면 그 자체가 허위 표시가 됩니다.
+ */
+export const business = {
+  name: "",             // 상호
+  owner: "",            // 대표자
+  registrationNo: "",   // 사업자등록번호
+  address: "",          // 사업장 주소
+  mailOrderNo: "2025-의정부흥선-0680",  // 통신판매업 신고번호
+};
+
+/** 화면에 보여 줄 이름과 순서 (config 를 고치면 약관이 따라옵니다) */
+export const BUSINESS_LABELS = [
+  ["name", "상호"],
+  ["owner", "대표자"],
+  ["registrationNo", "사업자등록번호"],
+  ["mailOrderNo", "통신판매업 신고번호"],
+  ["address", "사업장 주소"],
+];
+
 // 법적 고지 시행일 — 약관/방침을 고칠 때 함께 올리세요.
 // 네 문서(이용약관·개인정보처리방침·환불 정책·계정 삭제 안내)가 모두 이 값을 씁니다.
 export const legalEffectiveDate = "2026년 8월 8일";

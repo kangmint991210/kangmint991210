@@ -8,7 +8,7 @@
 //    아직 정하지 못한 값은 [ ] 로 비워 두고, 화면 아래 안내로 남겨 둡니다.
 
 import React from "react";
-import { contact, legalEffectiveDate, refund } from "../../config.js";
+import { contact, legalEffectiveDate, refund, business, BUSINESS_LABELS } from "../../config.js";
 import { MODES } from "../../domain/documents.js";
 import { PLANS, quotaOf } from "../../domain/plans.js";
 import { Brand } from "../../ui/primitives.jsx";
@@ -44,6 +44,14 @@ const Rows = ({ rows }) => (
     ))}
   </div>
 );
+
+/** 사업자 정보 중 실제로 값이 있는 것 */
+const filledBusiness = () =>
+  BUSINESS_LABELS.filter(([key]) => business[key]).map(([key, label]) => [label, business[key]]);
+
+/** 아직 받지 못한 항목의 이름 */
+const missingBusiness = () =>
+  BUSINESS_LABELS.filter(([key]) => !business[key]).map(([, label]) => label);
 
 /* ---------------- 이용약관 ---------------- */
 
@@ -125,12 +133,18 @@ function Terms() {
         회사와 회원은 성실한 협의를 원칙으로 하며, 협의가 이루어지지 않을 경우 관련 법령을 따릅니다.
       </p>
 
-      <h3 style={styles.legalH3}>제10조 (문의)</h3>
-      <p style={styles.legalP}>서비스 이용 관련 문의: <Mail /></p>
+      <h3 style={styles.legalH3}>제10조 (사업자 정보)</h3>
+      {/* 채운 항목만 보여 줍니다 — 빈 칸을 표에 남기면 값이 없는 건지 빠뜨린 건지 알 수 없습니다 */}
+      {filledBusiness().length > 0 && <Rows rows={filledBusiness()} />}
+      <Rows rows={[["문의", <Mail key="mail" />]]} />
 
-      <div style={styles.legalTodo}>
-        ※ 정식 공개 전 사업자 정보(상호 · 대표자 · 사업자등록번호 · 주소 · 통신판매업 신고번호)를 채워 주세요.
-      </div>
+      {missingBusiness().length > 0 && (
+        <div style={styles.legalTodo}>
+          ※ 정식 공개 전 아래 항목을 채워 주세요 — <b>{missingBusiness().join(" · ")}</b>
+          <br />
+          (src/config.js 의 <b>business</b> 에 적으면 이 표에 바로 나옵니다)
+        </div>
+      )}
     </>
   );
 }
