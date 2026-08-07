@@ -328,6 +328,60 @@ for (const [tab, heading] of [["terms", "이용약관"], ["privacy", "개인정�
 
 /* ─────────────── 작업 달력 ─────────────── */
 
+// 프로젝트 기본 폭(모바일 = iPhone 13, 390px)보다 좁은 화면.
+// 여기서 넘치던 것들: 달력 일곱 칸, 법적 문서의 탭 네 개.
+const NARROW_VIEWS = ["landing-guest", "calendar", "legal-terms", "legal-delete", "pricing"];
+
+for (const view of NARROW_VIEWS) {
+  test(`${view} 는 320px 폭에서도 가로로 넘치지 않는다`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.goto(`/gallery.html?v=${view}`);
+    await expect(page.locator("button").first()).toBeVisible();
+
+    const r = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      return {
+        overflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
+        who: [...document.querySelectorAll("*")]
+          .filter((el) => el.getBoundingClientRect().right > vw + 1)
+          .slice(0, 2)
+          .map((el) => `${el.tagName}"${(el.textContent || "").trim().slice(0, 16)}"`),
+      };
+    });
+    expect(r.overflow, `${view} 가 넘침 — ${r.who.join(" ")}`).toBeLessThanOrEqual(1);
+  });
+}
+
+test("달력은 가장 좁은 화면에서도 일곱 칸이 다 들어간다", async ({ page }) => {
+  // ⚠ 이 검사만 화면 폭을 직접 정합니다 — 모바일 프로젝트가 iPhone 13(390px)이라
+  //    그보다 좁은 화면에서 넘치는 것을 잡지 못했습니다.
+  //
+  // 원인이었던 것: calDay 의 aspectRatio 1/1 + minHeight 가 칸의 "최소 너비"까지
+  // 38px 로 묶어서, 그냥 1fr 인 격자가 그보다 작아지지 못하고 화면을 넘쳤습니다.
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto("/gallery.html?v=calendar");
+  await expect(page.getByText("토", { exact: true })).toBeVisible();
+
+  const r = await page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const grid = [...document.querySelectorAll("section > div")]
+      .find((d) => getComputedStyle(d).display === "grid");
+    return {
+      overflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
+      beyond: [...document.querySelectorAll("*")]
+        .filter((el) => el.getBoundingClientRect().right > vw + 1).length,
+      columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      gridRight: grid.getBoundingClientRect().right,
+      vw,
+    };
+  });
+
+  expect(r.columns, "요일 칸이 7개가 아님").toBe(7);
+  expect(r.overflow, "달력이 가로 스크롤을 만듦").toBeLessThanOrEqual(1);
+  expect(r.beyond, "화면 밖으로 나간 요소가 있음").toBe(0);
+  expect(r.gridRight, "달력 격자가 화면을 넘침").toBeLessThanOrEqual(r.vw + 1);
+});
+
 test("공휴일이 빨간색과 이름으로 표시된다", async ({ page }) => {
   // 달력은 "이번 달"을 보여 주므로, 기대값도 이번 달에서 만들어야 시간이 지나도 깨지지 않습니다.
   const now = new Date();

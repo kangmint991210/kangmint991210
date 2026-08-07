@@ -215,7 +215,10 @@ export const styles = {
   calNav: { width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: 12, border: "none", background: "#F1F9F5", color: "#2E9E86" },
   calTitle: { flex: 1, textAlign: "center", fontFamily: DISPLAY, fontSize: 17, color: "#2E4A42" },
   calCount: { display: "block", fontSize: 11.5, color: "#8AA79D", fontWeight: 600, marginTop: 2, fontFamily: BODY },
-  calGrid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 },
+  // ⚠ minmax(0, 1fr) 여야 합니다. 그냥 1fr 이면 칸의 최소 크기(min-content)보다
+  //    작아질 수 없는데, calDay 의 aspectRatio 1/1 과 minHeight 가 그 최소를 38px 로 묶습니다.
+  //    그래서 좁은 화면(320px)에서 7칸이 화면을 넘쳐 가로 스크롤이 생겼습니다.
+  calGrid: { display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 4 },
   calWeekday: { textAlign: "center", fontSize: 11.5, fontWeight: 800, color: "#8AA79D", padding: "2px 0 6px" },
   calSun: { color: "#E08585" },
   calDay: { position: "relative", aspectRatio: "1 / 1", minHeight: 38, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, border: "none", borderRadius: 12, background: "#F7FBF9", color: "#5A6B64", fontSize: 13, fontWeight: 600 },
@@ -314,7 +317,9 @@ export const styles = {
 
   /* ── 약관 · 개인정보처리방침 ────────────────────────── */
   legalWrap: { padding: "12px 18px 40px", display: "flex", flexDirection: "column", gap: 14, alignItems: "center" },
-  legalTabs: { display: "flex", gap: 7, alignSelf: "center" },
+  // 탭 넷을 한 줄에 억지로 밀어 넣으면 좁은 화면에서 화면 밖으로 나갑니다.
+  // 접히게 두고 가운데 정렬합니다 — 가로 스크롤보다 두 줄이 낫습니다.
+  legalTabs: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 7, alignSelf: "center", maxWidth: "100%" },
   legalTab: { fontSize: 13, fontWeight: 700, color: "#7A9A90", background: "#fff", border: "none", borderRadius: 999, padding: "9px 16px", boxShadow: `0 2px 0 ${SH}` },
   legalTabOn: { background: "#CDEEDD", color: "#1F6B5A", fontWeight: 800 },
   legalCard: { width: "100%", background: "#fff", borderRadius: 20, padding: "22px 20px", boxShadow: `0 4px 0 ${SH}`, textAlign: "left" },
