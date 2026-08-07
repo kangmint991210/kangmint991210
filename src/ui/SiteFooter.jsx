@@ -106,13 +106,37 @@ export function SocialLinks() {
  * 약관의 표와 달리 여기서는 짧게 씁니다("사업자등록번호" 대신 그냥 값처럼).
  * 아직 받지 못한 값은 빠지므로, 하나도 없으면 줄 자체가 나오지 않습니다.
  */
-const businessLine = () => [
+const businessParts = () => [
   business.name,
   business.owner && `대표 ${business.owner}`,
   business.registrationNo && `사업자등록번호 ${business.registrationNo}`,
   business.mailOrderNo && `통신판매업 신고 ${business.mailOrderNo}`,
   business.address,
-].filter(Boolean).join(" · ");
+].filter(Boolean);
+
+/**
+ * 사업자 정보 한 줄. 좁은 화면에서 접히되, 항목 안에서는 끊기지 않습니다.
+ *
+ * ⚠ 그냥 " · " 로 이어 붙이면 두 가지가 어그러집니다.
+ *    · 구분점만 다음 줄 맨 앞으로 떨어짐
+ *    · "218-13-19736" 이 하이픈에서 "218-13- / 19736" 으로 쪼개짐 (오류처럼 보입니다)
+ *    그래서 항목마다 줄바꿈을 막고, 항목과 항목 사이에서만 접히게 합니다.
+ */
+function BusinessLine() {
+  const parts = businessParts();
+  if (parts.length === 0) return null;
+
+  return (
+    <div style={styles.footBiz}>
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          <span style={styles.footBizItem}>{part}{i < parts.length - 1 ? "\u00A0·" : ""}</span>
+          {i < parts.length - 1 ? " " : null}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
 
 /**
  * 화면 맨 아래 줄 — 어느 화면에서나 같은 모습입니다.
@@ -135,7 +159,7 @@ export function SiteFooter({ onLegal }) {
       <div style={styles.footBrand}>{brand.name} · {brand.description}</div>
       {/* 전자상거래법 제10조는 사업자 정보를 초기화면에도 보이도록 요구합니다.
           아직 못 받은 값은 통째로 빠집니다 — 빈 자리가 남으면 오히려 어설퍼 보입니다. */}
-      {businessLine() && <div style={styles.footBiz}>{businessLine()}</div>}
+      <BusinessLine />
     </footer>
   );
 }

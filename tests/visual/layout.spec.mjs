@@ -381,7 +381,9 @@ test("사업자 정보가 초기화면 하단에 보이고 화면을 넘치지 �
   // 결제를 받는 사이트라 약관 안에만 두면 부족합니다.
   await page.goto("/gallery.html?v=landing-guest");
 
-  const line = page.locator("footer").getByText(/사업자등록번호/);
+  // ⚠ getByText 로 잡으면 안 됩니다 — 줄이 항목별 span 으로 나뉘어 있어
+  //    "사업자등록번호…" 한 조각만 잡히고 나머지를 못 봅니다. 줄 전체를 가리킵니다.
+  const line = page.locator("footer > div").last();
   await expect(line, "푸터에 사업자 정보가 없음").toBeVisible();
 
   const text = await line.innerText();
@@ -389,12 +391,18 @@ test("사업자 정보가 초기화면 하단에 보이고 화면을 넘치지 �
     expect(text, `사업자 정보에 ${must} 가 빠짐`).toContain(must);
   }
 
-  // 길어서 좁은 화면에서 가로로 넘치기 쉬운 줄입니다
-  const overflow = await page.evaluate(() => {
-    const el = document.scrollingElement;
-    return el.scrollWidth - el.clientWidth;
+  // 좁은 화면에서 접히되, 항목 하나가 두 줄로 쪼개지면 안 됩니다.
+  // "218-13-19736" 이 하이픈에서 끊기면 오류처럼 보입니다.
+  //
+  // ⚠ 조각(ClientRect) 개수로 세면 안 됩니다 — 한글과 영문이 섞인 한 줄도
+  //    조각이 여러 개로 잡힙니다. 조각들의 "윗변이 서로 다른가" 를 봐야 합니다.
+  const split = await page.evaluate(() => {
+    const line = [...document.querySelectorAll("footer > div")].pop();
+    return [...line.querySelectorAll("span")]
+      .filter((el) => new Set([...el.getClientRects()].map((r) => Math.round(r.top))).size > 1)
+      .map((el) => el.textContent.trim());
   });
-  expect(overflow, "사업자 정보 줄이 화면을 넘침").toBeLessThanOrEqual(1);
+  expect(split, `사업자 정보 항목이 두 줄로 쪼개짐: ${split.join(" / ")}`).toEqual([]);
 });
 
 test("소셜 채널 아이콘이 공식 브랜드 색으로 하단에 보인다", async ({ page }) => {
