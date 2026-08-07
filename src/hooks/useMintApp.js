@@ -313,7 +313,7 @@ export function useMintApp() {
     setAuthMode(which); setView("auth");
   }, [mode, user, account]);
 
-  // 랜딩의 "가입 없이 만들어 보기".
+  // 랜딩의 "무료로 체험해보세요".
   // 체험을 이미 다 썼더라도 여기서 가입을 청하지 않습니다 — 먼저 만들어 둔 결과를 보게 두고,
   // "한 번 더 만들려 할 때" 청해야 가입할 이유가 생깁니다.
   const startTrial = useCallback(() => {

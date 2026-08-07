@@ -83,7 +83,7 @@ export function Landing({
         )}
         <div style={styles.heroCtas}>
           <button style={styles.ctaPrimary} onClick={onStart}>
-            {user ? "이어서 작업하기" : "가입 없이 만들어 보기"}
+            {user ? "이어서 작업하기" : "무료로 체험해보세요"}
           </button>
           {!user && <button style={styles.ctaGhost} onClick={onOpenPricing}>요금제 보기</button>}
         </div>
