@@ -47,6 +47,8 @@ export const styles = {
   dateWrap: { flex: "1 1 150px", display: "flex", alignItems: "center", gap: 6, padding: "11px 14px", borderRadius: 16, background: "#fff", boxShadow: `0 2px 0 ${SH}` },
   dateInput: { flex: 1, minWidth: 0, border: "none", background: "transparent", outline: "none", fontFamily: "inherit", fontSize: 13.5, color: INK },
   dateText: { fontSize: 12.5, color: "#7A9A90", fontWeight: 700, flexShrink: 0 },
+  // 날짜에서 계산돼 나온 값(월령 등) — 입력값이 아니라는 게 보이도록 알약 모양으로
+  dateSuffix: { fontSize: 12, fontWeight: 800, color: "#1F6B5A", background: "#E5F7F0", borderRadius: 999, padding: "3px 9px", flexShrink: 0, whiteSpace: "nowrap" },
   field: { flex: "1 1 150px", fontSize: 13.5, padding: "11px 15px", borderRadius: 16, border: "none", background: "#fff", color: INK, outline: "none", boxShadow: `0 2px 0 ${SH}` },
   // 발달평가 총평 — 영역 여섯 칸을 세로로 쌓습니다 (칸마다 무엇을 적을지 라벨로 안내)
   assessField: { marginBottom: 10 },

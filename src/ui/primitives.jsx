@@ -55,8 +55,18 @@ export function Editable({ value, path, onEdit, style, multiline = true, placeho
     ref.current.style.height = ref.current.scrollHeight + "px";
   }, [editing]);
 
+  // 생성된 본문에는 "· " 로 시작하는 목록이 들어 있고, 항목은 줄바꿈(\n)으로 나뉩니다.
+  // 브라우저는 기본으로 줄바꿈을 공백 하나로 뭉개서 블릿이 한 줄에 죽 붙어 버립니다.
+  //
+  // ⚠ 스타일마다 whiteSpace 를 적어 두는 방식은 실패했습니다 —
+  //    '해석 및 평가'에는 있고 '가정-기관 연계 방안'·'배움읽기'에는 빠져서,
+  //    같은 카드 안에서 어떤 항목만 목록으로 보이고 어떤 항목은 뭉쳐 보였습니다.
+  //    새 카드를 만들 때마다 또 빠지므로 여기 한 곳에서 지킵니다.
+  //    (본문 스타일이 whiteSpace 를 직접 정하면 그 값이 이깁니다)
+  const wrap = multiline ? { whiteSpace: "pre-wrap" } : null;
+
   // 편집 기능이 연결되지 않은 곳(랜딩 샘플 등)에서는 그냥 글자로만 보여줍니다
-  if (!onEdit) return <p style={style}>{value}</p>;
+  if (!onEdit) return <p style={{ ...wrap, ...style }}>{value}</p>;
 
   const commit = () => { setEditing(false); if (draft !== value) onEdit(path, draft); };
 
@@ -84,7 +94,7 @@ export function Editable({ value, path, onEdit, style, multiline = true, placeho
   }
 
   return (
-    <p style={{ ...style, ...styles.editable }} onClick={() => setEditing(true)}
+    <p style={{ ...wrap, ...style, ...styles.editable }} onClick={() => setEditing(true)}
       title="눌러서 고치기" className="editable">
       {value || <span style={{ color: "#A9C3B9" }}>{placeholder}</span>}
       <Pencil size={11} className="pen" style={styles.editPen} />

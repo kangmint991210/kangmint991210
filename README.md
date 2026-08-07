@@ -257,8 +257,9 @@ npm run gallery    # http://localhost:5173/gallery.html
 - 결과 카드의 문장은 눌러서 고칠 수 있습니다. 고친 내용은 **화면에만 임시 반영**되고,
   카드 아래 **[저장]** 을 눌러야 `documents.payload` 에 들어갑니다(되돌리기 가능).
   저장하지 않은 수정이 있으면 목록에 노란 점이 뜨고, 창을 닫을 때 브라우저가 확인창을 띄웁니다.
-- **이용약관·개인정보처리방침**은 `민트쌤.jsx` 의 `LegalPage` 안에 있습니다.
-  정식 공개 전 사업자 정보·개인정보 보호책임자·문의 이메일(`help@mintssaem.kr` 자리)을 채워야 합니다.
+- **이용약관·개인정보처리방침·환불 정책·계정 삭제 안내**는 `src/features/legal/LegalPage.jsx` 에 있고,
+  문의 이메일·개인정보 보호책임자·환불 정보는 `src/config.js` 의 `contact` / `refund` 한 곳에서 옵니다
+  (네 문서에 같은 값이 흩어져 서로 다른 말을 하지 않도록). 정식 공개 전 사업자 정보를 채워야 합니다.
 
 ## Vercel 배포
 - **빌드**: 프레임워크 `Vite` 자동 감지 (Build `vite build`, Output `dist`).

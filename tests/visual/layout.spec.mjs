@@ -240,6 +240,52 @@ test("관찰기록의 줄 나눔이 화면에서 살아 있다", async ({ page }
   expect(shape.lines, "여러 줄로 그려져야 함").toBeGreaterThanOrEqual(3);
 });
 
+test("관찰기록의 네 항목이 모두 줄바꿈을 지킨다", async ({ page }) => {
+  // '해석 및 평가'에만 whiteSpace 가 있어서 '가정-기관 연계 방안'·'배움읽기'는
+  // 블릿이 한 줄에 죽 붙어 나왔습니다. 항목마다 스타일에 적어 두는 방식은
+  // 새 항목이 생길 때마다 빠지므로, 네 항목을 한꺼번에 확인합니다.
+  await page.goto("/gallery.html?v=card-obs");
+
+  const fields = ["관찰내용", "해석 및 평가", "배움읽기", "가정-기관 연계 방안"];
+  const shapes = await page.evaluate((names) => names.map((name) => {
+    const label = [...document.querySelectorAll("span")].find((el) => el.textContent === name);
+    const body = label?.parentElement?.querySelector("p");
+    if (!body) return { name, found: false };
+    const cs = getComputedStyle(body);
+    return {
+      name, found: true, whiteSpace: cs.whiteSpace,
+      bullets: (body.textContent.match(/·\s/g) || []).length,
+      lines: Math.round(body.getBoundingClientRect().height / parseFloat(cs.lineHeight)),
+    };
+  }), fields);
+
+  for (const s of shapes) {
+    expect(s.found, `${s.name} 항목이 화면에 없음`).toBe(true);
+    expect(s.bullets, `${s.name} 표본에 목록이 있어야 검사가 의미 있음`).toBeGreaterThanOrEqual(2);
+    expect(s.whiteSpace, `${s.name} 의 줄바꿈이 뭉개짐`).toMatch(/pre-wrap|pre-line/);
+    expect(s.lines, `${s.name} 이 한 줄로 붙어 있음`).toBeGreaterThanOrEqual(s.bullets);
+  }
+});
+
+test("관찰일지 생년월일은 달력으로 고르고, 월령은 저절로 따라온다", async ({ page }) => {
+  // 예전에는 "2020.2.20 / 23개월" 을 손으로 적는 칸이었습니다.
+  // 손으로 세면 틀리고, 관찰 월을 바꾸면 조용히 어긋납니다.
+  await page.goto("/gallery.html?v=panel-obs");
+
+  const birth = page.getByLabel("생년월일");
+  await expect(birth, "달력으로 고를 수 있어야 함").toHaveAttribute("type", "date");
+
+  const age = page.getByText(/^\d+개월$/);
+  await expect(age).toHaveText("33개월");            // 2023-05-20 → 2026-03
+
+  await page.getByLabel("관찰 월").fill("2026-08");   // 관찰 월을 옮기면 월령도 함께
+  await expect(age).toHaveText("38개월");
+
+  // 2024-11-05 생 → 2026-08-01 은 그 달 생일(5일) 전이라 21개월이 아니라 20개월입니다
+  await birth.fill("2024-11-05");
+  await expect(age).toHaveText("20개월");
+});
+
 test("랜딩 예시는 햇님이 관찰기록으로 나온다", async ({ page }) => {
   await page.goto("/gallery.html?v=landing-guest");
   await expect(page.getByText("햇님이 관찰기록")).toBeVisible();

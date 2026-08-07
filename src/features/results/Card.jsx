@@ -142,7 +142,7 @@ export function ObsCard({ o, base = [], onEdit, ctx }) {
   const at = (...k) => [...base, ...k];
   return (
     <CardShell stripe="#8FCDF2" title={`${o.child || "영유아"} 관찰기록`} badge="원장님 제출용" ctx={ctx}
-      foot="제출 전 아동 정보·관찰기간과 내용을 확인·수정해 주세요.">
+      foot="제출 전 원아 정보·관찰기간과 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
       {areas.map((a, i) => (
         <div key={i} style={styles.obsArea}>
@@ -291,7 +291,7 @@ export function AdaptCard({ a, base = [], onEdit, ctx }) {
   const at = (...k) => [...base, ...k];
   return (
     <CardShell stripe="#C9A7E8" title={`${a.child || "신입원아"} 적응일지`} badge="원장님 제출용" ctx={ctx}
-      foot="제출 전 아동 정보·일차별 날짜와 내용을 확인·수정해 주세요.">
+      foot="제출 전 원아 정보·일차별 날짜와 내용을 확인·수정해 주세요.">
       {meta.length > 0 && <div style={styles.meta}>{meta.map((m, i) => <span key={i} style={styles.metaItem}>{m}</span>)}</div>}
       {days.map((x, i) => (
         <div key={i} style={styles.adaptDay}>

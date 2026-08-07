@@ -43,6 +43,27 @@ export function monthRange(monthStr) {
   return `${y}년 ${m}월 1일 ~ ${m}월 ${last}일`;
 }
 
+/**
+ * 월령(개월). 선생님이 손으로 세지 않도록 생년월일에서 계산합니다.
+ *
+ * 생일이 그 달에 아직 지나지 않았으면 한 달을 빼는, 나이를 세는 방식 그대로입니다.
+ * (2020-02-20 생 → 2022-01-15 기준이면 23개월이 아니라 22개월)
+ *
+ * @param {string} birth "YYYY-MM-DD"
+ * @param {string} at    "YYYY-MM-DD" 또는 "YYYY-MM"(그 달 1일로 봅니다)
+ * @returns {number|null} 개월 수. 형식이 어긋나거나 기준일이 태어나기 전이면 null.
+ */
+export function monthsOld(birth, at) {
+  const b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birth || "");
+  const a = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(at || "");
+  if (!b || !a) return null;
+
+  const months = (+a[1] - +b[1]) * 12 + (+a[2] - +b[2]);
+  const dayOfMonth = a[3] ? +a[3] : 1;
+  const passed = dayOfMonth < +b[3] ? months - 1 : months;
+  return passed >= 0 ? passed : null;
+}
+
 /** 시작일("2026-03-04")부터 연속 평일 n개 → ["3/4(월)", …]. 형식이 맞지 않으면 null. */
 export function weekdaysFrom(startStr, n) {
   if (!startStr || !/^\d{4}-\d{2}-\d{2}$/.test(startStr)) return null;

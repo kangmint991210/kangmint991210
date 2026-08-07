@@ -70,7 +70,7 @@ export default {
       const ds = weekdaysFrom(f.adaptStart, 5);
       const dayLine = ds ? `적응일차:${ds.join(", ")}` : "적응일차:미기재";
       const timeLine = (f.arriveTime || f.leaveTime) ? ` · 등원:${f.arriveTime || "-"} · 하원:${f.leaveTime || "-"}` : "";
-      return `[설정] 아동:${f.child || "○○"} · 연령:${f.age}${f.klass ? " · 반:" + f.klass : ""}${f.adaptBirth ? " · 생년월일:" + f.adaptBirth : ""} · ${dayLine}${timeLine}\n[적응 모습 메모] ${f.adaptMemo || "(메모 없음 — 예시로 작성)"}\n[요청] ${free || "위 내용으로 신입원아 적응일지를 작성해줘"}`;
+      return `[설정] 원아:${f.child || "○○"} · 연령:${f.age}${f.klass ? " · 반:" + f.klass : ""}${f.adaptBirth ? " · 생년월일:" + f.adaptBirth : ""} · ${dayLine}${timeLine}\n[적응 모습 메모] ${f.adaptMemo || "(메모 없음 — 예시로 작성)"}\n[요청] ${free || "위 내용으로 신입원아 적응일지를 작성해줘"}`;
     },
     label: () => "적응일지 작성"
 };

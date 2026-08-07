@@ -5,7 +5,7 @@
 // tokens  : 출력 상한. 분량 규정이 큰 문서일수록 넉넉히 잡아야 JSON 이 잘리지 않습니다.
 // eta     : 예상 소요(초). 화면의 대기 안내에 씁니다.
 
-import { monthRange } from "../lib/korean-date.js";
+import { monthRange, monthsOld } from "../lib/korean-date.js";
 import { CURRICULUM_GUIDE } from "../domain/curriculum.js";
 
 export default {
@@ -71,6 +71,7 @@ ${CURRICULUM_GUIDE}
     이 놀이·상황에서 아이가 무엇을 배우고 넓혀 가는지를 아이의 관점에서 읽어 냅니다.
     관련 내용범주를 [영역 > 내용범주] 형태로 한두 개 함께 밝힙니다.
     '무엇을 못한다'가 아니라 '무엇을 시도하고 있다'로 씁니다. 문체는 개조식.
+    ▶ 형태 — 위와 마찬가지로 한 줄에 하나씩, 줄머리에 "· " 를 붙여 줄바꿈(\n)으로 나눕니다. 4~6줄.
     분량이 모자라면: 아이가 스스로 세운 목표, 반복하며 알아낸 것,
     또래·교사와의 관계에서 넓혀 가는 것, 다음에 해보고 싶어 할 만한 것을 차례로 덧붙입니다.
     (6문장 이상 · 400자 내외를 반드시 지킬 것)
@@ -81,6 +82,8 @@ ${CURRICULUM_GUIDE}
     문체는 개조식('~지원함 / ~제공 예정임 / ~권함').
     다만 부모에게 건네는 말 예시는 큰따옴표 안에 대화체 그대로 넣습니다.
     지시형("반드시 ~하세요") 대신 권유형으로 씁니다.
+    ▶ 형태 — 위와 마찬가지로 한 줄에 하나씩, 줄머리에 "· " 를 붙여 줄바꿈(\n)으로 나눕니다. 4~6줄.
+      "기관에서 이어 갈 지원"과 "가정에서 해볼 일"을 각각 별도의 줄로 나눕니다.
     분량이 모자라면: 기관의 환경 구성과 교사 상호작용 계획을 먼저 3문장 적고,
     가정에서 해볼 놀이 두 가지와 건네면 좋을 말 예시를 큰따옴표로 덧붙인 뒤,
     함께 지켜보면 좋을 점으로 마무리합니다.
@@ -99,7 +102,12 @@ ${CURRICULUM_GUIDE}
     buildUserMessage: (f, free) => {
       const mr = monthRange(f.obsPeriod);
       const periodLine = mr ? `관찰기간:${mr}` : (f.obsPeriod ? `관찰기간:${f.obsPeriod}` : "관찰기간:미기재");
-      return `[설정] 아동:${f.child || "○○"} · 성별:${f.gender || "미기재"} · 생년월일/월령:${f.birth || "미기재"} · ${periodLine} · 기록자:${f.recorder || "미기재"} · 연령:${f.age}\n[관찰 메모] ${f.memo || "(메모 없음 — 연령·영역에 맞춰 예시로 작성)"}\n[요청] ${free || "위 메모로 관찰기록을 작성해줘"}`;
+      // 월령은 화면에서 계산해 보여 주는 값과 같은 규칙으로 여기서도 셉니다(관찰 월 기준).
+      const months = monthsOld(f.birth, f.obsPeriod || f.birth);
+      const birthLine = f.birth
+        ? `생년월일:${f.birth}${months == null ? "" : ` · 월령:${months}개월`}`
+        : "생년월일:미기재";
+      return `[설정] 원아:${f.child || "○○"} · 성별:${f.gender || "미기재"} · ${birthLine} · ${periodLine} · 기록자:${f.recorder || "미기재"} · 연령:${f.age}\n[관찰 메모] ${f.memo || "(메모 없음 — 연령·영역에 맞춰 예시로 작성)"}\n[요청] ${free || "위 메모로 관찰기록을 작성해줘"}`;
     },
     label: () => "관찰일지 작성"
 };

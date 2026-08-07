@@ -19,6 +19,8 @@ import { PasswordField } from "../src/ui/fields.jsx";
 import { Landing } from "../src/features/landing/Landing.jsx";
 import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
 import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
+import { ObsPanel } from "../src/features/editor/Panels.jsx";
+import { createEmptyForm } from "../src/domain/documents.js";
 import { DocGlyph, GlyphDefs } from "../src/features/landing/DocGlyphs.jsx";
 import { MODES } from "../src/domain/documents.js";
 import { SiteFooter } from "../src/ui/SiteFooter.jsx";
@@ -141,8 +143,11 @@ const SAMPLES = {
         area: "사회관계", datePlace: "2026.3.6 / 교실 쌓기 영역",
         record: "· 3월 6일 — 블록으로 탑을 쌓던 중 친구가 다가옴.\n· 자리를 옆으로 옮겨 공간을 내어 줌.\n· 친구가 블록을 얹자 고개를 들어 바라봄.",
         interpretation: "· [사회관계 > 더불어 생활하기] 또래의 존재를 인식하고 있음.\n· 함께 놀이하려는 마음이 자라고 있음.",
-        learning: "더불어 생활하기 — 친구와 공간을 나누며 함께하는 즐거움을 알아 간다.",
-        homeConnection: "가정에서도 형제나 부모와 물건을 나누어 쓰는 경험을 자주 만들어 주세요.",
+        // ⚠ 네 항목 모두 "· " 목록으로 둡니다 — 실제 생성물이 그렇고,
+        //    한 줄짜리 표본만 두면 줄바꿈이 뭉개지는 문제를 여기서 못 잡습니다.
+        //    (실제로 '가정-기관 연계 방안'이 한 줄에 붙어 나오는 걸 놓쳤습니다)
+        learning: "· [사회관계 > 더불어 생활하기] 공간을 나누며 함께하는 즐거움을 알아 감.\n· 자기 놀이를 지키면서도 또래를 받아들이는 방법을 시도하고 있음.\n· 말보다 몸짓으로 먼저 마음을 전하는 단계임.",
+        homeConnection: "· 기관에서는 둘이 앉을 수 있는 쌓기 공간을 넓혀 둘 예정임.\n· 가정에서는 형제·부모와 블록을 나누어 쓰는 놀이를 권함.\n· \"같이 만들어 볼까?\" 처럼 함께하자는 말을 건네 주시길 권함.",
       }],
       summary: "또래와의 상호작용이 늘고 있으며, 갈등 상황에서도 교사의 중재를 받아들인다.",
     },
@@ -236,6 +241,18 @@ const CAL_DOCS = [
   { mode: "event", no: 0, uid: "c4", createdAt: at(11), title: "행사 계획안 · 여름 물놀이 축제", favorite: false },
 ];
 
+// 입력 폼 — 결과 카드만 보다가 폼 쪽 문제를 놓쳤습니다(생년월일을 손으로 받아 적던 칸).
+function ObsPanelView() {
+  const [form, setForm] = useState(() => ({
+    ...createEmptyForm(), child: "민준", gender: "남", birth: "2023-05-20", obsPeriod: "2026-03",
+  }));
+  return (
+    <div style={{ ...styles.landing, padding: "20px 16px" }}>
+      <ObsPanel form={form} setF={(k, v) => setForm((f) => ({ ...f, [k]: v }))} />
+    </div>
+  );
+}
+
 function CalendarView() {
   return (
     <div style={{ ...styles.landing, padding: "20px 16px" }}>
@@ -297,6 +314,7 @@ const VIEWS = {
   savebar: () => <SaveBarView />,
   password: () => <PasswordView />,
   calendar: () => <CalendarView />,
+  "panel-obs": () => <ObsPanelView />,
   glyphs: () => <GlyphsView />,
   ...Object.fromEntries(LEGAL_TABS.map(([k]) => [`legal-${k}`, () => <LegalView tab={k} />])),
   "landing-guest": LandingView(null, "free"),

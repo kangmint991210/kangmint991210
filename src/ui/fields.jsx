@@ -84,7 +84,9 @@ export function DomainChips({ value, toggle }) {
 
 export const Lbl = ({ children }) => <span style={styles.rowLabel}>{children}</span>;
 
-export function DateField({ value, onChange, label, type = "date", text }) {
+// suffix — 고른 날짜에서 계산해 나오는 값을 옆에 보여 줍니다(월령 등).
+// 선생님이 직접 세지 않아도 되고, 생년월일과 어긋날 수도 없습니다.
+export function DateField({ value, onChange, label, type = "date", text, suffix }) {
   const emoji = type === "week" ? "🗓️" : type === "month" ? "📆" : type === "time" ? "🕘" : "📅";
   return (
     <div style={styles.dateWrap}>
@@ -92,6 +94,7 @@ export function DateField({ value, onChange, label, type = "date", text }) {
       {text && <span style={styles.dateText}>{text}</span>}
       <input type={type} aria-label={label} value={value || ""}
         onChange={(e) => onChange(e.target.value)} style={styles.dateInput} />
+      {suffix && <span style={styles.dateSuffix}>{suffix}</span>}
     </div>
   );
 }

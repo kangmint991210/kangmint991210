@@ -139,9 +139,9 @@ export const LIFE_LEVELS = [
 export const REQUIRED_FIELDS = {
   play: [],
   daily: [["dailyWeek", "주차"], ["dailyMemo", "이번 주 놀이·활동 메모"]],
-  obs: [["child", "아동(이니셜)"], ["obsPeriod", "관찰 월"], ["memo", "관찰 메모"]],
-  note: [["child", "아동(이니셜)"], ["todayHi", "오늘 활동·하이라이트"]],
-  adapt: [["child", "아동(이니셜)"], ["adaptStart", "적응 시작일"], ["adaptMemo", "적응 모습 메모"]],
+  obs: [["child", "원아(이니셜)"], ["obsPeriod", "관찰 월"], ["memo", "관찰 메모"]],
+  note: [["child", "원아(이니셜)"], ["todayHi", "오늘 활동·하이라이트"]],
+  adapt: [["child", "원아(이니셜)"], ["adaptStart", "적응 시작일"], ["adaptMemo", "적응 모습 메모"]],
   counsel: [["child", "원아명"], ["counselMemo", "상담 메모"]],
   life: [["age", "연령"], ["lifeMemo", "아이의 특징"]],
   // 여섯 영역을 모두 받는 이유 — 비워 두면 그 영역의 관찰을 AI 가 통째로 지어냅니다.

@@ -9,7 +9,7 @@ export const brand = {
 
 export const contact = {
   // 약관·개인정보처리방침·환불·계정삭제 안내가 모두 이 값을 씁니다
-  email: "kangmint79@gmail.com",
+  email: "totomi1999@naver.com",
   privacyOfficer: "박수빈",
 };
 

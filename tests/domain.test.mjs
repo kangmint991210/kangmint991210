@@ -26,7 +26,7 @@ import {
 import {
   MAX_PENDING, addPending, removePending, pendingFor, withoutUser,
 } from "../src/domain/pending-docs.js";
-import { weekInfo, monthRange, weekdaysFrom } from "../src/lib/korean-date.js";
+import { weekInfo, monthRange, weekdaysFrom, monthsOld } from "../src/lib/korean-date.js";
 import { arr, setPath, stripLeadingNumber } from "../src/lib/utils.js";
 import { toTurns, filterTurns, docTitle, shouldFollowNewest } from "../src/domain/threads.js";
 import { buildDoc } from "../src/domain/document-export.js";
@@ -379,6 +379,19 @@ test("관찰 월을 기간 문자열로 바꾼다", () => {
   assert.equal(monthRange(""), null);
 });
 
+test("월령은 생일이 지났는지까지 따져 센다", () => {
+  // 관찰일지에서 선생님이 손으로 세던 값입니다. 한 달 어긋나면 발달 해석이 흔들립니다.
+  assert.equal(monthsOld("2023-05-20", "2026-05-20"), 36, "생일 당일");
+  assert.equal(monthsOld("2023-05-20", "2026-05-19"), 35, "생일 하루 전");
+  assert.equal(monthsOld("2023-05-20", "2026-03"), 33, "월만 주면 그 달 1일 기준");
+  assert.equal(monthsOld("2023-05-20", "2023-05-20"), 0, "태어난 날");
+
+  assert.equal(monthsOld("2023-05-20", "2023-01-01"), null, "태어나기 전이면 셀 수 없음");
+  assert.equal(monthsOld("", "2026-03"), null);
+  assert.equal(monthsOld("2023.5.20", "2026-03"), null, "점으로 적은 값은 받지 않음");
+  assert.equal(monthsOld("2023-05-20", ""), null);
+});
+
 test("적응 일차는 주말을 건너뛴다", () => {
   const days = weekdaysFrom("2026-03-06", 5); // 금요일 시작
   assert.deepEqual(days, ["3/6(금)", "3/9(월)", "3/10(화)", "3/11(수)", "3/12(목)"]);
@@ -537,6 +550,52 @@ test("분량 규정이 큰 문서는 출력 상한도 크게 잡는다", () => {
   // 상한이 모자라면 JSON 이 중간에 잘려 파싱에 실패합니다.
   assert.ok(promptFor("daily").tokens >= 16000);
   assert.ok(promptFor("note").tokens >= 4000);
+});
+
+test("공통 규칙은 앞에 붙어서, JSON 스키마가 마지막에 남는다", () => {
+  // 규칙을 뒤에 붙였더니 모델이 area 안에 들어가야 할 항목을 바깥으로 빼고
+  // summary 를 비운 결과가 나왔습니다. 스키마가 마지막이어야 구조가 지켜집니다.
+  for (const key of MODE_KEYS) {
+    const { system } = promptFor(key);
+    assert.ok(system.startsWith("━━ 모든 문서에"), `${key} 는 공통 규칙으로 시작해야 함`);
+    assert.ok(system.trimEnd().endsWith("}"), `${key} 는 JSON 스키마로 끝나야 함`);
+  }
+});
+
+test("모든 문서가 공통 규칙을 물려받는다 — 원아 호칭과 목록 줄바꿈", () => {
+  // 문서마다 따로 적어 두면 새 문서에서 빠집니다. 실제로 '가정-기관 연계 방안'이
+  // 목록 줄바꿈 지시를 못 받아 한 줄에 뭉쳐 나왔습니다.
+  for (const key of MODE_KEYS) {
+    const { system } = promptFor(key);
+    assert.ok(system.includes("이름 대신 \"원아\""), `${key} 에 호칭 규칙이 없음`);
+    assert.ok(system.includes("한 줄에 하나씩"), `${key} 에 목록 줄바꿈 규칙이 없음`);
+  }
+});
+
+test("아이를 가리키는 설정 라벨이 문서마다 어긋나지 않는다", () => {
+  // 라벨이 '아동:'이면 모델이 본문에도 "○○ 아동은" 이라고 따라 씁니다.
+  const withChild = MODE_KEYS.filter((k) => promptFor(k).buildUserMessage(
+    { ...createEmptyForm(), child: "민준" }, "").includes("민준"));
+  assert.ok(withChild.length >= 5, "원아명을 쓰는 문서가 있어야 함");
+  for (const key of withChild) {
+    const msg = promptFor(key).buildUserMessage({ ...createEmptyForm(), child: "민준" }, "");
+    assert.ok(msg.includes("원아:민준"), `${key} 의 설정 라벨이 '원아:' 가 아님`);
+    assert.ok(!msg.includes("아동:민준"), `${key} 에 '아동:' 라벨이 남아 있음`);
+  }
+});
+
+test("관찰일지는 생년월일에서 월령을 계산해 넘긴다", () => {
+  // 선생님이 손으로 세지 않게 하려고 폼에서 월령 입력란을 없앴습니다.
+  // 프롬프트가 월령을 못 받으면 모델이 지어냅니다.
+  const form = { ...createEmptyForm(), birth: "2023-05-20", obsPeriod: "2026-03" };
+  const msg = promptFor("obs").buildUserMessage(form, "");
+  assert.ok(msg.includes("생년월일:2023-05-20"), msg);
+  assert.ok(msg.includes("월령:33개월"), msg);   // 2023-05-20 → 2026-03-01 은 생일 전이라 33개월
+
+  // 생년월일을 아직 안 골랐으면 월령도 넣지 않습니다 (빈 값으로 지어내지 않게)
+  const empty = promptFor("obs").buildUserMessage({ ...createEmptyForm(), obsPeriod: "2026-03" }, "");
+  assert.ok(empty.includes("생년월일:미기재"), empty);
+  assert.ok(!empty.includes("월령:"), empty);
 });
 
 test("사용자 지시문에 설정과 메모가 함께 담긴다", () => {

@@ -4,7 +4,18 @@
 import React from "react";
 import { AGES, PLACES, DURATIONS, COUNSEL_METHODS, ASSESS_AREAS, SAFETY_TOPICS } from "../../domain/documents.js";
 import { Chips, DomainChips, DateField, Lbl } from "../../ui/fields.jsx";
+import { monthsOld } from "../../lib/korean-date.js";
+import { dayKey } from "../../domain/calendar.js";
 import { styles } from "../../ui/styles.js";
+
+/**
+ * 생년월일 옆에 보여 줄 월령.
+ * 기준은 관찰 월이고, 아직 안 골랐으면 오늘로 셉니다. 계산이 안 되면 아무것도 안 보여 줍니다.
+ */
+const ageSuffix = (birth, period) => {
+  const months = monthsOld(birth, period || dayKey(new Date()));
+  return months == null ? null : `${months}개월`;
+};
 
 export function PlayPanel({ form, setF, toggleDomain }) {
   return (
@@ -46,11 +57,15 @@ export function ObsPanel({ form, setF }) {
   return (
     <>
       <div style={styles.rowSplit}>
-        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 아동 (이니셜·별명)" style={styles.field} />
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 원아 (이니셜·별명)" style={styles.field} />
         <div style={styles.miniRow}><Lbl>성별</Lbl><Chips items={["여", "남"]} value={form.gender} onPick={(v) => setF("gender", v)} /></div>
       </div>
       <div style={styles.rowSplit}>
-        <input value={form.birth} onChange={(e) => setF("birth", e.target.value)} placeholder="🎂 생년월일·월령 (예: 2020.2.20 / 23개월)" style={styles.field} />
+        {/* 월령은 받아 적지 않고 생년월일에서 계산합니다 — 손으로 세면 틀리고,
+            관찰 월을 바꾸면 같이 어긋납니다. 기준은 관찰 월(없으면 오늘). */}
+        <DateField type="date" text="생년월일" label="생년월일"
+          value={form.birth} onChange={(v) => setF("birth", v)}
+          suffix={ageSuffix(form.birth, form.obsPeriod)} />
         <input value={form.recorder} onChange={(e) => setF("recorder", e.target.value)} placeholder="✍️ 기록자 (선택)" style={styles.field} />
       </div>
       <div style={styles.rowSplit}>
@@ -67,7 +82,7 @@ export function NotePanel({ form, setF }) {
   return (
     <>
       <div style={styles.rowSplit}>
-        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 아동 (이니셜·별명)" style={styles.field} />
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 원아 (이니셜·별명)" style={styles.field} />
         <div style={styles.miniRow}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
       </div>
       <textarea value={form.todayHi} onChange={(e) => setF("todayHi", e.target.value)}
@@ -84,7 +99,7 @@ export function AdaptPanel({ form, setF }) {
   return (
     <>
       <div style={styles.rowSplit}>
-        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 아동 (이니셜·별명)" style={styles.field} />
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 원아 (이니셜·별명)" style={styles.field} />
         <input value={form.klass} onChange={(e) => setF("klass", e.target.value)} placeholder="🏫 반" style={styles.field} />
       </div>
       <div style={styles.rowSplit}>
@@ -128,7 +143,7 @@ export function CounselPanel({ form, setF }) {
 }
 
 // 생활기록부는 필수 입력이 연령·특징 둘뿐입니다.
-// 아동명·반·기록일은 나중에 보관함에서 찾을 때만 쓰이므로 비워 둬도 만들어집니다.
+// 원아명·반·기록일은 나중에 보관함에서 찾을 때만 쓰이므로 비워 둬도 만들어집니다.
 export function LifePanel({ form, setF }) {
   return (
     <>
@@ -136,7 +151,7 @@ export function LifePanel({ form, setF }) {
       <textarea value={form.lifeMemo} onChange={(e) => setF("lifeMemo", e.target.value)}
         placeholder="✍️ 아이의 특징 — 관찰한 내용을 자유롭게 적어주세요. (예: “물”, “안아” 같은 한 단어로 요구를 표현함 / 낮잠은 교사가 등을 토닥여 주면 잠듦)" style={styles.textarea} />
       <div style={styles.rowSplit}>
-        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 아동 (이니셜·별명, 선택)" style={styles.field} />
+        <input value={form.child} onChange={(e) => setF("child", e.target.value)} placeholder="🧒 원아 (이니셜·별명, 선택)" style={styles.field} />
         <input value={form.klass} onChange={(e) => setF("klass", e.target.value)} placeholder="🏫 반 (선택)" style={styles.field} />
         <DateField text="기록일" value={form.lifeDate} onChange={(v) => setF("lifeDate", v)} label="기록일 (선택)" />
       </div>
