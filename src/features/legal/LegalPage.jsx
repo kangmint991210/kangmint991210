@@ -260,6 +260,7 @@ function DeleteAccount() {
   return (
     <>
       <h2 style={styles.legalH}>계정 삭제 안내</h2>
+      <p style={styles.legalMeta}>시행일: {legalEffectiveDate}</p>
       <p style={styles.legalMeta}>계정을 삭제하면 아래 데이터가 즉시 영구 삭제됩니다.</p>
 
       <h3 style={styles.legalH3}>삭제되는 데이터</h3>

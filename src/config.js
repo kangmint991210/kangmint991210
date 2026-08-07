@@ -77,5 +77,6 @@ export const trial = {
   limit: 1,
 };
 
-// 법적 고지 시행일 — 약관/방침을 고칠 때 함께 올리세요
-export const legalEffectiveDate = "2026년 3월 1일";
+// 법적 고지 시행일 — 약관/방침을 고칠 때 함께 올리세요.
+// 네 문서(이용약관·개인정보처리방침·환불 정책·계정 삭제 안내)가 모두 이 값을 씁니다.
+export const legalEffectiveDate = "2026년 8월 8일";
