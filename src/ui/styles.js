@@ -395,18 +395,19 @@ export const styles = {
   featCard: { display: "flex", flexDirection: "column", alignItems: "center", gap: 7, width: "100%", padding: 0, border: "none", background: "transparent" },
   // 흰 타일 + 색이 담긴 마크. 색은 마크가 지고 타일은 비워 둡니다 —
   // 타일마다 색을 칠하면 12개가 한꺼번에 소리쳐서 오히려 촌스러워집니다.
-  featTile: (accent) => ({
-    position: "relative", width: "100%", maxWidth: 62, aspectRatio: "1 / 1",
-    borderRadius: 18, display: "grid", placeItems: "center",
-    background: accent ? `linear-gradient(140deg, ${accent[0]}, ${accent[1]})` : "#fff",
+  // 옅은 색 타일 + 통통한 마크. 짙게 칠하면 12개가 한꺼번에 소리쳐 부담스러워집니다.
+  featTile: (tint, accent) => ({
+    position: "relative", width: "100%", maxWidth: 64, aspectRatio: "1 / 1",
+    borderRadius: 20, display: "grid", placeItems: "center",
+    background: accent ? `linear-gradient(150deg, ${accent[0]}, ${accent[1]})` : tint,
     boxShadow: accent
-      ? `0 6px 14px -4px ${accent[1]}66, 0 1px 2px rgba(46,74,66,.10)`
-      : "0 1px 2px rgba(46,74,66,.07), 0 6px 14px -6px rgba(46,74,66,.22)",
+      ? `0 8px 16px -5px ${accent[1]}70, 0 1px 2px rgba(46,74,66,.10)`
+      : "0 1px 2px rgba(46,74,66,.05), 0 6px 14px -8px rgba(46,74,66,.28)",
   }),
   // 잠긴 문서 — 타일 안쪽 모서리에 작게. 크게 붙이면 마크를 가립니다.
   featLock: { position: "absolute", top: 6, right: 6, display: "grid", placeItems: "center",
     width: 15, height: 15, borderRadius: 999, background: "#EEF2F0", color: "#9DB0A8" },
-  featLabel: { fontSize: 11.5, fontWeight: 700, color: "#4A5B54", textAlign: "center", lineHeight: 1.3, letterSpacing: "-0.2px" },
+  featLabel: { fontSize: 12, fontWeight: 700, color: "#4A5B54", textAlign: "center", lineHeight: 1.3, letterSpacing: "-0.2px" },
   priceWrap: { padding: "26px 20px 10px" },
   demoNote: { fontSize: 11.5, color: "#8AA79D", textAlign: "center", marginTop: 14, lineHeight: 1.5 },
   landFoot: { textAlign: "center", fontSize: 12, color: "#8AA79D", padding: "22px 20px 30px" },
