@@ -150,7 +150,7 @@ dev/
 supabase/
   schema.sql               테이블·RLS·가입 트리거 (문서를 추가할 때마다 재실행 — 몇 번 해도 안전)
   grant-admin-existing.sql 기존 회원 전원 관리자 부여 (1회성)
-  set-all-pro.sql          현재 가입자 전원 Pro 전환 (1회성)
+  set-all-pro.sql          현재 가입자 전원 Pro 전환 (1회성, 두 번 실행 금지)
   migrate-plan-names.sql   구 free/pro/max → 신 free/basic/pro (1회성, 두 번 실행 금지)
   diagnose-signup.sql      회원이 profiles 에 안 남을 때 원인 진단 + 복구
   diagnose-documents.sql   문서가 저장되지 않을 때 원인 진단
