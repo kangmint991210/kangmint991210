@@ -19,7 +19,7 @@ import { PasswordField } from "../src/ui/fields.jsx";
 import { Landing } from "../src/features/landing/Landing.jsx";
 import { minPlanFor, isDocLocked } from "../src/domain/plans.js";
 import { WorkCalendar } from "../src/features/calendar/WorkCalendar.jsx";
-import { ObsPanel, PlayPanel } from "../src/features/editor/Panels.jsx";
+import { PANELS } from "../src/features/editor/Panels.jsx";
 import { createEmptyForm } from "../src/domain/documents.js";
 import { DocGlyph, GlyphDefs } from "../src/features/landing/DocGlyphs.jsx";
 import { MODES } from "../src/domain/documents.js";
@@ -244,23 +244,17 @@ const CAL_DOCS = [
 ];
 
 // 입력 폼 — 결과 카드만 보다가 폼 쪽 문제를 놓쳤습니다(생년월일을 손으로 받아 적던 칸).
-function ObsPanelView() {
+// 입력 폼 — 결과 카드만 보다가 폼 쪽 문제를 놓쳤습니다(생년월일을 손으로 받아 적던 칸,
+// 라벨이 입력칸 안에 있어 흰 칸이 어긋나 보이던 주제·준비물).
+// 12종을 모두 올려 두고 한꺼번에 검사합니다.
+function PanelView({ mode }) {
+  const Panel = PANELS[mode];
   const [form, setForm] = useState(() => ({
     ...createEmptyForm(), child: "민준", gender: "남", birth: "2023-05-20", obsPeriod: "2026-03",
   }));
   return (
     <div style={{ ...styles.landing, padding: "20px 16px" }}>
-      <ObsPanel form={form} setF={(k, v) => setForm((f) => ({ ...f, [k]: v }))} />
-    </div>
-  );
-}
-
-function PlayPanelView() {
-  const [form, setForm] = useState(() => ({ ...createEmptyForm(), theme: "", materials: "" }));
-  return (
-    <div style={{ ...styles.landing, padding: "20px 16px" }}>
-      <PlayPanel form={form} setF={(k, v) => setForm((f) => ({ ...f, [k]: v }))}
-        toggleDomain={() => {}} />
+      <Panel form={form} setF={(k, v) => setForm((f) => ({ ...f, [k]: v }))} toggleDomain={() => {}} />
     </div>
   );
 }
@@ -326,8 +320,7 @@ const VIEWS = {
   savebar: () => <SaveBarView />,
   password: () => <PasswordView />,
   calendar: () => <CalendarView />,
-  "panel-obs": () => <ObsPanelView />,
-  "panel-play": () => <PlayPanelView />,
+  ...Object.fromEntries(Object.keys(PANELS).map((k) => [`panel-${k}`, () => <PanelView mode={k} />])),
   glyphs: () => <GlyphsView />,
   ...Object.fromEntries(LEGAL_TABS.map(([k]) => [`legal-${k}`, () => <LegalView tab={k} />])),
   "landing-guest": LandingView(null, "free"),

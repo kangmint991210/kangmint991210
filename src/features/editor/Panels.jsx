@@ -157,7 +157,7 @@ export function CounselPanel({ form, setF }) {
 export function LifePanel({ form, setF }) {
   return (
     <>
-      <div style={styles.row}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      <Stacked label="👶 연령"><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></Stacked>
       <textarea value={form.lifeMemo} onChange={(e) => setF("lifeMemo", e.target.value)}
         placeholder="✍️ 아이의 특징 — 관찰한 내용을 자유롭게 적어주세요. (예: “물”, “안아” 같은 한 단어로 요구를 표현함 / 낮잠은 교사가 등을 토닥여 주면 잠듦)" style={styles.textarea} />
       <div style={styles.rowSplit}>
@@ -174,7 +174,7 @@ export function LifePanel({ form, setF }) {
 export function AssessPanel({ form, setF }) {
   return (
     <>
-      <div style={styles.row}><Lbl>👶 연령</Lbl><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></div>
+      <Stacked label="👶 연령"><Chips items={AGES} value={form.age} onPick={(v) => setF("age", v)} variant="age" /></Stacked>
       {ASSESS_AREAS.map((a) => (
         <div key={a.key} style={styles.assessField}>
           <span style={styles.assessLabel}>{a.emoji} {a.input}</span>
@@ -196,14 +196,29 @@ export function AssessPanel({ form, setF }) {
 }
 
 
-// 여러 칸을 세로로 쌓는 폼에서 되풀이되는 조각 (발달평가·월간평가가 함께 씁니다)
-function Memo({ label, value, onChange, placeholder }) {
+/**
+ * 라벨을 "위"에 두고 그 아래에 입력칸을 놓는 자리.
+ *
+ * 라벨을 옆에 두면(styles.row) 그 줄만 입력칸이 라벨 너비만큼 밀립니다.
+ * 한 폼 안에서 두 방식을 섞으면 흰 칸이 줄마다 다른 자리에서 시작해 들쭉날쭉해 보입니다.
+ * 세로로 쌓는 폼(생활기록부·발달평가·월간평가)은 이 방식으로 통일합니다.
+ */
+function Stacked({ label, children }) {
   return (
     <div style={styles.assessField}>
       <span style={styles.assessLabel}>{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// 여러 칸을 세로로 쌓는 폼에서 되풀이되는 조각 (발달평가·월간평가가 함께 씁니다)
+function Memo({ label, value, onChange, placeholder }) {
+  return (
+    <Stacked label={label}>
       <textarea value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} style={styles.assessArea} />
-    </div>
+    </Stacked>
   );
 }
 
